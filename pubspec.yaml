@@ -43,6 +43,11 @@ dependencies:
   iconoir_flutter: ^7.11.0
   image_picker: ^1.1.2
 
+  #databases
+  sqflite: ^2.3.0 
+  path: ^1.8.3    
+  path_provider: ^2.1.1 
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
