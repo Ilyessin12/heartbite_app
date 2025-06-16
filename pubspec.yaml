@@ -48,6 +48,9 @@ dependencies:
   path: ^1.8.3    
   path_provider: ^2.1.1 
 
+  #CLOUDINARYYYYY
+  cloudinary_public: ^0.23.1
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

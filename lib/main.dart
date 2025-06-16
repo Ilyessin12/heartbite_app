@@ -38,6 +38,9 @@ import 'sidebar/screens/following_screen.dart';
 import 'sidebar/screens/notification_preferences_screen.dart';
 import 'sidebar/screens/profile_screen.dart';
 import 'sidebar/screens/settings_screen.dart';
+//==== import recipe_pages
+import 'recipe/create_recipe_screen.dart';
+import 'recipe/edit_recipe_screen.dart';
 //==== import detail resep pages
 import 'recipe_detail/recipe_detail.dart';
 import 'recipe_detail/screens/recipe_detail_screen.dart';
@@ -157,6 +160,25 @@ class NavigationPage extends StatelessWidget {
       imageUrl: "placeholder_image.jpg",
       recipes: [allSavedRecipes[0], allSavedRecipes[2]] // Example recipes
     );
+
+     // Sample data for EditRecipeScreen link in main.dart
+    final Map<String, dynamic> sampleRecipeDataForMain = {
+      'id': 999, // Sample integer ID
+      'user_id': 1, // Sample integer user_id
+      'title': 'Sample Recipe from Main',
+      'description': 'This is a sample recipe description loaded from main.dart.',
+      'image_url': 'https://res.cloudinary.com/demo/image/upload/sample.jpg', // Updated dummy URL
+      'calories': 250,
+      'servings': 2,
+      'cooking_time_minutes': 30,
+      'difficulty_level': 'Medium',
+      // 'rating': 4.0, // Removed
+      // 'review_count': 15, // Removed
+      'like_count': 5, // Added
+      'ingredients_text': 'Ingredient 1\nIngredient 2\nIngredient 3',
+      'directions_text': 'Step 1\nStep 2\nStep 3',
+      'gallery_images_text': '',
+    };
 
     // Daftar tombol dan halaman yang ingin dituju, dengan deskripsi
     final Map<String, List<PageItem>> categorizedPages = {
@@ -326,6 +348,18 @@ class NavigationPage extends StatelessWidget {
           'Setting Page',
           const SettingsScreen(),
           'Pengaturan umum aplikasi',
+        ),
+      ],
+      'Recipe Create & Edit': [
+        PageItem(
+          'Create Recipe Page',
+          const CreateRecipeScreen(),
+          'Form untuk membuat resep baru',
+        ),
+        PageItem(
+          'Edit Recipe Page (Sample)',
+          EditRecipeScreen(recipeData: sampleRecipeDataForMain),
+          'Form untuk mengedit resep yang ada (contoh)',
         ),
       ],
       'Recipe Detail Pages': [
