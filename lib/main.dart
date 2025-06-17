@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 //========= import welcome pages
 import 'welcome_pages/welcome.dart';
 import 'welcome_pages/welcome1.dart';
@@ -49,7 +50,15 @@ import 'recipe_detail/screens/directions_screen.dart';
 import 'recipe_detail/screens/gallery_screen.dart';
 import 'recipe_detail/screens/discussion_screen.dart';
 
-void main() {
+void main() async{
+  WidgetsFlutterBinding.ensureInitialized();
+
+  try { 
+    await dotenv.load(fileName: ".env");
+    print("SUCCESS: .env file loaded."); // Check if this prints
+  } catch (e) { print("ERROR loading .env file: $e"); // This will show the specific error
+  }
+
   runApp(const MyApp());
 }
 

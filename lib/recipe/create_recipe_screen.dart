@@ -1,6 +1,8 @@
 import 'dart:io'; // Added for File type
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:image_picker/image_picker.dart'; // For ImagePicker
+import '../services/image_upload_service.dart'; // Your service
 // Models no longer used, data will be mapped directly for database schema
 
 class CreateRecipeScreen extends StatefulWidget {
@@ -18,6 +20,10 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
   final _descriptionController = TextEditingController(); // New
   File? _selectedImageFile; // Added for image picking
   List<File> _selectedGalleryImageFiles = []; // Added for gallery images
+
+  final ImagePicker _picker = ImagePicker(); // Added
+  final ImageUploadService _imageUploadService = ImageUploadService(); // Added
+  bool _isUploading = false; // Added
 
   final _caloriesController = TextEditingController();
   final _servingsController = TextEditingController(text: '1'); 
@@ -40,61 +46,90 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
     super.dispose();
   }
 
-  void _saveRecipe() async { // Made async for Future.delayed
+  Future<void> _saveRecipe() async {
     if (_formKey.currentState!.validate()) {
-      String? imageUrlForDb;
+      _formKey.currentState!.save();
+
+      if (_isUploading) return; 
+
+      setState(() {
+        _isUploading = true;
+      });
+
+      String? mainImageUrl;
       if (_selectedImageFile != null) {
-        print("Simulating image upload for: ${_selectedImageFile!.path}");
-        imageUrlForDb = "https://res.cloudinary.com/demo/image/upload/sample_from_create.jpg"; // Dummy URL
+        mainImageUrl = await _imageUploadService.uploadImage(_selectedImageFile!);
+        if (mainImageUrl == null) {
+          setState(() { _isUploading = false; });
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Main recipe image upload failed. Please try again.')),
+            );
+          }
+          return; 
+        }
       }
 
       List<String> galleryImageUrls = [];
       if (_selectedGalleryImageFiles.isNotEmpty) {
-        print("Simulating upload for gallery images...");
         for (File imageFile in _selectedGalleryImageFiles) {
-          await Future.delayed(const Duration(milliseconds: 100)); // Simulate individual upload
-          galleryImageUrls.add("https://res.cloudinary.com/demo/image/upload/gallery_sample_${galleryImageUrls.length + 1}.jpg");
+          String? url = await _imageUploadService.uploadImage(imageFile);
+          if (url != null) {
+            galleryImageUrls.add(url);
+          } else {
+            print('A gallery image failed to upload and will be skipped.');
+          }
         }
-        print("Gallery images 'uploaded'. URLs: $galleryImageUrls");
       }
 
-      final Map<String, dynamic> recipeData = {
-        'user_id': 1, // Placeholder user_id
+      Map<String, dynamic> recipeData = {
+        'user_id': 1, 
         'title': _titleController.text,
         'description': _descriptionController.text.isEmpty ? null : _descriptionController.text,
-        'image_url': imageUrlForDb ?? '', 
-        'calories': int.tryParse(_caloriesController.text), 
-        'servings': int.tryParse(_servingsController.text) ?? 1, 
-        'cooking_time_minutes': int.tryParse(_cookingMinutesController.text), 
+        'image_url': mainImageUrl ?? '',
+        'calories': int.tryParse(_caloriesController.text),
+        'servings': int.tryParse(_servingsController.text) ?? 1,
+        'cooking_time_minutes': int.tryParse(_cookingMinutesController.text),
         'difficulty_level': _difficultyLevelController.text.isEmpty ? 'medium' : _difficultyLevelController.text,
-        'like_count': 0, 
         'ingredients_text': _ingredientsController.text,
         'directions_text': _directionsController.text,
-        'gallery_image_urls': galleryImageUrls, // Use the new key and list
-        // 'is_published' will use database default
+        'gallery_image_urls': galleryImageUrls,
+        'like_count': 0,
       };
 
-      print('Recipe Data Map:');
-      print(recipeData);
+      setState(() {
+        _isUploading = false;
+      });
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Recipe data map printed to console.')),
-      );
+      print('Recipe Data to Save: $recipeData');
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Recipe created successfully (simulated)!')),
+        );
+        Navigator.pop(context);
+      }
     }
   }
 
   Future<void> _pickImage() async {
-    print("Pick image button pressed. Implement image_picker functionality here.");
-    setState(() {
-      if (_selectedImageFile == null) {
-        print("Simulating main image selection for UI test purposes - no actual file will be set for preview.");
-      }
-    });
+    if (_isUploading) return;
+    final XFile? pickedFile = await _picker.pickImage(source: ImageSource.gallery);
+    if (pickedFile != null) {
+      setState(() {
+        _selectedImageFile = File(pickedFile.path);
+      });
+    }
   }
 
   Future<void> _pickGalleryImages() async {
-    print("Pick gallery images button pressed. Implement multi-image_picker functionality here.");
-    setState(() {}); 
+    if (_isUploading) return;
+    final List<XFile> pickedFiles = await _picker.pickMultiImage();
+    if (pickedFiles.isNotEmpty) {
+      setState(() {
+        _selectedGalleryImageFiles.addAll(pickedFiles.map((xf) => File(xf.path)).toList());
+      });
+    }
   }
 
   @override
@@ -155,7 +190,7 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
                   ),
                 ElevatedButton.icon(
                   key: const Key('pick_image_button'), 
-                  onPressed: _pickImage,
+                  onPressed: _isUploading ? null : _pickImage, // Disable if uploading
                   icon: const Icon(Icons.image),
                   label: const Text('Pick Recipe Image'),
                   style: ElevatedButton.styleFrom(backgroundColor: Colors.grey[300], foregroundColor: Colors.black87),
@@ -258,7 +293,7 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
                       const SizedBox(height: 8),
                       ElevatedButton.icon(
                         key: const Key('pick_gallery_images_button'), 
-                        onPressed: _pickGalleryImages,
+                        onPressed: _isUploading ? null : _pickGalleryImages, // Disable if uploading
                         icon: const Icon(Icons.photo_library),
                         label: const Text('Add Gallery Images'),
                         style: ElevatedButton.styleFrom(backgroundColor: Colors.grey[300], foregroundColor: Colors.black87),
@@ -308,16 +343,18 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
                   ),
                 ),
                 const SizedBox(height: 32),
-                ElevatedButton(
-                  key: const Key('save_button'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.teal,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    textStyle: GoogleFonts.dmSans(fontSize: 18, fontWeight: FontWeight.bold),
-                  ),
-                  onPressed: _saveRecipe,
-                  child: const Text('Save Recipe Data'),
-                ),
+                _isUploading
+                  ? const Center(child: CircularProgressIndicator())
+                  : ElevatedButton(
+                      key: const Key('save_button'), // Corrected key name
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.teal,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        textStyle: GoogleFonts.dmSans(fontSize: 18, fontWeight: FontWeight.bold),
+                      ),
+                      onPressed: _saveRecipe,
+                      child: const Text('Save Recipe Data'),
+                    ),
               ],
             ),
           ),

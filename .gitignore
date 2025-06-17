@@ -46,3 +46,6 @@ app.*.map.json
 
 #githubstuff
 .github
+
+#env
+.env
