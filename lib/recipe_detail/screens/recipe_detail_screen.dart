@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:iconoir_flutter/iconoir_flutter.dart' hide Key, Text, Navigator, List, Map; // Added
+import 'dart:ui'; // Added
+// import 'package:recipe_app/recipe/edit_recipe_screen.dart'; // EditRecipeScreen import removed
 import '../models/recipe.dart';
 import '../models/ingredient.dart';
 import '../models/direction.dart';
@@ -59,12 +62,13 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
+      // AppBar removed, reverting to original structure where header controls were in the body.
       body: SafeArea(
         child: SingleChildScrollView(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Padding(
+              Padding( // This Padding and Row structure is from the original layout (before Edit button AppBar)
                 padding: const EdgeInsets.all(16),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -84,7 +88,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
                         ),
                       ),
                     ),
-                    Row(
+                    Row( // Favorite and Bookmark buttons back in their original place
                       children: [
                         GestureDetector(
                           onTap: () {
@@ -122,15 +126,41 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
                             width: 40,
                             height: 40,
                             decoration: BoxDecoration(
-                              color: Colors.pink.shade50,
+                              color: Colors.pink.shade50, // This outer container's color remains
                               shape: BoxShape.circle,
                             ),
-                            child: Icon(
-                              isBookmarked ? Icons.bookmark : Icons.bookmark_border,
-                              color: isBookmarked ? AppColors.primary : Colors.grey,
+                            // Replace Icon with new structure
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(20), // Inner circle for blur effect
+                              child: BackdropFilter(
+                                filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
+                                child: Container(
+                                  width: 40, // Ensure container fills the circle for consistent padding
+                                  height: 40,
+                                  padding: const EdgeInsets.all(0), // Reset padding if needed, icon has own size
+                                  decoration: BoxDecoration(
+                                    color: Colors.black.withOpacity(0.1), // Background for blurred area
+                                    shape: BoxShape.circle, // Match outer shape
+                                  ),
+                                  child: Center( // Center the icon
+                                    child: isBookmarked
+                                        ? const BookmarkSolid(
+                                            width: 24,
+                                            height: 24,
+                                            color: Colors.white,
+                                          )
+                                        : const Bookmark(
+                                            width: 24,
+                                            height: 24,
+                                            color: Colors.white,
+                                          ),
+                                  ),
+                                ),
+                              ),
                             ),
                           ),
                         ),
+                        // Edit IconButton and its logic removed from here (and from AppBar actions)
                       ],
                     ),
                   ],
