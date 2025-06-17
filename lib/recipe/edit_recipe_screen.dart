@@ -1,6 +1,8 @@
-import 'dart:io'; // Added for File type
+import 'dart:io'; 
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:image_picker/image_picker.dart'; 
+import '../services/image_upload_service.dart'; 
 
 class EditRecipeScreen extends StatefulWidget {
   final Map<String, dynamic> recipeData;
@@ -17,8 +19,13 @@ class _EditRecipeScreenState extends State<EditRecipeScreen> {
   // Controllers for TextFormFields
   late TextEditingController _titleController;
   late TextEditingController _descriptionController;
-  File? _newSelectedImageFile; // For new main image
-  String? _existingImageUrl; // For existing main image
+  
+  File? _newSelectedImageFile; 
+  String? _existingImageUrl; 
+
+  final ImagePicker _picker = ImagePicker(); 
+  final ImageUploadService _imageUploadService = ImageUploadService(); 
+  bool _isUploading = false; 
 
   late TextEditingController _caloriesController;
   late TextEditingController _servingsController;
@@ -27,13 +34,12 @@ class _EditRecipeScreenState extends State<EditRecipeScreen> {
   late TextEditingController _ingredientsController;
   late TextEditingController _directionsController;
 
-  List<String> _galleryImageUrls = []; // For existing gallery URLs
-  List<File> _newSelectedGalleryImageFiles = []; // For new gallery files
+  List<String> _galleryImageUrls = []; 
+  List<File> _newSelectedGalleryImageFiles = []; 
 
   @override
   void initState() {
     super.initState();
-    // Initialize controllers with data from the recipeData map
     _titleController = TextEditingController(text: widget.recipeData['title']?.toString() ?? '');
     _descriptionController = TextEditingController(text: widget.recipeData['description']?.toString() ?? '');
     _existingImageUrl = widget.recipeData['image_url'] as String?;
@@ -44,14 +50,10 @@ class _EditRecipeScreenState extends State<EditRecipeScreen> {
     _ingredientsController = TextEditingController(text: widget.recipeData['ingredients_text']?.toString() ?? '');
     _directionsController = TextEditingController(text: widget.recipeData['directions_text']?.toString() ?? '');
 
-    // Initialize _galleryImageUrls from widget.recipeData
     var galleryData = widget.recipeData['gallery_image_urls'];
     if (galleryData is List) {
       _galleryImageUrls = List<String>.from(galleryData.whereType<String>());
     } else if (galleryData is String && galleryData.isNotEmpty) {
-      // Fallback for old data that might be a single string or newline separated (less robust)
-      // This part might need adjustment based on actual old data format.
-      // For now, if it's a string, split by newline, otherwise treat as single.
       if (galleryData.contains('\n')) {
          _galleryImageUrls = galleryData.split('\n').where((url) => url.trim().isNotEmpty).toList();
       } else {
@@ -73,59 +75,91 @@ class _EditRecipeScreenState extends State<EditRecipeScreen> {
     super.dispose();
   }
 
-  void _saveChanges() async { // Made async
+  Future<void> _saveChanges() async {
     if (_formKey.currentState!.validate()) {
-      String? finalImageUrl = _existingImageUrl; 
+      _formKey.currentState!.save();
 
+      if (_isUploading) return;
+
+      setState(() {
+        _isUploading = true;
+      });
+
+      String? finalMainImageUrl = _existingImageUrl; 
       if (_newSelectedImageFile != null) {
-        print("Simulating new main image upload for: ${_newSelectedImageFile!.path}");
-        finalImageUrl = "https://res.cloudinary.com/demo/image/upload/sample_from_edit_main.jpg"; 
+        finalMainImageUrl = await _imageUploadService.uploadImage(_newSelectedImageFile!);
+        if (finalMainImageUrl == null) {
+          setState(() { _isUploading = false; });
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Main recipe image upload failed. Please try again.')),
+            );
+          }
+          return;
+        }
       }
 
       List<String> finalGalleryImageUrls = List.from(_galleryImageUrls); 
-
       if (_newSelectedGalleryImageFiles.isNotEmpty) {
-        print("Simulating upload for new gallery images on Edit screen...");
         for (File imageFile in _newSelectedGalleryImageFiles) {
-          await Future.delayed(const Duration(milliseconds: 100)); // Simulate upload
-          finalGalleryImageUrls.add("https://res.cloudinary.com/demo/image/upload/new_gallery_sample_${finalGalleryImageUrls.length + 1}.jpg");
+          String? url = await _imageUploadService.uploadImage(imageFile);
+          if (url != null) {
+            finalGalleryImageUrls.add(url);
+          } else {
+            print('A new gallery image failed to upload and will be skipped.');
+          }
         }
-        print("New gallery images 'uploaded'.");
       }
 
-      final Map<String, dynamic> updatedRecipeData = {
-        'id': widget.recipeData['id'], 
+      Map<String, dynamic> updatedRecipeData = {
+        'id': widget.recipeData['id'],
         'user_id': widget.recipeData['user_id'], 
         'title': _titleController.text,
         'description': _descriptionController.text.isEmpty ? null : _descriptionController.text,
-        'image_url': finalImageUrl ?? '', 
-        'calories': int.tryParse(_caloriesController.text),
-        'servings': int.tryParse(_servingsController.text) ?? 1,
-        'cooking_time_minutes': int.tryParse(_cookingMinutesController.text),
-        'difficulty_level': _difficultyLevelController.text.isEmpty ? 'medium' : _difficultyLevelController.text,
-        'like_count': widget.recipeData['like_count'] ?? 0, 
+        'image_url': finalMainImageUrl ?? '',
+        'calories': int.tryParse(_caloriesController.text) ?? widget.recipeData['calories'],
+        'servings': int.tryParse(_servingsController.text) ?? widget.recipeData['servings'],
+        'cooking_time_minutes': int.tryParse(_cookingMinutesController.text) ?? widget.recipeData['cooking_time_minutes'],
+        'difficulty_level': _difficultyLevelController.text.isEmpty ? (widget.recipeData['difficulty_level'] ?? 'medium') : _difficultyLevelController.text,
         'ingredients_text': _ingredientsController.text,
         'directions_text': _directionsController.text,
-        'gallery_image_urls': finalGalleryImageUrls, 
+        'gallery_image_urls': finalGalleryImageUrls,
+        'like_count': widget.recipeData['like_count'] ?? 0, 
       };
+      
+      setState(() {
+        _isUploading = false;
+      });
 
-      print('Updated Recipe Data Map:');
-      print(updatedRecipeData);
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Updated recipe data map printed to console.')),
-      );
+      print('Updated Recipe Data: $updatedRecipeData');
+      
+      if (mounted) {
+         ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Recipe updated successfully (simulated)!')),
+        );
+        Navigator.pop(context);
+      }
     }
   }
 
   Future<void> _pickImage() async {
-    print("Pick main image button pressed on Edit Screen. Implement image_picker functionality here.");
-    setState(() {}); 
+    if (_isUploading) return;
+    final XFile? pickedFile = await _picker.pickImage(source: ImageSource.gallery);
+    if (pickedFile != null) {
+      setState(() {
+        _newSelectedImageFile = File(pickedFile.path);
+      });
+    }
   }
 
   Future<void> _pickGalleryImages() async {
-    print("Pick gallery images button pressed on Edit Screen. Implement multi-image_picker functionality here.");
-    setState(() {});
+    if (_isUploading) return;
+    final List<XFile> pickedFiles = await _picker.pickMultiImage();
+    if (pickedFiles.isNotEmpty) {
+      setState(() {
+        _newSelectedGalleryImageFiles.addAll(pickedFiles.map((xf) => File(xf.path)).toList());
+      });
+    }
   }
 
   @override
@@ -208,7 +242,7 @@ class _EditRecipeScreenState extends State<EditRecipeScreen> {
                         ),
                       ElevatedButton.icon(
                         key: const Key('pick_image_button_edit'), 
-                        onPressed: _pickImage,
+                        onPressed: _isUploading ? null : _pickImage,
                         icon: const Icon(Icons.image),
                         label: Text(_existingImageUrl != null && _existingImageUrl!.isNotEmpty ? 'Change Image' : 'Pick Image'),
                         style: ElevatedButton.styleFrom(backgroundColor: Colors.grey[300], foregroundColor: Colors.black87),
@@ -314,7 +348,7 @@ class _EditRecipeScreenState extends State<EditRecipeScreen> {
                       const SizedBox(height: 8),
                       ElevatedButton.icon(
                         key: const Key('pick_gallery_images_button_edit'), 
-                        onPressed: _pickGalleryImages, 
+                        onPressed: _isUploading ? null : _pickGalleryImages,  
                         icon: const Icon(Icons.photo_library),
                         label: const Text('Add More Gallery Images'),
                         style: ElevatedButton.styleFrom(backgroundColor: Colors.grey[300], foregroundColor: Colors.black87),
@@ -376,16 +410,18 @@ class _EditRecipeScreenState extends State<EditRecipeScreen> {
                   ),
                 ),
                 const SizedBox(height: 32),
-                ElevatedButton(
-                  key: const Key('save_button'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.blueAccent,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    textStyle: GoogleFonts.dmSans(fontSize: 18, fontWeight: FontWeight.bold),
-                  ),
-                  onPressed: _saveChanges,
-                  child: const Text('Save Changes'),
-                ),
+                _isUploading
+                  ? const Center(child: CircularProgressIndicator())
+                  : ElevatedButton(
+                      key: const Key('save_button'), 
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.blueAccent,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        textStyle: GoogleFonts.dmSans(fontSize: 18, fontWeight: FontWeight.bold),
+                      ),
+                      onPressed: _saveChanges,
+                      child: const Text('Save Changes'),
+                    ),
               ],
             ),
           ),

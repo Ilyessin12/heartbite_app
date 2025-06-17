@@ -1,62 +1,70 @@
-import 'dart:io'; // For File type
+import 'dart:io';
+import 'package:cloudinary_public/cloudinary_public.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class ImageUploadService {
-  // TODO: Configure with your Cloudinary cloud_name, api_key, and api_secret
-  // final Cloudinary cloudinary = Cloudinary.signedConfig(
-  //   apiKey: "YOUR_API_KEY", // Replace with your actual API key
-  //   apiSecret: "YOUR_API_SECRET", // Replace with your actual API secret
-  //   cloudName: "YOUR_CLOUD_NAME", // Replace with your actual cloud name
-  // );
+  // Static instance for CloudinaryPublic using values from .env
+  // This assumes .env is loaded at app startup (e.g., in main.dart)
+  static final CloudinaryPublic _cloudinary = CloudinaryPublic(
+    dotenv.env['CLOUDINARY_CLOUD_NAME'] ?? 'YOUR_FALLBACK_CLOUD_NAME', // Fallback if not in .env
+    dotenv.env['CLOUDINARY_API_KEY'] ?? 'YOUR_FALLBACK_API_KEY',       // Fallback if not in .env
+    cache: false, // Default is true, set to false if you don't want caching for some reason
+  );
 
-  Future<String?> uploadImage(File imageFile) async {
-    // This is a placeholder.
-    // In a real application, you would use the Cloudinary SDK to upload the image.
-    // Example (conceptual, depends on the SDK chosen):
-    /*
+  // Method to upload an image
+  // Takes the image file and an optional upload preset name
+  Future<String?> uploadImage(File imageFile, {String? customUploadPreset}) async {
+    // Determine the upload preset to use:
+    // 1. Use customUploadPreset if provided
+    // 2. Else, try to get CLOUDINARY_UPLOAD_PRESET from .env
+    // 3. Else, fallback to a common default like 'ml_default' (Cloudinary's default unsigned preset)
+    final String uploadPreset = customUploadPreset ??
+                                dotenv.env['CLOUDINARY_UPLOAD_PRESET'] ??
+                                'ml_default';
+
+    print("Attempting to upload image: ${imageFile.path} using preset: $uploadPreset");
+    print("Ensure your Cloudinary Upload Preset ('$uploadPreset') is configured to use your desired folder.");
+
     try {
-      print("Attempting to upload image: ${imageFile.path}");
-      // Simulate network delay
-      await Future.delayed(Duration(seconds: 2));
+      CloudinaryResponse response = await _cloudinary.uploadFile(
+        CloudinaryFile.fromFile(
+          imageFile.path,
+          resourceType: CloudinaryResourceType.Image,
+        ),
+        uploadPreset: uploadPreset, // This is the primary way to pass the preset
+        // For cloudinary_public with unsigned uploads, 'folder' and 'public_id' are best managed
+        // within the Upload Preset settings on your Cloudinary dashboard.
+        // Passing them directly here with unsigned uploads might be ignored or cause issues
+        // depending on strictness of preset and SDK version.
+      );
 
-      // final response = await cloudinary.upload(
-      //   file: imageFile.path,
-      //   fileBytes: imageFile.readAsBytesSync(), // Or use file path directly if SDK supports
-      //   resourceType: CloudinaryResourceType.image,
-      //   folder: "recipe_images", // Optional: specify a folder in Cloudinary
-      //   // You can add more upload options here, like public_id, tags, etc.
-      // );
-
-      // if (response.isSuccessful && response.secureUrl != null) {
-      //   print("Image uploaded successfully: ${response.secureUrl}");
-      //   return response.secureUrl;
-      // } else {
-      //   print("Image upload failed: ${response.error}");
-      //   return null;
-      // }
-      // For now, returning a dummy URL after a simulated delay.
-      await Future.delayed(Duration(seconds: 1)); // Simulate upload time
-      final String dummyUrl = "https://res.cloudinary.com/demo/image/upload/flavour_feat.jpg";
-      print("Placeholder: Image upload successful. URL: $dummyUrl");
-      return dummyUrl;
-
+      // For cloudinary_public v0.23.1, success is typically when secureUrl is available.
+      // Errors usually result in a CloudinaryException.
+      if (response.secureUrl != null && response.secureUrl!.isNotEmpty) {
+        print("Image uploaded successfully. URL: ${response.secureUrl}");
+        return response.secureUrl;
+      } else {
+        // This case might indicate an issue if no exception was thrown but also no URL was returned.
+        print("Image upload did not return a secure URL, though no direct exception was caught.");
+        print("Public ID: ${response.publicId}"); // Log public_id if available for debugging
+        print("Response details (if any): ${response.toString()}"); // General response details
+        return null;
+      }
+    } on CloudinaryException catch (e) { // Catching specific SDK exception
+      print("Cloudinary API Exception during upload: ${e.message}");
+      // The CloudinaryException object might have more details depending on the SDK version
+      // For example, e.response?.data or e.toString()
+      print("Details: ${e.toString()}"); 
+      return null;
     } catch (e) {
-      print("Error uploading image: $e");
+      print("Generic error during image upload: $e");
       return null;
     }
-    */
-
-    print("ImageUploadService: Simulating image upload for ${imageFile.path}");
-    // Simulate a short delay as if an upload is happening
-    await Future.delayed(const Duration(milliseconds: 1500));
-    // Return a dummy URL for now
-    final String dummyUrl = "https://res.cloudinary.com/your_cloud_name/image/upload/v1234567890/sample_recipe_image.jpg";
-    print("ImageUploadService: Placeholder upload complete. Dummy URL: $dummyUrl");
-    return dummyUrl;
   }
-
-  // You might also add a method to initialize Cloudinary SDK if needed,
-  // especially if using a singleton pattern for the service.
-  // static Future<void> initialize() async {
-  //   // Cloudinary.init(cloudName, apiKey, apiSecret) or similar
-  // }
 }
+
+// How to use in your widget:
+// final ImageUploadService _imageUploadService = ImageUploadService();
+// String? imageUrl = await _imageUploadService.uploadImage(myImageFile);
+// // To use a specific preset (if CLOUDINARY_UPLOAD_PRESET in .env is not what you want for this call):
+// // String? imageUrl = await _imageUploadService.uploadImage(myImageFile, customUploadPreset: "my_other_preset");
