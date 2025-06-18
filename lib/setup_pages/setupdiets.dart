@@ -1,18 +1,28 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'setupaccount.dart'; // Import SetupAccountPage
+import 'setupallergies.dart'; // Import SetupAllergiesPage
 
 class SetupDietsPage extends StatefulWidget {
-  const SetupDietsPage({Key? key}) : super(key: key);
+  // Add parameter for the starting progress value
+  final double startProgressValue;
+  
+  const SetupDietsPage({
+    Key? key, 
+    this.startProgressValue = 0.3, // Default to 0.3 if not provided
+  }) : super(key: key);
 
   @override
   State<SetupDietsPage> createState() => _SetupDietsPageState();
 }
 
-class _SetupDietsPageState extends State<SetupDietsPage> {
+class _SetupDietsPageState extends State<SetupDietsPage> with SingleTickerProviderStateMixin {
   final Color primaryRed = const Color(0xFF8E1616);
+  late AnimationController _progressController;
+  late Animation<double> _progressAnimation;
 
   // Track selected diets
-  final Set<String> selectedDiets = {'Vegetarian'}; // Tidak ada diet yang dipilih secara default
+  final Set<String> selectedDiets = {}; // Changed from {'Vegetarian'} to empty set
 
   final List<String> diets = [
     'Vegetarian',
@@ -25,6 +35,48 @@ class _SetupDietsPageState extends State<SetupDietsPage> {
   ];
 
   @override
+  void initState() {
+    super.initState();
+    // Set up animation controller for the progress bar
+    _progressController = AnimationController(
+      duration: const Duration(milliseconds: 800),
+      vsync: this,
+    );
+    
+    _progressAnimation = Tween<double>(
+      begin: widget.startProgressValue,
+      end: 0.6, // Target progress value for this page
+    ).animate(
+      CurvedAnimation(
+        parent: _progressController,
+        curve: Curves.easeInOut,
+      )
+    );
+    
+    // Start the animation when the widget is built
+    _progressController.forward();
+  }
+
+  @override
+  void dispose() {
+    _progressController.dispose();
+    super.dispose();
+  }
+
+  // Function to navigate back to allergies page
+  void _navigateBackToAllergies() {
+    // Navigate to SetupAllergiesPage without animation
+    Navigator.pushReplacement(
+      context,
+      PageRouteBuilder(
+        pageBuilder: (context, animation1, animation2) => const SetupAllergiesPage(),
+        transitionDuration: Duration.zero, // No animation
+        reverseTransitionDuration: Duration.zero,
+      ),
+    );
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
@@ -33,9 +85,9 @@ class _SetupDietsPageState extends State<SetupDietsPage> {
           // Background decorative lines
           Positioned.fill(
             child: Image.asset(
-              'assets/images/Ornament.png', // Placeholder for background pattern
-              fit: BoxFit.contain, // Zoom out: seluruh gambar terlihat
-              alignment: Alignment.topLeft, // Posisikan di kiri atas
+              'assets/images/Ornament.png',
+              fit: BoxFit.contain,
+              alignment: Alignment.topLeft,
             ),
           ),
 
@@ -50,11 +102,9 @@ class _SetupDietsPageState extends State<SetupDietsPage> {
                   // Top row with back arrow, progress indicator, and skip button
                   Row(
                     children: [
-                      // Back arrow in red circle
+                      // Back arrow in red circle - Now with updated navigation
                       GestureDetector(
-                        onTap: () {
-                          Navigator.pop(context);
-                        },
+                        onTap: _navigateBackToAllergies, // Use the new navigation function
                         child: Container(
                           width: 32,
                           height: 32,
@@ -62,27 +112,32 @@ class _SetupDietsPageState extends State<SetupDietsPage> {
                             color: primaryRed,
                             shape: BoxShape.circle,
                           ),
-                          alignment: Alignment.center, // Memusatkan ikon
+                          alignment: Alignment.center,
                           child: const Icon(
                             Icons.arrow_back,
                             size: 18,
-                            color: Colors.white, // Kontras dengan lingkaran merah
+                            color: Colors.white,
                           ),
                         ),
                       ),
 
                       const SizedBox(width: 16),
 
-                      // Progress indicator
+                      // Animated progress indicator
                       Expanded(
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(4),
-                          child: LinearProgressIndicator(
-                            value: 0.4, // Sesuaikan (misalnya, 0.4 untuk langkah berikutnya)
-                            backgroundColor: Colors.grey.withOpacity(0.2),
-                            valueColor: AlwaysStoppedAnimation<Color>(primaryRed),
-                            minHeight: 6,
-                          ),
+                        child: AnimatedBuilder(
+                          animation: _progressAnimation,
+                          builder: (context, child) {
+                            return ClipRRect(
+                              borderRadius: BorderRadius.circular(4),
+                              child: LinearProgressIndicator(
+                                value: _progressAnimation.value,
+                                backgroundColor: Colors.grey.withOpacity(0.2),
+                                valueColor: AlwaysStoppedAnimation<Color>(primaryRed),
+                                minHeight: 6,
+                              ),
+                            );
+                          },
                         ),
                       ),
 
@@ -91,7 +146,17 @@ class _SetupDietsPageState extends State<SetupDietsPage> {
                       // Skip button
                       TextButton(
                         onPressed: () {
-                          // Handle skip action
+                          // Navigate to SetupAccountPage without animation
+                          Navigator.pushReplacement(
+                            context,
+                            PageRouteBuilder(
+                              pageBuilder: (context, animation1, animation2) => SetupAccountPage(
+                                startProgressValue: _progressAnimation.value,
+                              ),
+                              transitionDuration: Duration.zero,
+                              reverseTransitionDuration: Duration.zero,
+                            ),
+                          );
                         },
                         style: TextButton.styleFrom(
                           foregroundColor: Colors.grey,
@@ -179,7 +244,16 @@ class _SetupDietsPageState extends State<SetupDietsPage> {
                       height: 56,
                       child: ElevatedButton(
                         onPressed: () {
-                          // Handle continue action
+                          // Navigate to SetupAccountPage with animation
+                          Navigator.pushReplacement(
+                            context,
+                            PageRouteBuilder(
+                              pageBuilder: (context, animation1, animation2) => SetupAccountPage(
+                                startProgressValue: _progressAnimation.value, // Pass current progress value
+                              ),
+                              transitionDuration: const Duration(milliseconds: 300),
+                            ),
+                          );
                         },
                         style: ElevatedButton.styleFrom(
                           backgroundColor: primaryRed,

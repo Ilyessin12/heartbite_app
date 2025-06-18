@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart'; // Import Google Fonts package
+import 'welcome1.dart'; // Import Welcome1Screen
 
 class WelcomeScreen extends StatelessWidget {
   const WelcomeScreen({Key? key}) : super(key: key);
@@ -74,7 +75,10 @@ class WelcomeScreen extends StatelessWidget {
                       width: size.width * 0.6,
                       child: ElevatedButton(
                         onPressed: () {
-                          Navigator.of(context).pop(); // Nanti bisa diganti ke screen berikutnya
+                          // Navigate to Welcome1Screen instead of popping
+                          Navigator.of(context).push(
+                            MaterialPageRoute(builder: (context) => const Welcome1Screen()),
+                          );
                         },
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.white,

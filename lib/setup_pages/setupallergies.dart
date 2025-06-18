@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'setupdiets.dart'; // Import setupdiets.dart for navigation
 
 class SetupAllergiesPage extends StatefulWidget {
   const SetupAllergiesPage({Key? key}) : super(key: key);
@@ -11,14 +12,13 @@ class SetupAllergiesPage extends StatefulWidget {
 class _SetupAllergiesPageState extends State<SetupAllergiesPage> {
   final Color primaryRed = const Color(0xFF8E1616);
 
-  // Track selected allergies
-  final Set<String> selectedAllergies = {'Ikan'}; // Ikan is pre-selected as shown in the image
+  // Track selected allergies - now empty by default
+  final Set<String> selectedAllergies = {}; // Removed 'Ikan' pre-selection
 
   final List<String> allergies = [
     'Gluten', 'Produk Susu', 'Telur',
-'Kedelai', 'Kacang Tanah', 'Gandum',
-'Susu', 'Ikan'
-
+    'Kedelai', 'Kacang Tanah', 'Gandum',
+    'Susu', 'Ikan'
   ];
 
   @override
@@ -85,10 +85,20 @@ class _SetupAllergiesPageState extends State<SetupAllergiesPage> {
 
                       const SizedBox(width: 16),
 
-                      // Skip button
+                      // Skip button - now with functionality
                       TextButton(
                         onPressed: () {
-                          // Handle skip action
+                          // Navigate to SetupDietsPage without animation
+                          Navigator.pushReplacement(
+                            context,
+                            PageRouteBuilder(
+                              pageBuilder: (context, animation1, animation2) => SetupDietsPage(
+                                startProgressValue: 0.3, // Pass the current progress value
+                              ),
+                              transitionDuration: Duration.zero, // No animation
+                              reverseTransitionDuration: Duration.zero,
+                            ),
+                          );
                         },
                         style: TextButton.styleFrom(
                           foregroundColor: Colors.grey,
@@ -111,7 +121,7 @@ class _SetupAllergiesPageState extends State<SetupAllergiesPage> {
 
                   // Heading
                   Text(
-                    'Ada alergi yang perlu kami ketahui?',
+                    'Apa kamu alergi terhadap sesuatu?',
                     style: GoogleFonts.dmSans(
                       fontSize: 32,
                       fontWeight: FontWeight.bold,
@@ -175,7 +185,16 @@ class _SetupAllergiesPageState extends State<SetupAllergiesPage> {
                       height: 56,
                       child: ElevatedButton(
                         onPressed: () {
-                          // Handle continue action
+                          // Navigate to diets page with our selected allergies
+                          Navigator.pushReplacement(
+                            context,
+                            PageRouteBuilder(
+                              pageBuilder: (context, animation1, animation2) => SetupDietsPage(
+                                startProgressValue: 0.3, // Pass the current progress value
+                              ),
+                              transitionDuration: const Duration(milliseconds: 300),
+                            ),
+                          );
                         },
                         style: ElevatedButton.styleFrom(
                           backgroundColor: primaryRed,
