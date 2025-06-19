@@ -4,6 +4,7 @@ import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import 'finishsetup.dart';
 import 'setupdiets.dart';
+import '../services/image_upload_service.dart'; // Add this import
 
 class SetupAccountPage extends StatefulWidget {
   final double startProgressValue;
@@ -28,6 +29,17 @@ class _SetupAccountPageState extends State<SetupAccountPage> with SingleTickerPr
   File? _coverImage;
   File? _profileImage;
   final ImagePicker _picker = ImagePicker();
+  
+  // Add these variables for Cloudinary URLs
+  String? _coverImageUrl;
+  String? _profileImageUrl;
+  
+  // Initialize the image upload service
+  final ImageUploadService _imageUploadService = ImageUploadService();
+  
+  // Add loading indicators
+  bool _isUploadingCover = false;
+  bool _isUploadingProfile = false;
 
   @override
   void initState() {
@@ -58,30 +70,51 @@ class _SetupAccountPageState extends State<SetupAccountPage> with SingleTickerPr
     super.dispose();
   }
   
-  // Function to pick cover image
+  // Function to pick and upload cover image
   Future<void> _pickCoverImage() async {
     try {
       final XFile? pickedFile = await _picker.pickImage(
         source: ImageSource.gallery,
-        imageQuality: 80, // Adjust quality as needed
-        maxWidth: 1500, // Updated from 1200 to 1500
-        maxHeight: 500, // Updated from 400 to 500
+        imageQuality: 80,
+        maxWidth: 1500,
+        maxHeight: 500,
       );
       
       if (pickedFile != null) {
         setState(() {
           _coverImage = File(pickedFile.path);
+          _isUploadingCover = true; // Start loading indicator
         });
+        
+        // Upload to Cloudinary
+        final String? uploadedUrl = await _imageUploadService.uploadImage(_coverImage!);
+        
+        setState(() {
+          _isUploadingCover = false; // Stop loading indicator
+          if (uploadedUrl != null) {
+            _coverImageUrl = uploadedUrl;
+            print('Cover image uploaded successfully: $_coverImageUrl');
+          }
+        });
+        
+        if (_coverImageUrl == null) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Gagal mengunggah foto sampul ke server')),
+          );
+        }
       }
     } catch (e) {
-      debugPrint('Error picking image: $e');
+      setState(() {
+        _isUploadingCover = false; // Stop loading indicator on error
+      });
+      debugPrint('Error picking/uploading image: $e');
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Gagal memilih gambar: $e')),
+        SnackBar(content: Text('Gagal memilih/mengunggah gambar: $e')),
       );
     }
   }
 
-  // Function to pick profile image
+  // Function to pick and upload profile image
   Future<void> _pickProfileImage() async {
     try {
       final XFile? pickedFile = await _picker.pickImage(
@@ -94,12 +127,33 @@ class _SetupAccountPageState extends State<SetupAccountPage> with SingleTickerPr
       if (pickedFile != null) {
         setState(() {
           _profileImage = File(pickedFile.path);
+          _isUploadingProfile = true; // Start loading indicator
         });
+        
+        // Upload to Cloudinary
+        final String? uploadedUrl = await _imageUploadService.uploadImage(_profileImage!);
+        
+        setState(() {
+          _isUploadingProfile = false; // Stop loading indicator
+          if (uploadedUrl != null) {
+            _profileImageUrl = uploadedUrl;
+            print('Profile image uploaded successfully: $_profileImageUrl');
+          }
+        });
+        
+        if (_profileImageUrl == null) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Gagal mengunggah foto profil ke server')),
+          );
+        }
       }
     } catch (e) {
-      debugPrint('Error picking image: $e');
+      setState(() {
+        _isUploadingProfile = false; // Stop loading indicator on error
+      });
+      debugPrint('Error picking/uploading image: $e');
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Gagal memilih gambar: $e')),
+        SnackBar(content: Text('Gagal memilih/mengunggah gambar: $e')),
       );
     }
   }
@@ -255,52 +309,74 @@ class _SetupAccountPageState extends State<SetupAccountPage> with SingleTickerPr
                               const SizedBox(height: 8),
                               GestureDetector(
                                 onTap: _pickCoverImage,
-                                child: Container(
-                                  width: double.infinity,
-                                  height: 120,
-                                  decoration: BoxDecoration(
-                                    color: _coverImage == null 
-                                        ? primaryRed.withOpacity(0.2)
-                                        : Colors.transparent,
-                                    borderRadius: BorderRadius.circular(8),
-                                    border: Border.all(
-                                      color: Colors.grey.withOpacity(0.3),
-                                      width: 1,
+                                child: AspectRatio(
+                                  aspectRatio: 3/1,
+                                  child: Container(
+                                    width: double.infinity,
+                                    decoration: BoxDecoration(
+                                      color: _coverImage == null 
+                                          ? primaryRed.withOpacity(0.2)
+                                          : Colors.transparent,
+                                      borderRadius: BorderRadius.circular(8),
+                                      border: Border.all(
+                                        color: Colors.grey.withOpacity(0.3),
+                                        width: 1,
+                                      ),
                                     ),
-                                  ),
-                                  clipBehavior: Clip.antiAlias, // Ensure image stays within border radius
-                                  child: _coverImage == null 
-                                      ? Column(
-                                          mainAxisAlignment: MainAxisAlignment.center,
-                                          children: [
-                                            const Icon(
-                                              Icons.image,
-                                              size: 32,
-                                              color: Colors.grey,
+                                    clipBehavior: Clip.antiAlias,
+                                    child: _isUploadingCover
+                                        ? Center(
+                                            child: Column(
+                                              mainAxisAlignment: MainAxisAlignment.center,
+                                              children: [
+                                                CircularProgressIndicator(
+                                                  color: primaryRed,
+                                                ),
+                                                const SizedBox(height: 8),
+                                                Text(
+                                                  'Mengunggah...',
+                                                  style: GoogleFonts.dmSans(
+                                                    fontSize: 14,
+                                                    color: Colors.grey[700],
+                                                  ),
+                                                ),
+                                              ],
                                             ),
-                                            const SizedBox(height: 8),
-                                            Text(
-                                              'Unggah Foto Sampul',
-                                              style: GoogleFonts.dmSans(
-                                                fontSize: 14,
-                                                color: Colors.grey[700],
-                                              ),
-                                            ),
-                                            Text(
-                                              'Rekomendasi Ukuran: 1200 x 400',
-                                              style: GoogleFonts.dmSans(
-                                                fontSize: 12,
-                                                color: Colors.grey,
-                                              ),
-                                            ),
-                                          ],
-                                        )
-                                      : Image.file(
-                                          _coverImage!,
-                                          fit: BoxFit.cover,
-                                          width: double.infinity,
-                                          height: double.infinity,
+                                          )
+                                        : (_coverImage == null 
+                                            ? Column(
+                                                mainAxisAlignment: MainAxisAlignment.center,
+                                                children: [
+                                                  const Icon(
+                                                    Icons.image,
+                                                    size: 32,
+                                                    color: Colors.grey,
+                                                  ),
+                                                  const SizedBox(height: 8),
+                                                  Text(
+                                                    'Unggah Foto Sampul',
+                                                    style: GoogleFonts.dmSans(
+                                                      fontSize: 14,
+                                                      color: Colors.grey[700],
+                                                    ),
+                                                  ),
+                                                  Text(
+                                                    'Rekomendasi Ukuran: 1500 x 500',
+                                                    style: GoogleFonts.dmSans(
+                                                      fontSize: 12,
+                                                      color: Colors.grey,
+                                                    ),
+                                                  ),
+                                                ],
+                                              )
+                                            : Image.file(
+                                                _coverImage!,
+                                                fit: BoxFit.cover,
+                                                width: double.infinity,
+                                                height: double.infinity,
+                                              )
                                         ),
+                                  ),
                                 ),
                               ),
                             ],
@@ -330,38 +406,58 @@ class _SetupAccountPageState extends State<SetupAccountPage> with SingleTickerPr
                                       color: _profileImage == null
                                           ? primaryRed.withOpacity(0.2)
                                           : Colors.transparent,
-                                      borderRadius: BorderRadius.circular(8), // Square with slightly rounded corners
+                                      borderRadius: BorderRadius.circular(8),
                                       border: Border.all(
                                         color: Colors.grey.withOpacity(0.3),
                                         width: 1,
                                       ),
                                     ),
-                                    clipBehavior: Clip.antiAlias, // Ensure image stays within border radius
-                                    child: _profileImage == null
-                                        ? Column(
-                                            mainAxisAlignment: MainAxisAlignment.center,
-                                            children: [
-                                              const Icon(
-                                                Icons.camera_alt,
-                                                size: 40,
-                                                color: Colors.grey,
-                                              ),
-                                              const SizedBox(height: 8),
-                                              Text(
-                                                'Unggah Foto',
-                                                style: GoogleFonts.dmSans(
-                                                  fontSize: 14,
-                                                  color: Colors.grey[700],
+                                    clipBehavior: Clip.antiAlias,
+                                    child: _isUploadingProfile
+                                        ? Center(
+                                            child: Column(
+                                              mainAxisAlignment: MainAxisAlignment.center,
+                                              children: [
+                                                CircularProgressIndicator(
+                                                  color: primaryRed,
                                                 ),
-                                              ),
-                                            ],
+                                                const SizedBox(height: 8),
+                                                Text(
+                                                  'Mengunggah...',
+                                                  style: GoogleFonts.dmSans(
+                                                    fontSize: 12,
+                                                    color: Colors.grey[700],
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
                                           )
-                                        : Image.file(
-                                            _profileImage!,
-                                            fit: BoxFit.cover,
-                                            width: double.infinity,
-                                            height: double.infinity,
-                                          ),
+                                        : (_profileImage == null
+                                            ? Column(
+                                                mainAxisAlignment: MainAxisAlignment.center,
+                                                children: [
+                                                  const Icon(
+                                                    Icons.camera_alt,
+                                                    size: 40,
+                                                    color: Colors.grey,
+                                                  ),
+                                                  const SizedBox(height: 8),
+                                                  Text(
+                                                    'Unggah Foto',
+                                                    style: GoogleFonts.dmSans(
+                                                      fontSize: 14,
+                                                      color: Colors.grey[700],
+                                                    ),
+                                                  ),
+                                                ],
+                                              )
+                                            : Image.file(
+                                                _profileImage!,
+                                                fit: BoxFit.cover,
+                                                width: double.infinity,
+                                                height: double.infinity,
+                                              )
+                                        ),
                                   ),
                                 ),
                               ),
@@ -491,34 +587,56 @@ class _SetupAccountPageState extends State<SetupAccountPage> with SingleTickerPr
                     height: 56,
                     child: ElevatedButton(
                       onPressed: () {
-                        if (_usernameController.text.isNotEmpty) {
-                          Navigator.push(
-                            context,
-                            PageRouteBuilder(
-                              pageBuilder: (context, animation1, animation2) => 
-                                const FinishSetupScreen(),
-                              transitionDuration: const Duration(milliseconds: 300),
-                              transitionsBuilder: (context, animation, secondaryAnimation, child) {
-                                const begin = Offset(1.0, 0.0);
-                                const end = Offset.zero;
-                                const curve = Curves.easeInOut;
-                                
-                                var tween = Tween(begin: begin, end: end)
-                                    .chain(CurveTween(curve: curve));
-                                var offsetAnimation = animation.drive(tween);
-                                
-                                return SlideTransition(
-                                  position: offsetAnimation,
-                                  child: child,
-                                );
-                              },
-                            ),
-                          );
-                        } else {
+                        // Check if username is entered
+                        if (_usernameController.text.isEmpty) {
                           ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Please enter a username')),
+                            const SnackBar(content: Text('Silakan masukkan username')),
                           );
+                          return;
                         }
+                        
+                        // Check if images are still uploading
+                        if (_isUploadingCover || _isUploadingProfile) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Mohon tunggu hingga proses unggah selesai')),
+                          );
+                          return;
+                        }
+                        
+                        // Collect user data (you would typically save this to your database)
+                        final userData = {
+                          'displayName': _displayNameController.text,
+                          'username': _usernameController.text,
+                          'coverImageUrl': _coverImageUrl,
+                          'profileImageUrl': _profileImageUrl,
+                        };
+                        
+                        // Log for debugging
+                        print('User data to be saved: $userData');
+                        
+                        // Navigate to next screen
+                        Navigator.push(
+                          context,
+                          PageRouteBuilder(
+                            pageBuilder: (context, animation1, animation2) => 
+                              const FinishSetupScreen(),
+                            transitionDuration: const Duration(milliseconds: 300),
+                            transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                              const begin = Offset(1.0, 0.0);
+                              const end = Offset.zero;
+                              const curve = Curves.easeInOut;
+                              
+                              var tween = Tween(begin: begin, end: end)
+                                  .chain(CurveTween(curve: curve));
+                              var offsetAnimation = animation.drive(tween);
+                              
+                              return SlideTransition(
+                                position: offsetAnimation,
+                                child: child,
+                              );
+                            },
+                          ),
+                        );
                       },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: primaryRed,
