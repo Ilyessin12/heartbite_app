@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import 'welcome_pages/welcome.dart';
 
-Future<void> main() async {
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   try { 
@@ -13,24 +12,6 @@ Future<void> main() async {
     print("ERROR loading .env file: $e");
   }
 
-  // Add this check after loading the .env file
-  if (dotenv.env['SUPABASE_URL'] == null || 
-      dotenv.env['SUPABASE_URL']!.isEmpty ||
-      dotenv.env['SUPABASE_ANON_KEY'] == null || 
-      dotenv.env['SUPABASE_ANON_KEY']!.isEmpty) {
-    throw Exception('Missing Supabase credentials in .env file');
-  }
-
-  try {
-    await Supabase.initialize(
-      url: dotenv.env['SUPABASE_URL'] ?? '',
-      anonKey: dotenv.env['SUPABASE_ANON_KEY'] ?? '',
-    );
-    print("SUCCESS: Supabase initialized.");
-  } catch (e) {
-    print("ERROR initializing Supabase: $e");
-  }
-  
   runApp(const MyApp());
 }
 
