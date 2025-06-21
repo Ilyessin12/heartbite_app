@@ -8,6 +8,24 @@ import '../services/recipe_service.dart';
 import '../models/recipe_model.dart';
 // import '../services/supabase_client.dart'; // SupabaseClientWrapper for user ID - using hardcoded for now
 
+class InstructionStepData {
+  final UniqueKey id; // For list item identification if needed for animations/keys
+  final TextEditingController textController;
+  File? selectedImageFile;
+  String? existingImageUrl; // For future edit functionality
+
+  InstructionStepData({
+    String initialText = '',
+    this.selectedImageFile,
+    this.existingImageUrl,
+  }) : id = UniqueKey(), textController = TextEditingController(text: initialText);
+
+  // Call this when the InstructionStepData object is no longer needed to free resources
+  void dispose() {
+    textController.dispose();
+  }
+}
+
 class CreateRecipeScreen extends StatefulWidget {
   const CreateRecipeScreen({super.key});
 
@@ -34,7 +52,15 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
   final _difficultyLevelController = TextEditingController(text: 'medium');
 
   final _ingredientsController = TextEditingController();
-  final _directionsController = TextEditingController();
+  // final _directionsController = TextEditingController(); // Removed
+  List<InstructionStepData> _instructionSteps = [];
+
+  @override
+  void initState() {
+    super.initState();
+    // Start with one empty instruction step
+    _instructionSteps.add(InstructionStepData());
+  }
 
   @override
   void dispose() {
@@ -45,7 +71,10 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
     _cookingMinutesController.dispose();
     _difficultyLevelController.dispose();
     _ingredientsController.dispose();
-    _directionsController.dispose();
+    // _directionsController.dispose(); // This line is removed as _directionsController is removed.
+    for (var stepData in _instructionSteps) {
+      stepData.dispose();
+    }
     super.dispose();
   }
 
@@ -230,7 +259,38 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
     const String hardcodedUserId = '325c40cc-d255-4f93-bf5f-40bc196ca093'; // Per instructions
 
     final List<RecipeIngredientModel> ingredients = _parseIngredients(_ingredientsController.text);
-    final List<RecipeInstructionModel> instructions = _parseInstructions(_directionsController.text);
+
+    // New logic for instructions
+    List<RecipeInstructionModel> finalInstructions = [];
+    for (int i = 0; i < _instructionSteps.length; i++) {
+      InstructionStepData stepData = _instructionSteps[i];
+      String instructionText = stepData.textController.text.trim();
+      String? imageUrl = stepData.existingImageUrl; // Will be null for new recipes
+
+      if (stepData.selectedImageFile != null) {
+        // Upload new image
+        final String? uploadedUrl = await _imageUploadService.uploadImage(stepData.selectedImageFile!);
+        if (uploadedUrl != null) {
+          imageUrl = uploadedUrl;
+        } else {
+          // Handle image upload failure for this step - e.g., log it or notify user
+          print('Failed to upload image for instruction step ${i + 1}');
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Failed to upload image for step ${i + 1}. It will be skipped.')),
+            );
+          }
+        }
+      }
+
+      if (instructionText.isNotEmpty) {
+        finalInstructions.add(RecipeInstructionModel(
+          step_number: i + 1,
+          instruction: instructionText,
+          image_url: imageUrl,
+        ));
+      }
+    }
 
     RecipeModel recipeToCreate = RecipeModel(
       user_id: hardcodedUserId,
@@ -242,16 +302,14 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
       cooking_time_minutes: int.parse(_cookingMinutesController.text),
       difficulty_level: _difficultyLevelController.text.isEmpty ? 'medium' : _difficultyLevelController.text,
       is_published: true,
-      ingredients_text: _ingredientsController.text.isEmpty ? null : _ingredientsController.text, // Keep for reference if needed
-      directions_text: _directionsController.text.isEmpty ? null : _directionsController.text,   // Keep for reference if needed
+      ingredients_text: _ingredientsController.text.isEmpty ? null : _ingredientsController.text,
+      directions_text: null, // No longer a single text block
       ingredients: ingredients,
-      instructions: instructions,
-      gallery_image_urls: galleryImageUrls, // Pass gallery URLs here for the model
+      instructions: finalInstructions, // Use the processed list
+      gallery_image_urls: galleryImageUrls,
     );
 
     try {
-      // The RecipeService's createRecipe method now expects the galleryImageUrls as part of RecipeModel
-      // or as a separate argument. The current RecipeService expects it as a separate argument.
       await _recipeService.createRecipe(recipeToCreate, galleryImageUrls);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
