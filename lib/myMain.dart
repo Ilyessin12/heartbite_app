@@ -49,6 +49,7 @@ import 'recipe_detail/screens/discussion_screen.dart';
 // Import new Recipe screens
 import 'recipe/create_recipe_screen.dart';
 import 'recipe/edit_recipe_screen.dart';
+import 'models/recipe_model.dart'; // Import RecipeModel for sample data
 import 'package:flutter_dotenv/flutter_dotenv.dart'; // Added import
 
 Future<void> main() async { // Modified main
@@ -170,27 +171,29 @@ class NavigationPage extends StatelessWidget {
     );
 
     // Sample data for EditRecipeScreen link in main.dart
-    final Map<String, dynamic> sampleRecipeDataForMain = {
-      'id': 999, // Sample integer ID
-      'user_id': 1, // Sample integer user_id
-      'title': 'Sample Recipe from Main',
-      'description': 'This is a sample recipe description loaded from main.dart.',
-      'image_url': 'https://res.cloudinary.com/demo/image/upload/sample.jpg', // Updated dummy URL
-      'calories': 250,
-      'servings': 2,
-      'cooking_time_minutes': 30,
-      'difficulty_level': 'Medium',
-      // 'rating': 4.0, // Removed
-      // 'review_count': 15, // Removed
-      'like_count': 5, // Added
-      'ingredients_text': 'Ingredient 1\nIngredient 2\nIngredient 3',
-      'directions_text': 'Step 1\nStep 2\nStep 3',
-      // 'gallery_images_text': '', // Removed or replaced
-      'gallery_image_urls': [ // Added/Updated
+    // Sample data for EditRecipeScreen link in myMain.dart
+    // Updated to create a RecipeModel instance
+    final RecipeModel sampleEditRecipeModel = RecipeModel(
+      id: 999, // Sample integer ID
+      user_id: 'sample-user-id-string', // Sample UUID string for user_id
+      title: 'Sample Recipe from myMain',
+      description: 'This is a sample recipe description loaded from myMain.dart for editing.',
+      image_url: 'https://res.cloudinary.com/demo/image/upload/sample.jpg',
+      calories: 250,
+      servings: 2,
+      cooking_time_minutes: 30,
+      difficulty_level: 'medium', // Ensure this matches enum if used, or is a valid string
+      is_published: true,
+      // Optional fields, can be null or have sample data
+      ingredients_text: 'Ingredient 1\nIngredient 2\nIngredient 3',
+      directions_text: 'Step 1\nStep 2\nStep 3',
+      gallery_image_urls: [
         'https://res.cloudinary.com/demo/image/upload/gallery_thumb1.jpg',
         'https://res.cloudinary.com/demo/image/upload/gallery_thumb2.jpg',
       ],
-    };
+      created_at: DateTime.now().subtract(const Duration(days:1)), // Sample past date
+      updated_at: DateTime.now(),
+    );
 
     // Daftar tombol dan halaman yang ingin dituju, dengan deskripsi
     final Map<String, List<PageItem>> categorizedPages = {
@@ -371,14 +374,17 @@ class NavigationPage extends StatelessWidget {
         ),
         PageItem(
           'Edit Recipe Page (Sample)',
-          EditRecipeScreen(recipeData: sampleRecipeDataForMain),
+          // Updated to pass RecipeModel instance
+          EditRecipeScreen(recipe: sampleEditRecipeModel),
           'Form to edit a sample recipe (DB Schema)',
         ),
       ],
       'Recipe Detail Pages': [
         PageItem(
-          'Recipe Detail',
-          RecipeDetailScreen(recipe: getSampleRecipe()),
+          'Recipe Detail (Sample ID)', // Changed title for clarity
+          // RecipeDetailScreen now expects recipeId (int)
+          // Passing a sample ID. This recipe might not exist in DB.
+          const RecipeDetailScreen(recipeId: 1), // Example ID
           'Halaman detail resep lengkap',
         ),
         PageItem(

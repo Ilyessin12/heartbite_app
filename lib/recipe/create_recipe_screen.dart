@@ -1,9 +1,12 @@
-import 'dart:io'; // Added for File type
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:image_picker/image_picker.dart'; // For ImagePicker
-import '../services/image_upload_service.dart'; // Your service
-// Models no longer used, data will be mapped directly for database schema
+import 'package:image_picker/image_picker.dart';
+import 'package:supabase_flutter/supabase_flutter.dart'; // Import Supabase
+import '../services/image_upload_service.dart';
+import '../services/recipe_service.dart'; // Import RecipeService
+import '../models/recipe_model.dart'; // Import RecipeModel
+import '../services/supabase_client.dart'; // Import SupabaseClientWrapper for user ID
 
 class CreateRecipeScreen extends StatefulWidget {
   const CreateRecipeScreen({super.key});
@@ -15,26 +18,29 @@ class CreateRecipeScreen extends StatefulWidget {
 class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
   final _formKey = GlobalKey<FormState>();
 
-  // Controllers for TextFormFields
   final _titleController = TextEditingController();
-  final _descriptionController = TextEditingController(); // New
-  File? _selectedImageFile; // Added for image picking
-  List<File> _selectedGalleryImageFiles = []; // Added for gallery images
+  final _descriptionController = TextEditingController();
+  File? _selectedImageFile;
+  List<File> _selectedGalleryImageFiles = [];
 
-  final ImagePicker _picker = ImagePicker(); // Added
-  final ImageUploadService _imageUploadService = ImageUploadService(); // Added
-  bool _isUploading = false; // Added
+  final ImagePicker _picker = ImagePicker();
+  final ImageUploadService _imageUploadService = ImageUploadService();
+  final RecipeService _recipeService = RecipeService(); // Instantiate RecipeService
+  bool _isUploadingOrSaving = false;
 
   final _caloriesController = TextEditingController();
-  final _servingsController = TextEditingController(text: '1'); 
+  final _servingsController = TextEditingController(text: '1');
   final _cookingMinutesController = TextEditingController();
-  final _difficultyLevelController = TextEditingController(text: 'medium'); 
+  final _difficultyLevelController = TextEditingController(text: 'medium');
+
+  // Controllers for ingredients and directions - data will be passed to RecipeModel
+  // but not directly saved to 'recipes' table columns by RecipeService.createRecipe
+  // This can be used later if we decide to parse and save them to related tables.
   final _ingredientsController = TextEditingController();
   final _directionsController = TextEditingController();
 
   @override
   void dispose() {
-    // Dispose controllers
     _titleController.dispose();
     _descriptionController.dispose();
     _caloriesController.dispose();
@@ -47,73 +53,97 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
   }
 
   Future<void> _saveRecipe() async {
-    if (_formKey.currentState!.validate()) {
-      _formKey.currentState!.save();
+    if (!_formKey.currentState!.validate()) {
+      return;
+    }
+    _formKey.currentState!.save();
 
-      if (_isUploading) return; 
-
-      setState(() {
-        _isUploading = true;
-      });
-
-      String? mainImageUrl;
-      if (_selectedImageFile != null) {
-        mainImageUrl = await _imageUploadService.uploadImage(_selectedImageFile!);
-        if (mainImageUrl == null) {
-          setState(() { _isUploading = false; });
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Main recipe image upload failed. Please try again.')),
-            );
-          }
-          return; 
-        }
-      }
-
-      List<String> galleryImageUrls = [];
-      if (_selectedGalleryImageFiles.isNotEmpty) {
-        for (File imageFile in _selectedGalleryImageFiles) {
-          String? url = await _imageUploadService.uploadImage(imageFile);
-          if (url != null) {
-            galleryImageUrls.add(url);
-          } else {
-            print('A gallery image failed to upload and will be skipped.');
-          }
-        }
-      }
-
-      Map<String, dynamic> recipeData = {
-        'user_id': 1, 
-        'title': _titleController.text,
-        'description': _descriptionController.text.isEmpty ? null : _descriptionController.text,
-        'image_url': mainImageUrl ?? '',
-        'calories': int.tryParse(_caloriesController.text),
-        'servings': int.tryParse(_servingsController.text) ?? 1,
-        'cooking_time_minutes': int.tryParse(_cookingMinutesController.text),
-        'difficulty_level': _difficultyLevelController.text.isEmpty ? 'medium' : _difficultyLevelController.text,
-        'ingredients_text': _ingredientsController.text,
-        'directions_text': _directionsController.text,
-        'gallery_image_urls': galleryImageUrls,
-        'like_count': 0,
-      };
-
-      setState(() {
-        _isUploading = false;
-      });
-
-      print('Recipe Data to Save: $recipeData');
-      
+    final currentUser = SupabaseClientWrapper().auth.currentUser;
+    if (currentUser == null) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Recipe created successfully (simulated)!')),
+          const SnackBar(content: Text('You must be logged in to create a recipe.')),
         );
-        Navigator.pop(context);
+      }
+      return;
+    }
+
+    if (_isUploadingOrSaving) return;
+
+    setState(() {
+      _isUploadingOrSaving = true;
+    });
+
+    String? mainImageUrl;
+    if (_selectedImageFile != null) {
+      mainImageUrl = await _imageUploadService.uploadImage(_selectedImageFile!);
+      if (mainImageUrl == null) {
+        setState(() { _isUploadingOrSaving = false; });
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Main recipe image upload failed. Please try again.')),
+          );
+        }
+        return;
+      }
+    }
+
+    List<String> galleryImageUrls = [];
+    if (_selectedGalleryImageFiles.isNotEmpty) {
+      for (File imageFile in _selectedGalleryImageFiles) {
+        String? url = await _imageUploadService.uploadImage(imageFile);
+        if (url != null) {
+          galleryImageUrls.add(url);
+        } else {
+          print('A gallery image failed to upload and will be skipped.');
+          // Optionally, inform the user about skipped images
+        }
+      }
+    }
+
+    RecipeModel recipeToCreate = RecipeModel(
+      user_id: currentUser.id, // Set the current user's ID
+      title: _titleController.text,
+      description: _descriptionController.text.isEmpty ? null : _descriptionController.text,
+      image_url: mainImageUrl,
+      calories: int.tryParse(_caloriesController.text),
+      servings: int.tryParse(_servingsController.text) ?? 1,
+      cooking_time_minutes: int.parse(_cookingMinutesController.text), // Already validated
+      difficulty_level: _difficultyLevelController.text.isEmpty ? 'medium' : _difficultyLevelController.text,
+      is_published: true, // Default to published, or add a switch in UI
+      // ingredients_text and directions_text are part of the model but not directly saved by createRecipe to columns
+      // They can be used if createRecipe is extended or for other purposes.
+      ingredients_text: _ingredientsController.text.isEmpty ? null : _ingredientsController.text,
+      directions_text: _directionsController.text.isEmpty ? null : _directionsController.text,
+      // gallery_image_urls in RecipeModel is for reading; for creation, we pass the list separately
+    );
+
+    try {
+      await _recipeService.createRecipe(recipeToCreate, galleryImageUrls);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Recipe created successfully!')),
+        );
+        Navigator.pop(context, true); // Pop and indicate success
+      }
+    } catch (e) {
+      print('Error saving recipe: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to create recipe: ${e.toString()}')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isUploadingOrSaving = false;
+        });
       }
     }
   }
 
   Future<void> _pickImage() async {
-    if (_isUploading) return;
+    if (_isUploadingOrSaving) return;
     final XFile? pickedFile = await _picker.pickImage(source: ImageSource.gallery);
     if (pickedFile != null) {
       setState(() {
@@ -123,7 +153,7 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
   }
 
   Future<void> _pickGalleryImages() async {
-    if (_isUploading) return;
+    if (_isUploadingOrSaving) return;
     final List<XFile> pickedFiles = await _picker.pickMultiImage();
     if (pickedFiles.isNotEmpty) {
       setState(() {
@@ -139,7 +169,7 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('Create Recipe (DB Schema)', style: GoogleFonts.dmSans(fontWeight: FontWeight.bold)),
+        title: Text('Create New Recipe', style: GoogleFonts.dmSans(fontWeight: FontWeight.bold)),
         backgroundColor: Colors.white,
         foregroundColor: Colors.black,
         elevation: 1,
