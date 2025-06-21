@@ -2,49 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:solar_icons/solar_icons.dart';
 
-// Import navigation components
-import '../bottomnavbar/bottom-navbar.dart';
-import 'bookmark-detail.dart';
-
-// for routing to bookmark-create and bookmark-edit
-import 'bookmark-create.dart';
-import 'bookmark-edit.dart'; // Import BookmarkEditScreen
-
-// Model for bookmark categories
-class BookmarkCategory {
-  final String name;
-  final String imageUrl;
-  final List<RecipeItem> recipes; // Recipes *in* this specific category folder
-  bool isSelected;
-
-  BookmarkCategory({
-    required this.name,
-    required this.imageUrl,
-    required this.recipes,
-    this.isSelected = false,
-  });
-}
-
-// Model for recipe items
-class RecipeItem {
-  final String name;
-  final String imageUrl;
-  final double rating;
-  final int reviewCount;
-  final int calories;
-  final int prepTime; // Assuming this is Porsi (Servings)
-  final int cookTime; // Assuming this is Menit (Minutes)
-
-  RecipeItem({
-    required this.name,
-    required this.imageUrl,
-    required this.rating,
-    required this.reviewCount,
-    required this.calories,
-    required this.prepTime,
-    required this.cookTime,
-  });
-}
+import '../../bottomnavbar/bottom-navbar.dart';
+import 'bookmark_detail_screen.dart';
+import 'bookmark_create_screen.dart';
+import 'bookmark_edit_screen.dart';
+import '../models/bookmark_category.dart';
+import '../models/recipe_item.dart';
 
 class BookmarkScreen extends StatefulWidget {
   const BookmarkScreen({Key? key}) : super(key: key);
@@ -54,36 +17,33 @@ class BookmarkScreen extends StatefulWidget {
 }
 
 class _BookmarkScreenState extends State<BookmarkScreen> {
-  // --- Central List of All Saved Recipes ---
-  // Logically, all bookmarked items exist here first.
   final List<RecipeItem> allSavedRecipes = [
     RecipeItem(
-      name: 'Roti Panggang Blueberry', // Was: Fruity blueberry toast
+      name: 'Roti Panggang Blueberry',
       imageUrl: 'placeholder_image.jpg',
       rating: 4.8,
       reviewCount: 128,
       calories: 23,
-      prepTime: 2, // Porsi
-      cookTime: 12, // Menit
+      prepTime: 2,
+      cookTime: 12,
     ),
     RecipeItem(
-      name: 'Roti Panggang Blackberry', // Was: Fruity blackberry toast
+      name: 'Roti Panggang Blackberry',
       imageUrl: 'placeholder_image.jpg',
       rating: 4.8,
       reviewCount: 128,
       calories: 24,
-      prepTime: 2, // Porsi
-      cookTime: 12, // Menit
+      prepTime: 2,
+      cookTime: 12,
     ),
-    // New recipes for Dinner (now also in Saved)
     RecipeItem(
       name: 'Nasi Goreng Spesial',
       imageUrl: 'placeholder_image.jpg',
       rating: 4.5,
       reviewCount: 210,
       calories: 350,
-      prepTime: 2, // Porsi
-      cookTime: 20, // Menit
+      prepTime: 2,
+      cookTime: 20,
     ),
     RecipeItem(
       name: 'Ayam Bakar Madu',
@@ -91,8 +51,8 @@ class _BookmarkScreenState extends State<BookmarkScreen> {
       rating: 4.9,
       reviewCount: 305,
       calories: 420,
-      prepTime: 4, // Porsi
-      cookTime: 45, // Menit
+      prepTime: 4,
+      cookTime: 45,
     ),
     RecipeItem(
       name: 'Sate Ayam Bumbu Kacang',
@@ -100,15 +60,11 @@ class _BookmarkScreenState extends State<BookmarkScreen> {
       rating: 4.7,
       reviewCount: 180,
       calories: 380,
-      prepTime: 3, // Porsi
-      cookTime: 30, // Menit
+      prepTime: 3,
+      cookTime: 30,
     ),
   ];
 
-  // --- User-Created Bookmark Categories/Folders ---
-  // These folders *contain references* to recipes from `allSavedRecipes`.
-  // Initially, they might be empty or pre-populated based on logic.
-  // For this example, 'Saved' shows all, others are empty initially.
   late List<BookmarkCategory> categories;
 
   @override
@@ -116,28 +72,26 @@ class _BookmarkScreenState extends State<BookmarkScreen> {
     super.initState();
     categories = [
       BookmarkCategory(
-        name: 'Saved', // This special category shows ALL saved recipes
+        name: 'Saved',
         imageUrl: 'placeholder_image.jpg',
-        recipes: List.from(allSavedRecipes), // Contains all recipes
+        recipes: List.from(allSavedRecipes),
       ),
       BookmarkCategory(
-        name: 'Resep Akhir Pekan', // Was: Weekend Recipe
+        name: 'Resep Akhir Pekan',
         imageUrl: 'placeholder_image.jpg',
-        recipes: [allSavedRecipes[0], allSavedRecipes[1]], // Initially empty, user adds recipes here from 'Saved'
+        recipes: [allSavedRecipes[0], allSavedRecipes[1]],
       ),
       BookmarkCategory(
-        name: 'Makan Malam', // Was: Dinner
+        name: 'Makan Malam',
         imageUrl: 'placeholder_image.jpg',
-        recipes: [allSavedRecipes[2], allSavedRecipes[3], allSavedRecipes[4]], // Initially empty, user adds recipes here from 'Saved'
+        recipes: [allSavedRecipes[2], allSavedRecipes[3], allSavedRecipes[4]],
       ),
     ];
   }
 
-  // Track selected categories for deletion
   Set<int> selectedCategories = {};
 
   void toggleCategorySelection(int index) {
-    // Don't allow selection of "Saved" category for deletion/editing
     if (categories[index].name == 'Saved') {
       return;
     }
@@ -153,26 +107,21 @@ class _BookmarkScreenState extends State<BookmarkScreen> {
 
   void deleteSelectedCategories() {
     setState(() {
-      // Sort in reverse order to avoid index shifting issues
       final toDelete =
           selectedCategories.toList()..sort((a, b) => b.compareTo(a));
 
       for (final index in toDelete) {
-        // Ensure we don't delete the 'Saved' category
         if (categories[index].name != 'Saved') {
           categories.removeAt(index);
         }
       }
 
-      // Clear selections after deletion
       selectedCategories.clear();
     });
   }
 
   void handleBottomNavTap(int index) {
-    // In a real app, you'd navigate to different screens
     print('Navigated to index: $index');
-    // Example: Navigate to Home if index 0 is tapped
     if (index == 0) {
       if (Navigator.canPop(context)) {
         Navigator.popUntil(context, (route) => route.isFirst);
@@ -181,7 +130,6 @@ class _BookmarkScreenState extends State<BookmarkScreen> {
   }
 
   void _navigateToEdit(BookmarkCategory category) {
-    // Prevent editing the 'Saved' category
     if (category.name == 'Saved') {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Kategori 'Saved' tidak bisa diedit.")),
@@ -207,7 +155,7 @@ class _BookmarkScreenState extends State<BookmarkScreen> {
         title:
             selectedCategories.isNotEmpty
                 ? Text(
-                  '${selectedCategories.length} item terpilih', // Bahasa Indonesia
+                  '${selectedCategories.length} item terpilih',
                   style: GoogleFonts.dmSans(
                     fontSize: 24,
                     fontWeight: FontWeight.bold,
@@ -247,7 +195,10 @@ class _BookmarkScreenState extends State<BookmarkScreen> {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (context) => BookmarkCreateScreen(savedRecipes: allSavedRecipes),
+                        builder:
+                            (context) => BookmarkCreateScreen(
+                              savedRecipes: allSavedRecipes,
+                            ),
                       ),
                     );
                   },
@@ -271,12 +222,10 @@ class _BookmarkScreenState extends State<BookmarkScreen> {
             return GestureDetector(
               onTap: () {
                 if (selectedCategories.isNotEmpty) {
-                  // Allow selection toggle only for non-'Saved' categories during multi-select
                   if (!isSavedCategory) {
                     toggleCategorySelection(index);
                   }
                 } else {
-                  // Navigate to category detail
                   Navigator.push(
                     context,
                     MaterialPageRoute(
@@ -287,7 +236,6 @@ class _BookmarkScreenState extends State<BookmarkScreen> {
                 }
               },
               onLongPress: () {
-                // Allow long-press selection only for non-'Saved' categories
                 if (!isSavedCategory) {
                   toggleCategorySelection(index);
                 }
@@ -297,12 +245,10 @@ class _BookmarkScreenState extends State<BookmarkScreen> {
                 child: Stack(
                   fit: StackFit.expand,
                   children: [
-                    // Category image
                     Image.asset(
-                      'assets/images/cookbooks/placeholder_image.jpg', // Use category.imageUrl if available
+                      'assets/images/cookbooks/placeholder_image.jpg',
                       fit: BoxFit.cover,
                     ),
-                    // Gradient overlay
                     Container(
                       decoration: BoxDecoration(
                         gradient: LinearGradient(
@@ -315,7 +261,6 @@ class _BookmarkScreenState extends State<BookmarkScreen> {
                         ),
                       ),
                     ),
-                    // Category name
                     Positioned(
                       left: 10,
                       bottom: 10,
@@ -328,7 +273,6 @@ class _BookmarkScreenState extends State<BookmarkScreen> {
                         ),
                       ),
                     ),
-                    // Selection indicator
                     if (selectedCategories.contains(index))
                       Positioned(
                         top: 10,
@@ -336,9 +280,7 @@ class _BookmarkScreenState extends State<BookmarkScreen> {
                         child: Container(
                           padding: const EdgeInsets.all(1),
                           decoration: BoxDecoration(
-                            color: Colors.grey.withOpacity(
-                              0.5,
-                            ), // Semi-transparent background
+                            color: Colors.grey.withOpacity(0.5),
                             shape: BoxShape.circle,
                           ),
                           child: const Icon(
@@ -348,7 +290,6 @@ class _BookmarkScreenState extends State<BookmarkScreen> {
                           ),
                         ),
                       ),
-                    // Edit Icon (only when not selecting and not 'Saved')
                     if (selectedCategories.isEmpty && !isSavedCategory)
                       Positioned(
                         top: 8,
@@ -358,13 +299,11 @@ class _BookmarkScreenState extends State<BookmarkScreen> {
                           child: Container(
                             padding: const EdgeInsets.all(4),
                             decoration: BoxDecoration(
-                              color: Colors.black.withOpacity(
-                                0.4,
-                              ), // Semi-transparent background
+                              color: Colors.black.withOpacity(0.4),
                               shape: BoxShape.circle,
                             ),
                             child: const Icon(
-                              SolarIconsOutline.penNewSquare, // Or Icons.edit
+                              SolarIconsOutline.penNewSquare,
                               size: 20,
                               color: Colors.white,
                             ),
@@ -381,12 +320,10 @@ class _BookmarkScreenState extends State<BookmarkScreen> {
       bottomNavigationBar: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Navigation bar with integrated FAB
           BottomNavBar(
-            currentIndex: 1, // 1 for bookmark screen
+            currentIndex: 1,
             onTap: handleBottomNavTap,
             onFabPressed: () {
-              // Handle FAB pressed action
               print('FAB pressed on BookmarkScreen');
             },
           ),
