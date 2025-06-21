@@ -79,15 +79,23 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
 
     // Ingredients
     final List<dynamic> ingredientsData = data['recipe_ingredients'] as List<dynamic>? ?? [];
-    final List<DetailModelIngredient.Ingredient> ingredients = ingredientsData.map((ingData) {
-      final Map<String, dynamic> actualIngredient = ingData['ingredients'] as Map<String, dynamic>? ?? {};
-      return DetailModelIngredient.Ingredient(
-        order: ingData['order_index'] as int? ?? ingredientsData.indexOf(ingData),
-        name: actualIngredient['name'] as String? ?? 'Unknown Ingredient',
-        amount: (ingData['quantity'] as num?)?.toString() ?? '0',
-        unit: ingData['unit'] as String? ?? actualIngredient['unit'] as String? ?? '',
-      );
-    }).toList().cast<DetailModelIngredient.Ingredient>();
+    final List<DetailModelIngredient.Ingredient> ingredients = ingredientsData.map((ingDataMap) {
+      // Ensure ingDataMap is actually a map
+      if (ingDataMap is Map<String, dynamic>) {
+        // The 'ingredients' field from the database IS the name.
+        final String ingredientName = ingDataMap['ingredients'] as String? ?? 'Unknown Ingredient';
+        return DetailModelIngredient.Ingredient(
+          order: ingDataMap['order_index'] as int? ?? ingredientsData.indexOf(ingDataMap),
+          name: ingredientName, // Use the direct string
+          amount: (ingDataMap['quantity'] as num?)?.toString() ?? '0',
+          unit: ingDataMap['unit'] as String? ?? '',
+        );
+      } else {
+        // Handle case where an item in ingredientsData is not a map
+        print("WARNING: Skipping non-map item in ingredientsData: $ingDataMap");
+        return null;
+      }
+    }).whereType<DetailModelIngredient.Ingredient>().toList(); // Filter out any nulls
 
     // Directions
     final List<dynamic> instructionsData = data['recipe_instructions'] as List<dynamic>? ?? [];
