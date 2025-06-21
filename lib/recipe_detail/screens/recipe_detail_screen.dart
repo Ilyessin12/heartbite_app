@@ -446,7 +446,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
                             Navigator.push(
                               context,
                               MaterialPageRoute(
-                                builder: (context) => GalleryScreen(images: widget.recipe.galleryImages),
+                                builder: (context) => GalleryScreen(images: _recipe!.galleryImages),
                               ),
                             );
                           },

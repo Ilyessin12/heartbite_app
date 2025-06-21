@@ -276,7 +276,7 @@ class _EditRecipeScreenState extends State<EditRecipeScreen> {
                         ),
                       ElevatedButton.icon(
                         key: const Key('pick_image_button_edit'), 
-                        onPressed: _isUploading ? null : _pickImage,
+                        onPressed: _isUploadingOrSaving ? null : _pickImage, // Changed
                         icon: const Icon(Icons.image),
                         label: Text(_existingImageUrl != null && _existingImageUrl!.isNotEmpty ? 'Change Image' : 'Pick Image'),
                         style: ElevatedButton.styleFrom(backgroundColor: Colors.grey[300], foregroundColor: Colors.black87),
@@ -382,26 +382,170 @@ class _EditRecipeScreenState extends State<EditRecipeScreen> {
                       const SizedBox(height: 8),
                       ElevatedButton.icon(
                         key: const Key('pick_gallery_images_button_edit'), 
-                        onPressed: _isUploading ? null : _pickGalleryImages,  
+                        onPressed: _isUploadingOrSaving ? null : _pickGalleryImages,  // Changed
                         icon: const Icon(Icons.photo_library),
                         label: const Text('Add More Gallery Images'),
                         style: ElevatedButton.styleFrom(backgroundColor: Colors.grey[300], foregroundColor: Colors.black87),
                       ),
                       const SizedBox(height: 8),
-                      if (_galleryImageUrls.isNotEmpty || _newSelectedGalleryImageFiles.isNotEmpty)
+                      if (_existingGalleryImageUrls.isNotEmpty || _newSelectedGalleryImageFiles.isNotEmpty) // Changed
+                        Container(
+                          height: 120,
+                          child: ListView.builder(
+                            scrollDirection: Axis.horizontal,
+                            itemCount: _existingGalleryImageUrls.length + _newSelectedGalleryImageFiles.length, // Changed
+                            itemBuilder: (context, index) {
+                              Widget imageWidget;
+                              bool isNewFile = index >= _existingGalleryImageUrls.length; // Changed
+
+                              if (isNewFile) {
+                                imageWidget = Image.file(_newSelectedGalleryImageFiles[(index - _existingGalleryImageUrls.length).toInt()], fit: BoxFit.cover); // Changed and added .toInt()
+                              } else {
+                                imageWidget = Image.network(_existingGalleryImageUrls[index], fit: BoxFit.cover, // Changed
+                                  errorBuilder: (context, error, stackTrace) => const Icon(Icons.broken_image, size: 50),
+                                );
+                              }
+
+                              return Padding(
+                                padding: const EdgeInsets.only(right: 8.0),
+                                child: Stack(
+                                  children: [
+                                    Container(
+                                      width: 100,
+                                      height: 100,
+                                      decoration: BoxDecoration(border: Border.all(color: Colors.grey)),
+                                      child: imageWidget,
+                                    ),
+                                    Positioned(
+                                      top: -10,
+                                      right: -10,
+                                      child: IconButton(
+                                        icon: const Icon(Icons.remove_circle, color: Colors.red, size: 20),
+                                        onPressed: () {
+                                          setState(() {
+                                            if (isNewFile) {
+                                              _newSelectedGalleryImageFiles.removeAt((index - _existingGalleryImageUrls.length).toInt()); // Changed and added .toInt()
+                                            } else {
+                                              _existingGalleryImageUrls.removeAt(index); // Changed
+                                            }
+                                          });
+                                        },
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            },
+                          ),
+                        )
+                      else
+                        Text("No gallery images yet.", style: GoogleFonts.dmSans()),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 32),
+                _isUploadingOrSaving // Changed
+                  ? const Center(child: CircularProgressIndicator())
+                  : ElevatedButton(
+                      key: const Key('save_button'),
+                      ElevatedButton.icon(
+                        key: const Key('pick_gallery_images_button_edit'),
+                        onPressed: _isUploadingOrSaving ? null : _pickGalleryImages,  // Changed to _isUploadingOrSaving
+                        icon: const Icon(Icons.photo_library),
+                        label: const Text('Add More Gallery Images'),
+                        style: ElevatedButton.styleFrom(backgroundColor: Colors.grey[300], foregroundColor: Colors.black87),
+                      ),
+                      const SizedBox(height: 8),
+                      if (_existingGalleryImageUrls.isNotEmpty || _newSelectedGalleryImageFiles.isNotEmpty) // Changed to _existingGalleryImageUrls
+                        Container(
+                          height: 120,
+                          child: ListView.builder(
+                            scrollDirection: Axis.horizontal,
+                            itemCount: _existingGalleryImageUrls.length + _newSelectedGalleryImageFiles.length, // Changed to _existingGalleryImageUrls
+                            itemBuilder: (context, index) {
+                              Widget imageWidget;
+                              bool isNewFile = index >= _existingGalleryImageUrls.length; // Changed to _existingGalleryImageUrls
+
+                              if (isNewFile) {
+                                // Ensure index is int for List.removeAt() and access
+                                imageWidget = Image.file(_newSelectedGalleryImageFiles[(index - _existingGalleryImageUrls.length).toInt()], fit: BoxFit.cover);
+                              } else {
+                                imageWidget = Image.network(_existingGalleryImageUrls[index], fit: BoxFit.cover, // Changed to _existingGalleryImageUrls
+                                  errorBuilder: (context, error, stackTrace) => const Icon(Icons.broken_image, size: 50),
+                                );
+                              }
+
+                              return Padding(
+                                padding: const EdgeInsets.only(right: 8.0),
+                                child: Stack(
+                                  children: [
+                                    Container(
+                                      width: 100,
+                                      height: 100,
+                                      decoration: BoxDecoration(border: Border.all(color: Colors.grey)),
+                                      child: imageWidget,
+                                    ),
+                                    Positioned(
+                                      top: -10,
+                                      right: -10,
+                                      child: IconButton(
+                                        icon: const Icon(Icons.remove_circle, color: Colors.red, size: 20),
+                                        onPressed: () {
+                                          setState(() {
+                                            if (isNewFile) {
+                                              _newSelectedGalleryImageFiles.removeAt((index - _existingGalleryImageUrls.length).toInt()); // Ensure int index
+                                            } else {
+                                              _existingGalleryImageUrls.removeAt(index); // Changed to _existingGalleryImageUrls
+                                            }
+                                          });
+                                        },
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            },
+                          ),
+                        )
+                      else
+                        Text("No gallery images yet.", style: GoogleFonts.dmSans()),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 32),
+                _isUploadingOrSaving // Changed to _isUploadingOrSaving
+                  ? const Center(child: CircularProgressIndicator())
+                  : ElevatedButton(
+                      key: const Key('save_button'),
+                  padding: const EdgeInsets.symmetric(vertical: 16.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text("Gallery Images", style: GoogleFonts.dmSans(fontSize: 16, fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 8),
+                      ElevatedButton.icon(
+                        key: const Key('pick_gallery_images_button_edit'),
+                        onPressed: _isUploadingOrSaving ? null : _pickGalleryImages,  // Changed to _isUploadingOrSaving
+                        icon: const Icon(Icons.photo_library),
+                        label: const Text('Add More Gallery Images'),
+                        style: ElevatedButton.styleFrom(backgroundColor: Colors.grey[300], foregroundColor: Colors.black87),
+                      ),
+                      const SizedBox(height: 8),
+                      if (_existingGalleryImageUrls.isNotEmpty || _newSelectedGalleryImageFiles.isNotEmpty) // Changed to _existingGalleryImageUrls
                         Container(
                           height: 120, 
                           child: ListView.builder(
                             scrollDirection: Axis.horizontal,
-                            itemCount: _galleryImageUrls.length + _newSelectedGalleryImageFiles.length,
+                            itemCount: _existingGalleryImageUrls.length + _newSelectedGalleryImageFiles.length, // Changed to _existingGalleryImageUrls
                             itemBuilder: (context, index) {
                               Widget imageWidget;
-                              bool isNewFile = index >= _galleryImageUrls.length;
+                              bool isNewFile = index >= _existingGalleryImageUrls.length; // Changed to _existingGalleryImageUrls
                               
                               if (isNewFile) {
-                                imageWidget = Image.file(_newSelectedGalleryImageFiles[index - _galleryImageUrls.length], fit: BoxFit.cover);
+                                // Ensure index is int for List.removeAt() and access
+                                imageWidget = Image.file(_newSelectedGalleryImageFiles[(index - _existingGalleryImageUrls.length).toInt()], fit: BoxFit.cover);
                               } else {
-                                imageWidget = Image.network(_galleryImageUrls[index], fit: BoxFit.cover,
+                                imageWidget = Image.network(_existingGalleryImageUrls[index], fit: BoxFit.cover, // Changed to _existingGalleryImageUrls
                                   errorBuilder: (context, error, stackTrace) => const Icon(Icons.broken_image, size: 50),
                                 );
                               }
@@ -424,9 +568,9 @@ class _EditRecipeScreenState extends State<EditRecipeScreen> {
                                         onPressed: () {
                                           setState(() {
                                             if (isNewFile) {
-                                              _newSelectedGalleryImageFiles.removeAt(index - _galleryImageUrls.length);
+                                              _newSelectedGalleryImageFiles.removeAt((index - _existingGalleryImageUrls.length).toInt()); // Ensure int index
                                             } else {
-                                              _galleryImageUrls.removeAt(index);
+                                              _existingGalleryImageUrls.removeAt(index); // Changed to _existingGalleryImageUrls
                                             }
                                           });
                                         },
@@ -444,7 +588,7 @@ class _EditRecipeScreenState extends State<EditRecipeScreen> {
                   ),
                 ),
                 const SizedBox(height: 32),
-                _isUploading
+                _isUploadingOrSaving // Changed to _isUploadingOrSaving
                   ? const Center(child: CircularProgressIndicator())
                   : ElevatedButton(
                       key: const Key('save_button'), 

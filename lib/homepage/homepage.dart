@@ -15,42 +15,9 @@ import '../recipe_detail/models/ingredient.dart' as DetailIngredientModel;
 import '../recipe_detail/models/direction.dart' as DetailDirectionModel;
 import '../recipe_detail/models/comment.dart' as DetailCommentModel;
 
-// This class definition was moved to homepage_detail.dart to resolve circular dependency
-// // Original RecipeItem model (used by HomePageDetailScreen)
-// class RecipeItem {
-//   final String id;
-//   final String name;
-//   final double rating;
-//   final int reviewCount;
-//   final int calories;
-//   final String prepTime; // Represents servings
-//   final int cookTime; // Represents cookingTimeMinutes
-//   final String imagePath; // Can be local asset or network URL
-//   bool isBookmarked;
-//   final List<String> allergens;
-//   final List<String> dietTypes;
-//   final int cookingDurationMinutes;
-//   final List<String> requiredAppliances;
+// Comments for old RecipeItem definition removed for clarity
 
-//   RecipeItem({
-//     required this.id,
-//     required this.name,
-//     required this.rating,
-//     required this.reviewCount,
-//     required this.calories,
-//     required this.prepTime,
-//     required this.cookTime,
-//     required this.imagePath,
-//     this.isBookmarked = false,
-//     this.allergens = const [],
-//     this.dietTypes = const [],
-//     this.cookingDurationMinutes = 0,
-//     this.requiredAppliances = const [],
-//   });
-// }
-
-
-// Modified RecipeItem to better align with Supabase data or act as a display model
+// DisplayRecipeItem is the primary model for recipe cards in this file.
 class DisplayRecipeItem {
   final int id;
   final String name;
@@ -776,7 +743,7 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Widget _buildHorizontalRecipeList(List<RecipeItem> recipes){
+  Widget _buildHorizontalRecipeList(List<DisplayRecipeItem> recipes) {
     return Container(
       height: 180,
       child: ListView.builder(
@@ -787,10 +754,7 @@ class _HomePageState extends State<HomePage> {
           return Padding(
             padding: const EdgeInsets.only(right: 16.0),
             child: GestureDetector(
-              // Navigate to a detail view specifically for "Latest Recipes"
-              // Or potentially navigate to the recipe's own detail page directly
-              onTap: () => _navigateToDetail("Resep Masakan Terbaru", recipes), // Example: Navigates to a list view
-              // onTap: () => _navigateToRecipeDetail(recipes[index]), // Alternative: Navigate to specific recipe
+              onTap: () => _navigateToRecipeDetail(recipes[index]), // Corrected to navigate to individual recipe detail
               child: _buildLatestRecipeCard(recipes[index]),
             ),
           );
@@ -799,15 +763,17 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Widget _buildLatestRecipeCard(RecipeItem recipe){
+  Widget _buildLatestRecipeCard(DisplayRecipeItem recipe) {
     return Container(
       width: 250,
       child: Stack(
         children: [
           ClipRRect(
             borderRadius: BorderRadius.circular(12),
-            child: Image.asset(
-              recipe.imagePath,
+            child: recipe.imageUrl != null && recipe.imageUrl!.isNotEmpty
+                ? Image.network(recipe.imageUrl!, fit: BoxFit.cover, width: double.infinity, height: double.infinity,
+                    errorBuilder: (context, error, stackTrace) => Image.asset('assets/images/cookbooks/placeholder_image.jpg', fit: BoxFit.cover))
+                : Image.asset('assets/images/cookbooks/placeholder_image.jpg',
               fit: BoxFit.cover,
               width: double.infinity,
               height: double.infinity,
@@ -848,7 +814,7 @@ class _HomePageState extends State<HomePage> {
             top: 10,
             right: 10,
             child: GestureDetector(
-              onTap: () => _toggleBookmark(recipe.id), // Use the main toggle function
+              onTap: () => _toggleBookmark(recipe.id),
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(20),
                 child: BackdropFilter(
@@ -880,7 +846,7 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Widget _buildRecipeGrid(List<RecipeItem> recipes){
+  Widget _buildRecipeGrid(List<DisplayRecipeItem> recipes) {
     return GridView.builder(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
@@ -895,6 +861,7 @@ class _HomePageState extends State<HomePage> {
       itemBuilder: (context, index){
         return RecipeCard(
           recipe: recipes[index],
+          onTap: () => _navigateToRecipeDetail(recipes[index]),
           onBookmarkTap: () => _toggleBookmark(recipes[index].id),
         );
       },
@@ -904,12 +871,14 @@ class _HomePageState extends State<HomePage> {
 
 // Recipe Card component
 class RecipeCard extends StatelessWidget {
-  final RecipeItem recipe;
+  final DisplayRecipeItem recipe; // Parameter already uses DisplayRecipeItem
   final VoidCallback onBookmarkTap;
+  final VoidCallback onTap;
 
   const RecipeCard({
     Key? key,
     required this.recipe,
+    required this.onTap,
     required this.onBookmarkTap,
   }) : super(key: key);
 
