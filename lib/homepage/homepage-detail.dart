@@ -6,6 +6,7 @@ import 'dart:ui';
 // Import models and widgets from homepage.dart
 // Changed RecipeItem to DisplayRecipeItem
 import 'homepage.dart' show DisplayRecipeItem, RecipeCard;
+import '../recipe_detail/screens/recipe_detail_screen.dart'; // Import RecipeDetailScreen for onTap navigation
 // Import bottom navigation bar
 import '../bottomnavbar/bottom-navbar.dart';
 

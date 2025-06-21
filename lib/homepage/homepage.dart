@@ -479,6 +479,7 @@ class _HomePageState extends State<HomePage> {
               itemBuilder: (context, index){
                 return RecipeCard(
                   recipe: _searchResults[index],
+                  onTap: () => _navigateToRecipeDetail(_searchResults[index]), // Ditambahkan
                   onBookmarkTap: () => _toggleBookmark(_searchResults[index].id),
                 );
               },
@@ -773,7 +774,7 @@ class _HomePageState extends State<HomePage> {
             child: recipe.imageUrl != null && recipe.imageUrl!.isNotEmpty
                 ? Image.network(recipe.imageUrl!, fit: BoxFit.cover, width: double.infinity, height: double.infinity,
                     errorBuilder: (context, error, stackTrace) => Image.asset('assets/images/cookbooks/placeholder_image.jpg', fit: BoxFit.cover))
-                : Image.asset('assets/images/cookbooks/placeholder_image.jpg',
+                : Image.asset('assets/images/cookbooks/placeholder_image.jpg', // Fallback to placeholder if imageUrl is null or empty
               fit: BoxFit.cover,
               width: double.infinity,
               height: double.infinity,

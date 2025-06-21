@@ -26,9 +26,9 @@ class RecipeService {
 
     if (searchQuery != null && searchQuery.isNotEmpty) {
       final searchPattern = '%${searchQuery.trim().replaceAll(' ', '%')}%';
-      // Using .filter() for OR conditions as direct .or() chaining might be problematic depending on client version or complexity
-      // Format for OR filter: "or=(condition1,condition2)"
-      query = query.filter('or', '(title.ilike.$searchPattern,description.ilike.$searchPattern)');
+      // Corrected usage of .or() filter for Supabase Flutter.
+      // It takes a single string argument with conditions separated by commas.
+      query = query.or('title.ilike.$searchPattern,description.ilike.$searchPattern');
     }
     
     final response = await query;
