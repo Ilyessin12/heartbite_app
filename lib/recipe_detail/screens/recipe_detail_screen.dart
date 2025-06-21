@@ -82,22 +82,22 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
     final List<DetailModelIngredient.Ingredient> ingredients = ingredientsData.map((ingData) {
       final Map<String, dynamic> actualIngredient = ingData['ingredients'] as Map<String, dynamic>? ?? {};
       return DetailModelIngredient.Ingredient(
+        order: ingData['order_index'] as int? ?? ingredientsData.indexOf(ingData),
         name: actualIngredient['name'] as String? ?? 'Unknown Ingredient',
-        quantity: (ingData['quantity'] as num?)?.toDouble() ?? 0,
+        amount: (ingData['quantity'] as num?)?.toString() ?? '0',
         unit: ingData['unit'] as String? ?? actualIngredient['unit'] as String? ?? '',
-        // isChecked: false, // Default or handle as needed
       );
-    }).toList();
+    }).toList().cast<DetailModelIngredient.Ingredient>();
 
     // Directions
     final List<dynamic> instructionsData = data['recipe_instructions'] as List<dynamic>? ?? [];
     final List<DetailModelDirection.Direction> directions = instructionsData.map((instData) {
       return DetailModelDirection.Direction(
-        step: instData['step_number'] as int? ?? 0,
+        order: instData['step_number'] as int? ?? 0,
         description: instData['instruction'] as String? ?? '',
-        // isDone: false, // Default or handle as needed
+        imageUrl: instData['image_url'] as String?,
       );
-    }).toList();
+    }).toList().cast<DetailModelDirection.Direction>();
 
     // Gallery Images
     final List<dynamic> galleryData = data['recipe_gallery_images'] as List<dynamic>? ?? [];
@@ -165,33 +165,28 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
         difficulty_level: "medium", // DetailModel.Recipe doesn't have this, provide default or map
         is_published: true, // Assuming it's published, or get this state from fetched data
         gallery_image_urls: _recipe!.galleryImages,
-        // ingredients_text and directions_text would need to be reconstructed if needed for edit screen
-        // or EditRecipeScreen should fetch them separately.
-        // For now, they can be null or empty.
-        ingredients_text: _recipe!.ingredients.map((e) => "${e.quantity} ${e.unit} ${e.name}").join('\n'),
+        // ingredients_text and directions_text are reconstructed from DetailModel
+        ingredients_text: _recipe!.ingredients.map((e) => "${e.amount} ${e.unit} ${e.name}").join('\n'), // Used e.amount
         directions_text: _recipe!.directions.map((e) => e.description).join('\n'),
     );
 
-    // Check if the current user is the owner of the recipe
-    // The user_id in recipeToEdit should be the original recipe owner's ID from fetched data.
-    // We need to ensure _recipe has user_id or fetch it. For now, this is a simplified check.
-    // A proper check would involve comparing currentUser.id with the recipe's actual user_id from Supabase.
-    // The `getRecipeDetailsById` should ideally return `user_id` of the recipe creator.
-    // Let's assume `_recipe.authorName` could be used if it's the username, or that `user_id` is part of the fetched data.
-    // This logic needs refinement based on actual data structure from service.
-    // For now, we'll rely on EditRecipeScreen's own auth check or pass the original user_id.
+    // Authorization check already happens in EditRecipeScreen using recipeToEdit.user_id
+    // We must ensure recipeToEdit.user_id is the *original creator's ID*.
+    // The current logic in _adaptSupabaseDataToDetailModel does not explicitly set user_id on _recipe object.
+    // Let's assume getRecipeDetailsById returns user_id in the top-level map.
+    final Map<String, dynamic>? originalRecipeDataFromServer = await _recipeService.getRecipeDetailsById(widget.recipeId);
+    final originalCreatorId = originalRecipeDataFromServer?['user_id'] as String?;
 
-    final Map<String, dynamic>? originalRecipeData = await _recipeService.getRecipeDetailsById(widget.recipeId);
-    if (originalRecipeData == null || originalRecipeData['user_id'] != SupabaseClientWrapper().auth.currentUser?.id) {
-         if (mounted) {
+    if (originalCreatorId == null || originalCreatorId.isEmpty) {
+        if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('You are not authorized to edit this recipe.')));
+                const SnackBar(content: Text('Could not verify recipe owner.')));
         }
         return;
     }
-    recipeToEdit.user_id = originalRecipeData['user_id'];
+    recipeToEdit.user_id = originalCreatorId; // Set the correct original creator's ID for EditRecipeScreen to check
 
-
+    // Now, perform the navigation with the correctly populated recipeToEdit
     final result = await Navigator.push(
       context,
       MaterialPageRoute(builder: (context) => EditRecipeScreen(recipe: recipeToEdit)),

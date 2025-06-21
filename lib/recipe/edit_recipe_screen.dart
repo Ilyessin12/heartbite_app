@@ -187,7 +187,7 @@ class _EditRecipeScreenState extends State<EditRecipeScreen> {
   }
 
   Future<void> _pickGalleryImages() async {
-    if (_isUploading) return;
+    if (_isUploadingOrSaving) return; // Changed _isUploading to _isUploadingOrSaving
     final List<XFile> pickedFiles = await _picker.pickMultiImage();
     if (pickedFiles.isNotEmpty) {
       setState(() {

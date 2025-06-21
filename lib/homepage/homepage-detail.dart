@@ -4,13 +4,15 @@ import 'package:iconoir_flutter/iconoir_flutter.dart' hide Key, Text, Navigator,
 import 'dart:ui';
 
 // Import models and widgets from homepage.dart
-import 'homepage.dart' show RecipeItem, RecipeCard;
+// Changed RecipeItem to DisplayRecipeItem
+import 'homepage.dart' show DisplayRecipeItem, RecipeCard;
 // Import bottom navigation bar
 import '../bottomnavbar/bottom-navbar.dart';
 
 class HomePageDetailScreen extends StatefulWidget {
   final String title;
-  final List<RecipeItem> recipes;
+  // Changed List<RecipeItem> to List<DisplayRecipeItem>
+  final List<DisplayRecipeItem> recipes;
 
   const HomePageDetailScreen({
     Key? key,
@@ -23,35 +25,43 @@ class HomePageDetailScreen extends StatefulWidget {
 }
 
 class _HomePageDetailScreenState extends State<HomePageDetailScreen> {
-  late List<RecipeItem> _currentRecipes; // To hold the state of recipes
-  int _currentIndex = 0; // Assuming Home is index 0 for BottomNavBar
+  // Changed List<RecipeItem> to List<DisplayRecipeItem>
+  late List<DisplayRecipeItem> _currentRecipes;
+  int _currentIndex = 0;
 
   @override
   void initState(){
     super.initState();
-    // Initialize with a copy to manage state locally
-    _currentRecipes = List<RecipeItem>.from(widget.recipes.map((recipe) =>
-      RecipeItem(
-        id: recipe.id,
-        name: recipe.name,
-        rating: recipe.rating,
-        reviewCount: recipe.reviewCount,
-        calories: recipe.calories,
-        prepTime: recipe.prepTime,
-        cookTime: recipe.cookTime,
-        imagePath: recipe.imagePath,
-        isBookmarked: recipe.isBookmarked,
-      )
-    ));
+    // Initialize with a copy, ensuring DisplayRecipeItem is used
+    // The map operation might be redundant if widget.recipes is already a fresh list of DisplayRecipeItem
+    // However, creating a new list ensures modifications here don't affect the original list passed to the widget.
+    _currentRecipes = List<DisplayRecipeItem>.from(widget.recipes.map((recipe) {
+      // Assuming recipe is already DisplayRecipeItem, we can copy it or use as is if no local modification needed
+      // For safety, let's create new instances if DisplayRecipeItem has complex internal state or if we modify bookmark status etc.
+      // If DisplayRecipeItem is simple and its fields are final (except isBookmarked), direct use after casting is also an option.
+      final dr = recipe; // recipe is already DisplayRecipeItem here
+      return DisplayRecipeItem(
+        id: dr.id,
+        name: dr.name,
+        rating: dr.rating,
+        reviewCount: dr.reviewCount,
+        calories: dr.calories,
+        servings: dr.servings, // Use servings
+        cookingTimeMinutes: dr.cookingTimeMinutes, // Use cookingTimeMinutes
+        imageUrl: dr.imageUrl, // Use imageUrl
+        isBookmarked: dr.isBookmarked,
+        allergens: dr.allergens, // Ensure these fields exist in DisplayRecipeItem
+        dietTypes: dr.dietTypes,
+        requiredAppliances: dr.requiredAppliances,
+      );
+    }));
   }
 
-  void _toggleBookmark(String recipeId){
+  void _toggleBookmark(int recipeId){ // Changed to int recipeId
     setState((){
       final index = _currentRecipes.indexWhere((recipe) => recipe.id == recipeId);
       if(index != -1){
         _currentRecipes[index].isBookmarked = !_currentRecipes[index].isBookmarked;
-        // Optional: You might want to propagate this change back to the HomePage
-        // using a callback or state management solution if needed.
       }
     });
   }

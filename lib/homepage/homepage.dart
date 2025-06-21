@@ -230,21 +230,7 @@ class _HomePageState extends State<HomePage> {
       MaterialPageRoute(
         builder: (context) => HomePageDetailScreen(
           title: title,
-          recipes: recipes.map((dr) => RecipeItem(
-                id: dr.id.toString(),
-                name: dr.name,
-                rating: dr.rating,
-                reviewCount: dr.reviewCount,
-                calories: dr.calories ?? 0,
-                prepTime: dr.servings,
-                cookTime: dr.cookingTimeMinutes,
-                imagePath: dr.imageUrl ?? 'assets/images/cookbooks/placeholder_image.jpg',
-                isBookmarked: dr.isBookmarked,
-                allergens: dr.allergens,
-                dietTypes: dr.dietTypes,
-                cookingDurationMinutes: dr.cookingTimeMinutes,
-                requiredAppliances: dr.requiredAppliances,
-          )).toList(),
+          recipes: recipes, // Pass List<DisplayRecipeItem> directly
         ),
       ),
     );
@@ -420,7 +406,7 @@ class _HomePageState extends State<HomePage> {
         _buildSectionTitle(
           "Popular Recipes",
           showViewAll: true,
-          onViewAllTap: () => _navigateToDetail("Popular Recipes", _popularRecipes),
+          onViewAllTap: () => _navigateToGroupDetail("Popular Recipes", _popularRecipes),
         ),
         _buildRecipeGrid(_popularRecipes),
 
@@ -428,7 +414,7 @@ class _HomePageState extends State<HomePage> {
         _buildSectionTitle(
           "Menu Sarapan Mudah",
           showViewAll: true,
-          onViewAllTap: () => _navigateToDetail("Menu Sarapan Mudah", _breakfastRecipes),
+          onViewAllTap: () => _navigateToGroupDetail("Menu Sarapan Mudah", _breakfastRecipes),
         ),
         _buildRecipeGrid(_breakfastRecipes),
 

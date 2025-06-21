@@ -219,7 +219,7 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
                   ),
                 ElevatedButton.icon(
                   key: const Key('pick_image_button'), 
-                  onPressed: _isUploading ? null : _pickImage, // Disable if uploading
+                  onPressed: _isUploadingOrSaving ? null : _pickImage, // Changed _isUploading to _isUploadingOrSaving
                   icon: const Icon(Icons.image),
                   label: const Text('Pick Recipe Image'),
                   style: ElevatedButton.styleFrom(backgroundColor: Colors.grey[300], foregroundColor: Colors.black87),
@@ -231,6 +231,12 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
                   style: textStyle,
                   decoration: InputDecoration(labelText: 'Calories (e.g., 250)', labelStyle: labelStyle),
                   keyboardType: TextInputType.number,
+                  validator: (value) { // Optional: Add validation for calories if needed
+                    if (value != null && value.isNotEmpty && int.tryParse(value) == null) {
+                      return 'Please enter a valid number for calories';
+                    }
+                    return null;
+                  },
                 ),
                 const SizedBox(height: 16),
                 TextFormField( 
@@ -272,6 +278,12 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
                   controller: _difficultyLevelController,
                   style: textStyle,
                   decoration: InputDecoration(labelText: 'Difficulty Level (e.g., easy, medium, hard)', labelStyle: labelStyle),
+                   validator: (value) {
+                    if (value != null && value.isNotEmpty && !['easy', 'medium', 'hard'].contains(value.toLowerCase())) {
+                      return 'Must be easy, medium, or hard';
+                    }
+                    return null;
+                  },
                 ),
                 const SizedBox(height: 16),
                 TextFormField(
@@ -285,12 +297,13 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
                   ),
                   maxLines: null, 
                   keyboardType: TextInputType.multiline,
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Please enter ingredients';
-                    }
-                    return null;
-                  },
+                  // Validator is optional here as this text isn't directly saved to a mandatory DB column by createRecipe
+                  // validator: (value) {
+                  //   if (value == null || value.isEmpty) {
+                  //     return 'Please enter ingredients';
+                  //   }
+                  //   return null;
+                  // },
                 ),
                 const SizedBox(height: 16),
                 TextFormField(
@@ -304,12 +317,13 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
                   ),
                   maxLines: null, 
                   keyboardType: TextInputType.multiline,
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Please enter directions';
-                    }
-                    return null;
-                  },
+                  // Validator is optional here, similar to ingredients
+                  // validator: (value) {
+                  //   if (value == null || value.isEmpty) {
+                  //     return 'Please enter directions';
+                  //   }
+                  //   return null;
+                  // },
                 ),
                 const SizedBox(height: 16),
                 // Gallery Image Picker UI
@@ -322,7 +336,7 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
                       const SizedBox(height: 8),
                       ElevatedButton.icon(
                         key: const Key('pick_gallery_images_button'), 
-                        onPressed: _isUploading ? null : _pickGalleryImages, // Disable if uploading
+                        onPressed: _isUploadingOrSaving ? null : _pickGalleryImages, // Changed _isUploading to _isUploadingOrSaving
                         icon: const Icon(Icons.photo_library),
                         label: const Text('Add Gallery Images'),
                         style: ElevatedButton.styleFrom(backgroundColor: Colors.grey[300], foregroundColor: Colors.black87),
@@ -372,10 +386,10 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
                   ),
                 ),
                 const SizedBox(height: 32),
-                _isUploading
+                _isUploadingOrSaving // Changed _isUploading to _isUploadingOrSaving
                   ? const Center(child: CircularProgressIndicator())
                   : ElevatedButton(
-                      key: const Key('save_button'), // Corrected key name
+                      key: const Key('save_button'),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.teal,
                         padding: const EdgeInsets.symmetric(vertical: 16),

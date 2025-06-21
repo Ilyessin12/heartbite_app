@@ -25,7 +25,11 @@ class RecipeService {
         .range(offset, offset + limit - 1);
 
     if (searchQuery != null && searchQuery.isNotEmpty) {
-      query = query.or('title.ilike.%$searchQuery%,description.ilike.%$searchQuery%');
+      // Corrected 'or' filter syntax for Supabase
+      // The or filter string should be a single string with conditions separated by commas.
+      // Each condition is `column.operator.value`.
+      final searchPattern = '%${searchQuery.trim().replaceAll(' ', '%')}%'; // Handle spaces and create a pattern
+      query = query.or('title.ilike.$searchPattern,description.ilike.$searchPattern');
     }
     
     final response = await query;
