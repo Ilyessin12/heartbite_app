@@ -2,11 +2,11 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:supabase_flutter/supabase_flutter.dart'; // Import Supabase
+// import 'package:supabase_flutter/supabase_flutter.dart'; // Supabase client not directly used here for user
 import '../services/image_upload_service.dart';
-import '../services/recipe_service.dart'; // Import RecipeService
-import '../models/recipe_model.dart'; // Import RecipeModel
-import '../services/supabase_client.dart'; // Import SupabaseClientWrapper for user ID
+import '../services/recipe_service.dart';
+import '../models/recipe_model.dart';
+// import '../services/supabase_client.dart'; // SupabaseClientWrapper for user ID - using hardcoded for now
 
 class CreateRecipeScreen extends StatefulWidget {
   const CreateRecipeScreen({super.key});
@@ -25,7 +25,7 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
 
   final ImagePicker _picker = ImagePicker();
   final ImageUploadService _imageUploadService = ImageUploadService();
-  final RecipeService _recipeService = RecipeService(); // Instantiate RecipeService
+  final RecipeService _recipeService = RecipeService();
   bool _isUploadingOrSaving = false;
 
   final _caloriesController = TextEditingController();
@@ -33,9 +33,6 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
   final _cookingMinutesController = TextEditingController();
   final _difficultyLevelController = TextEditingController(text: 'medium');
 
-  // Controllers for ingredients and directions - data will be passed to RecipeModel
-  // but not directly saved to 'recipes' table columns by RecipeService.createRecipe
-  // This can be used later if we decide to parse and save them to related tables.
   final _ingredientsController = TextEditingController();
   final _directionsController = TextEditingController();
 
@@ -52,21 +49,134 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
     super.dispose();
   }
 
+  List<RecipeIngredientModel> _parseIngredients(String text) {
+    final List<RecipeIngredientModel> ingredients = [];
+    final lines = text.split('\n').where((line) => line.trim().isNotEmpty).toList();
+
+    // Regex to capture:
+    // 1. (Optional) Quantity: numbers, decimals, fractions (e.g., "1", "0.5", "1/2", "1 1/2")
+    // 2. (Optional) Unit: common units or any non-numeric word following quantity
+    // 3. Name: the rest of the string
+    // This regex is more complex to handle mixed fractions like "1 1/2"
+    final RegExp regex = RegExp(
+      r'^\s*(?:([\d\.\/]+(?:\s+[\d\.\/]+)?)\s+)?' // Optional quantity (group 1) with optional mixed fraction
+      r'(?:(\S+)\s+)?'                             // Optional unit (group 2)
+      r'(.+)$'                                      // Name (group 3)
+    );
+
+    for (int i = 0; i < lines.length; i++) {
+      final line = lines[i].trim();
+      final match = regex.firstMatch(line);
+
+      double quantity = 1.0;
+      String? unit;
+      String name = line; // Default to whole line if no parse
+
+      if (match != null) {
+        String? qtyStr = match.group(1);
+        String? unitOrFirstNamePart = match.group(2); // This could be a unit or the first word of the name
+        String? nameRemainderStr = match.group(3);
+
+        if (qtyStr != null) {
+          qtyStr = qtyStr.trim();
+          // Parse quantity (handles "1", "0.5", "1/2", "1 1/2")
+          if (qtyStr.contains(' ')) { // Mixed fraction like "1 1/2"
+            final parts = qtyStr.split(' ');
+            if (parts.length == 2) {
+              double whole = double.tryParse(parts[0]) ?? 0;
+              if (parts[1].contains('/')) {
+                final fracParts = parts[1].split('/');
+                if (fracParts.length == 2) {
+                  double num = double.tryParse(fracParts[0]) ?? 0;
+                  double den = double.tryParse(fracParts[1]) ?? 1;
+                  quantity = whole + (den == 0 ? 0 : num / den);
+                } else {
+                   quantity = whole + (double.tryParse(parts[1]) ?? 0); // e.g. "1 0.5"
+                }
+              } else { // e.g. "1 0.5"
+                quantity = whole + (double.tryParse(parts[1]) ?? 0);
+              }
+            }
+          } else if (qtyStr.contains('/')) { // Simple fraction "1/2"
+            final parts = qtyStr.split('/');
+            if (parts.length == 2) {
+              double num = double.tryParse(parts[0]) ?? 0;
+              double den = double.tryParse(parts[1]) ?? 1;
+              quantity = den == 0 ? 0 : num / den;
+            } else {
+               quantity = double.tryParse(qtyStr) ?? 1.0; // Fallback
+            }
+          } else { // Decimal or whole number
+            quantity = double.tryParse(qtyStr) ?? 1.0;
+          }
+        }
+
+        // Determine unit and name
+        if (nameRemainderStr != null && nameRemainderStr.isNotEmpty) {
+            if (unitOrFirstNamePart != null) {
+                 // Heuristic: common units. This list can be expanded.
+                const commonUnits = ['cup', 'cups', 'oz', 'g', 'kg', 'lb', 'lbs', 'ml', 'l', 'tsp', 'tbsp', 'tablespoon', 'teaspoon', 'pinch', 'slice', 'slices', 'clove', 'cloves'];
+                if (commonUnits.contains(unitOrFirstNamePart.toLowerCase())) {
+                    unit = unitOrFirstNamePart;
+                    name = nameRemainderStr.trim();
+                } else {
+                    // unitOrFirstNamePart is likely part of the name
+                    name = (unitOrFirstNamePart + " " + nameRemainderStr).trim();
+                }
+            } else {
+                 name = nameRemainderStr.trim();
+            }
+        } else if (unitOrFirstNamePart != null) {
+            // If nameRemainderStr is empty, unitOrFirstNamePart is the name
+            name = unitOrFirstNamePart.trim();
+        }
+        // If qtyStr was null, name is already `line`
+         if (qtyStr == null && unitOrFirstNamePart != null && nameRemainderStr != null) {
+             // This case handles "Unit Name", e.g. "Pinch salt"
+             const commonUnits = ['cup', 'cups', 'oz', 'g', 'kg', 'lb', 'lbs', 'ml', 'l', 'tsp', 'tbsp', 'tablespoon', 'teaspoon', 'pinch', 'slice', 'slices', 'clove', 'cloves'];
+             if(commonUnits.contains(unitOrFirstNamePart.toLowerCase())) {
+                 unit = unitOrFirstNamePart;
+                 name = nameRemainderStr.trim();
+                 quantity = 1.0; // Default quantity if not specified but unit is
+             } else {
+                 name = line; // Treat as "Name"
+             }
+         } else if (qtyStr == null && unitOrFirstNamePart != null && nameRemainderStr == null) {
+            // Handles just "Name" or "Unit"
+            name = unitOrFirstNamePart.trim();
+         }
+
+
+      } // else: name remains `line`, quantity 1.0, unit null
+
+      ingredients.add(RecipeIngredientModel(
+        ingredient_id: 0, // Placeholder, resolved by service
+        name: name,
+        quantity: quantity,
+        unit: unit,
+        order_index: i,
+      ));
+    }
+    return ingredients;
+  }
+
+  List<RecipeInstructionModel> _parseInstructions(String text) {
+    final List<RecipeInstructionModel> instructions = [];
+    final lines = text.split('\n').where((line) => line.trim().isNotEmpty).toList();
+    for (int i = 0; i < lines.length; i++) {
+      instructions.add(RecipeInstructionModel(
+        step_number: i + 1,
+        instruction: lines[i].trim(),
+      ));
+    }
+    return instructions;
+  }
+
   Future<void> _saveRecipe() async {
     if (!_formKey.currentState!.validate()) {
       return;
     }
     _formKey.currentState!.save();
-
-    // final currentUser = SupabaseClientWrapper().auth.currentUser; // Commented out user check
-    // if (currentUser == null) {
-    //   if (mounted) {
-    //     ScaffoldMessenger.of(context).showSnackBar(
-    //       const SnackBar(content: Text('You must be logged in to create a recipe.')),
-    //     );
-    //   }
-    //   return;
-    // }
 
     if (_isUploadingOrSaving) return;
 
@@ -96,15 +206,17 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
           galleryImageUrls.add(url);
         } else {
           print('A gallery image failed to upload and will be skipped.');
-          // Optionally, inform the user about skipped images
         }
       }
     }
 
-    const String hardcodedUserId = '325c40cc-d255-4f93-bf5f-40bc196ca093';
+    const String hardcodedUserId = '325c40cc-d255-4f93-bf5f-40bc196ca093'; // Per instructions
+
+    final List<RecipeIngredientModel> ingredients = _parseIngredients(_ingredientsController.text);
+    final List<RecipeInstructionModel> instructions = _parseInstructions(_directionsController.text);
 
     RecipeModel recipeToCreate = RecipeModel(
-      user_id: hardcodedUserId, // Use hardcoded user_id
+      user_id: hardcodedUserId,
       title: _titleController.text,
       description: _descriptionController.text.isEmpty ? null : _descriptionController.text,
       image_url: mainImageUrl,
@@ -113,17 +225,22 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
       cooking_time_minutes: int.parse(_cookingMinutesController.text),
       difficulty_level: _difficultyLevelController.text.isEmpty ? 'medium' : _difficultyLevelController.text,
       is_published: true,
-      ingredients_text: _ingredientsController.text.isEmpty ? null : _ingredientsController.text,
-      directions_text: _directionsController.text.isEmpty ? null : _directionsController.text,
+      ingredients_text: _ingredientsController.text.isEmpty ? null : _ingredientsController.text, // Keep for reference if needed
+      directions_text: _directionsController.text.isEmpty ? null : _directionsController.text,   // Keep for reference if needed
+      ingredients: ingredients,
+      instructions: instructions,
+      gallery_image_urls: galleryImageUrls, // Pass gallery URLs here for the model
     );
 
     try {
+      // The RecipeService's createRecipe method now expects the galleryImageUrls as part of RecipeModel
+      // or as a separate argument. The current RecipeService expects it as a separate argument.
       await _recipeService.createRecipe(recipeToCreate, galleryImageUrls);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Recipe created successfully!')),
         );
-        Navigator.pop(context, true); // Pop and indicate success
+        Navigator.pop(context, true);
       }
     } catch (e) {
       print('Error saving recipe: $e');
@@ -142,7 +259,7 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
   }
 
   Future<void> _pickImage() async {
-    if (_isUploadingOrSaving) return; // Use the corrected variable name
+    if (_isUploadingOrSaving) return;
     final XFile? pickedFile = await _picker.pickImage(source: ImageSource.gallery);
     if (pickedFile != null) {
       setState(() {
@@ -203,7 +320,6 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
                   keyboardType: TextInputType.multiline,
                 ),
                 const SizedBox(height: 16),
-                // Main Image Picker UI
                 if (_selectedImageFile != null)
                   Container(
                     height: 200,
@@ -219,7 +335,7 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
                   ),
                 ElevatedButton.icon(
                   key: const Key('pick_image_button'), 
-                  onPressed: _isUploadingOrSaving ? null : _pickImage, // Changed _isUploading to _isUploadingOrSaving
+                  onPressed: _isUploadingOrSaving ? null : _pickImage,
                   icon: const Icon(Icons.image),
                   label: const Text('Pick Recipe Image'),
                   style: ElevatedButton.styleFrom(backgroundColor: Colors.grey[300], foregroundColor: Colors.black87),
@@ -231,7 +347,7 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
                   style: textStyle,
                   decoration: InputDecoration(labelText: 'Calories (e.g., 250)', labelStyle: labelStyle),
                   keyboardType: TextInputType.number,
-                  validator: (value) { // Optional: Add validation for calories if needed
+                  validator: (value) {
                     if (value != null && value.isNotEmpty && int.tryParse(value) == null) {
                       return 'Please enter a valid number for calories';
                     }
@@ -293,17 +409,10 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
                   decoration: InputDecoration(
                     labelText: 'Ingredients (one per line)',
                     labelStyle: labelStyle,
-                    hintText: '1 cup flour\n2 eggs\n...',
+                    hintText: '1 cup flour\n2 eggs\n1/2 tsp salt...',
                   ),
                   maxLines: null, 
                   keyboardType: TextInputType.multiline,
-                  // Validator is optional here as this text isn't directly saved to a mandatory DB column by createRecipe
-                  // validator: (value) {
-                  //   if (value == null || value.isEmpty) {
-                  //     return 'Please enter ingredients';
-                  //   }
-                  //   return null;
-                  // },
                 ),
                 const SizedBox(height: 16),
                 TextFormField(
@@ -317,16 +426,8 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
                   ),
                   maxLines: null, 
                   keyboardType: TextInputType.multiline,
-                  // Validator is optional here, similar to ingredients
-                  // validator: (value) {
-                  //   if (value == null || value.isEmpty) {
-                  //     return 'Please enter directions';
-                  //   }
-                  //   return null;
-                  // },
                 ),
                 const SizedBox(height: 16),
-                // Gallery Image Picker UI
                 Padding(
                   padding: const EdgeInsets.symmetric(vertical: 16.0),
                   child: Column(
@@ -336,14 +437,14 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
                       const SizedBox(height: 8),
                       ElevatedButton.icon(
                         key: const Key('pick_gallery_images_button'), 
-                        onPressed: _isUploadingOrSaving ? null : _pickGalleryImages, // Changed _isUploading to _isUploadingOrSaving
+                        onPressed: _isUploadingOrSaving ? null : _pickGalleryImages,
                         icon: const Icon(Icons.photo_library),
                         label: const Text('Add Gallery Images'),
                         style: ElevatedButton.styleFrom(backgroundColor: Colors.grey[300], foregroundColor: Colors.black87),
                       ),
                       const SizedBox(height: 8),
                       if (_selectedGalleryImageFiles.isNotEmpty)
-                        Container(
+                        SizedBox(
                           height: 100, 
                           child: ListView.builder(
                             scrollDirection: Axis.horizontal,
@@ -386,7 +487,7 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
                   ),
                 ),
                 const SizedBox(height: 32),
-                _isUploadingOrSaving // Changed _isUploading to _isUploadingOrSaving
+                _isUploadingOrSaving
                   ? const Center(child: CircularProgressIndicator())
                   : ElevatedButton(
                       key: const Key('save_button'),
