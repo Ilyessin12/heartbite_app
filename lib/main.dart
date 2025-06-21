@@ -2,8 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'welcome_pages/welcome.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'screens/test_supabase.dart'; // Tambahkan import ini
-import 'bookmark/screens/bookmark_screen.dart'; // Import bookmark screen
+import 'screens/test_supabase.dart'; 
+import 'bookmark/screens/bookmark_screen.dart';
+import 'test/test_login.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -63,11 +64,23 @@ class HomeScreenWrapper extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body:
-          const WelcomeScreen(), // Tetap menggunakan WelcomeScreen sebagai konten utama
+      body: const WelcomeScreen(),
       floatingActionButton: Column(
         mainAxisAlignment: MainAxisAlignment.end,
         children: [
+          FloatingActionButton(
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const TestLoginScreen()),
+              );
+            },
+            backgroundColor: const Color(0xFF4CAF50),
+            child: const Icon(Icons.login, color: Colors.white),
+            heroTag: "login",
+            tooltip: 'Test Login',
+          ),
+          const SizedBox(height: 10),
           FloatingActionButton(
             onPressed: () {
               Navigator.push(
@@ -83,7 +96,6 @@ class HomeScreenWrapper extends StatelessWidget {
           const SizedBox(height: 10),
           FloatingActionButton(
             onPressed: () {
-              // Navigasi ke test_supabase.dart saat tombol ditekan
               Navigator.push(
                 context,
                 MaterialPageRoute(
