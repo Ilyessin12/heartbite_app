@@ -155,15 +155,25 @@ class RecipeModel {
       updated_at: json['updated_at'] != null
           ? DateTime.tryParse(json['updated_at'] as String)
           : null,
-      ingredients: json['recipe_ingredients'] != null
-          ? (json['recipe_ingredients'] as List)
-              .map((i) => RecipeIngredientModel.fromJson(i as Map<String, dynamic>))
-              .toList()
+      ingredients: json['recipe_ingredients'] != null && json['recipe_ingredients'] is List
+          ? (json['recipe_ingredients'] as List).whereType<Map<String, dynamic>>().map((i) {
+              try {
+                return RecipeIngredientModel.fromJson(i);
+              } catch (e) {
+                print('Error parsing RecipeIngredientModel from item: $i, error: $e');
+                return null;
+              }
+            }).whereType<RecipeIngredientModel>().toList()
           : null,
-      instructions: json['recipe_instructions'] != null
-          ? (json['recipe_instructions'] as List)
-              .map((i) => RecipeInstructionModel.fromJson(i as Map<String, dynamic>))
-              .toList()
+      instructions: json['recipe_instructions'] != null && json['recipe_instructions'] is List
+          ? (json['recipe_instructions'] as List).whereType<Map<String, dynamic>>().map((i) {
+              try {
+                return RecipeInstructionModel.fromJson(i);
+              } catch (e) {
+                print('Error parsing RecipeInstructionModel from item: $i, error: $e');
+                return null;
+              }
+            }).whereType<RecipeInstructionModel>().toList()
           : null,
       gallery_image_urls: json['recipe_gallery_images'] != null // Assuming gallery images are fetched like this
           ? (json['recipe_gallery_images'] as List)
