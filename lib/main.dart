@@ -4,6 +4,7 @@ import 'welcome_pages/welcome.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'screens/test_supabase.dart'; // Tambahkan import ini
 
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
