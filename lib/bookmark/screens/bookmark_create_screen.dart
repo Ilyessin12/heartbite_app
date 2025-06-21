@@ -5,21 +5,19 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../../bottomnavbar/bottom-navbar.dart';
-import '../models/bookmark_category.dart';
+import '../../services/bookmark_service.dart';
 import '../models/recipe_item.dart';
 import '../widgets/recipe_card.dart';
 
 class BookmarkCreateScreen extends StatefulWidget {
-  final List<RecipeItem> savedRecipes;
-
-  const BookmarkCreateScreen({Key? key, required this.savedRecipes})
-    : super(key: key);
+  const BookmarkCreateScreen({Key? key}) : super(key: key);
 
   @override
   State<BookmarkCreateScreen> createState() => _BookmarkCreateScreenState();
 }
 
 class _BookmarkCreateScreenState extends State<BookmarkCreateScreen> {
+  final BookmarkService _bookmarkService = BookmarkService();
   final TextEditingController _titleController = TextEditingController();
   final ImagePicker _picker = ImagePicker();
   File? _selectedImage;
@@ -52,7 +50,7 @@ class _BookmarkCreateScreenState extends State<BookmarkCreateScreen> {
     }
   }
 
-  void createBookmark() {
+  Future<void> createBookmark() async {
     if (_titleController.text.trim().isEmpty) {
       ScaffoldMessenger.of(
         context,
@@ -66,26 +64,34 @@ class _BookmarkCreateScreenState extends State<BookmarkCreateScreen> {
       return;
     }
 
-    final newCategory = BookmarkCategory(
-      name: _titleController.text.trim(),
-      imageUrl:
-          _selectedImage?.path ??
-          'assets/images/cookbooks/placeholder_image.jpg',
-      recipes: List.from(_selectedRecipes),
-    );
+    try {
+      final recipeIds =
+          _selectedRecipes
+              .where((recipe) => recipe.id != null)
+              .map((recipe) => recipe.id!)
+              .toList();
 
-    print(
-      'Created bookmark: ${newCategory.name} with ${newCategory.recipes.length} recipes',
-    );
-    print('Image URL: ${newCategory.imageUrl}');
+      await _bookmarkService.createBookmarkFolder(
+        name: _titleController.text.trim(),
+        imageUrl:
+            _selectedImage?.path ??
+            'assets/images/cookbooks/placeholder_image.jpg',
+        recipeIds: recipeIds,
+      );
 
-    int popCount = 0;
-    Navigator.popUntil(context, (route) {
-      popCount++;
-      return route.isFirst ||
-          route.settings.name == '/bookmark' ||
-          popCount >= 2;
-    });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Bookmark folder created successfully')),
+      );
+
+      Navigator.popUntil(
+        context,
+        (route) => route.isFirst || route.settings.name == '/bookmark',
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error creating bookmark: $e')));
+    }
   }
 
   Future<void> _pickImage(ImageSource source) async {
@@ -428,7 +434,39 @@ class _BookmarkCreateScreenState extends State<BookmarkCreateScreen> {
   }
 
   Widget _buildRecipeSelectionScreen() {
-    final List<RecipeItem> availableRecipes = widget.savedRecipes;
+    // For now, using hardcoded recipes. Later this should fetch from a recipe service
+    final List<RecipeItem> availableRecipes = [
+      RecipeItem(
+        id: 1,
+        name: 'Roti Panggang Blueberry',
+        imageUrl: 'placeholder_image.jpg',
+        rating: 4.8,
+        reviewCount: 128,
+        calories: 23,
+        prepTime: 2,
+        cookTime: 12,
+      ),
+      RecipeItem(
+        id: 2,
+        name: 'Roti Panggang Blackberry',
+        imageUrl: 'placeholder_image.jpg',
+        rating: 4.8,
+        reviewCount: 128,
+        calories: 24,
+        prepTime: 2,
+        cookTime: 12,
+      ),
+      RecipeItem(
+        id: 3,
+        name: 'Nasi Goreng Spesial',
+        imageUrl: 'placeholder_image.jpg',
+        rating: 4.5,
+        reviewCount: 210,
+        calories: 350,
+        prepTime: 2,
+        cookTime: 20,
+      ),
+    ];
 
     return Scaffold(
       backgroundColor: Colors.white,

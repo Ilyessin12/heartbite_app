@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../../bottomnavbar/bottom-navbar.dart';
+import '../../services/bookmark_service.dart';
 import '../models/bookmark_category.dart';
 
 class BookmarkEditScreen extends StatefulWidget {
@@ -17,6 +18,7 @@ class BookmarkEditScreen extends StatefulWidget {
 }
 
 class _BookmarkEditScreenState extends State<BookmarkEditScreen> {
+  final BookmarkService _bookmarkService = BookmarkService();
   late TextEditingController _nameController;
   final ImagePicker _picker = ImagePicker();
   File? _selectedImage;
@@ -37,8 +39,31 @@ class _BookmarkEditScreenState extends State<BookmarkEditScreen> {
     print('Navigated to index: $index');
   }
 
-  void saveChanges() {
-    Navigator.pop(context);
+  Future<void> saveChanges() async {
+    if (widget.category.id == null) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Invalid category ID')));
+      return;
+    }
+
+    try {
+      await _bookmarkService.updateBookmarkFolder(
+        folderId: widget.category.id!,
+        name: _nameController.text.trim(),
+        imageUrl: _selectedImage?.path ?? widget.category.imageUrl,
+      );
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Bookmark folder updated successfully')),
+      );
+
+      Navigator.pop(context);
+    } catch (e) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error updating bookmark: $e')));
+    }
   }
 
   Future<void> _pickImage() async {

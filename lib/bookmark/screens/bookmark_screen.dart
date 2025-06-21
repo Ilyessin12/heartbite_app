@@ -3,11 +3,11 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:solar_icons/solar_icons.dart';
 
 import '../../bottomnavbar/bottom-navbar.dart';
+import '../../services/bookmark_service.dart';
 import 'bookmark_detail_screen.dart';
 import 'bookmark_create_screen.dart';
 import 'bookmark_edit_screen.dart';
 import '../models/bookmark_category.dart';
-import '../models/recipe_item.dart';
 
 class BookmarkScreen extends StatefulWidget {
   const BookmarkScreen({Key? key}) : super(key: key);
@@ -17,107 +17,32 @@ class BookmarkScreen extends StatefulWidget {
 }
 
 class _BookmarkScreenState extends State<BookmarkScreen> {
-  final List<RecipeItem> allSavedRecipes = [
-    RecipeItem(
-      name: 'Roti Panggang Blueberry',
-      imageUrl: 'placeholder_image.jpg',
-      rating: 4.8,
-      reviewCount: 128,
-      calories: 23,
-      prepTime: 2,
-      cookTime: 12,
-    ),
-    RecipeItem(
-      name: 'Roti Panggang Blackberry',
-      imageUrl: 'placeholder_image.jpg',
-      rating: 4.8,
-      reviewCount: 128,
-      calories: 24,
-      prepTime: 2,
-      cookTime: 12,
-    ),
-    RecipeItem(
-      name: 'Nasi Goreng Spesial',
-      imageUrl: 'placeholder_image.jpg',
-      rating: 4.5,
-      reviewCount: 210,
-      calories: 350,
-      prepTime: 2,
-      cookTime: 20,
-    ),
-    RecipeItem(
-      name: 'Ayam Bakar Madu',
-      imageUrl: 'placeholder_image.jpg',
-      rating: 4.9,
-      reviewCount: 305,
-      calories: 420,
-      prepTime: 4,
-      cookTime: 45,
-    ),
-    RecipeItem(
-      name: 'Sate Ayam Bumbu Kacang',
-      imageUrl: 'placeholder_image.jpg',
-      rating: 4.7,
-      reviewCount: 180,
-      calories: 380,
-      prepTime: 3,
-      cookTime: 30,
-    ),
-  ];
-
-  late List<BookmarkCategory> categories;
-
-  @override
-  void initState() {
-    super.initState();
-    categories = [
-      BookmarkCategory(
-        name: 'Saved',
-        imageUrl: 'placeholder_image.jpg',
-        recipes: List.from(allSavedRecipes),
-      ),
-      BookmarkCategory(
-        name: 'Resep Akhir Pekan',
-        imageUrl: 'placeholder_image.jpg',
-        recipes: [allSavedRecipes[0], allSavedRecipes[1]],
-      ),
-      BookmarkCategory(
-        name: 'Makan Malam',
-        imageUrl: 'placeholder_image.jpg',
-        recipes: [allSavedRecipes[2], allSavedRecipes[3], allSavedRecipes[4]],
-      ),
-    ];
-  }
-
+  final BookmarkService _bookmarkService = BookmarkService();
   Set<int> selectedCategories = {};
-
-  void toggleCategorySelection(int index) {
-    if (categories[index].name == 'Saved') {
-      return;
-    }
-
+  void toggleCategorySelection(int folderId) {
     setState(() {
-      if (selectedCategories.contains(index)) {
-        selectedCategories.remove(index);
+      if (selectedCategories.contains(folderId)) {
+        selectedCategories.remove(folderId);
       } else {
-        selectedCategories.add(index);
+        selectedCategories.add(folderId);
       }
     });
   }
 
-  void deleteSelectedCategories() {
-    setState(() {
-      final toDelete =
-          selectedCategories.toList()..sort((a, b) => b.compareTo(a));
-
-      for (final index in toDelete) {
-        if (categories[index].name != 'Saved') {
-          categories.removeAt(index);
-        }
-      }
-
-      selectedCategories.clear();
-    });
+  Future<void> deleteSelectedCategories() async {
+    try {
+      await _bookmarkService.deleteBookmarkFolders(selectedCategories.toList());
+      setState(() {
+        selectedCategories.clear();
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Selected folders deleted successfully')),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error deleting folders: $e')));
+    }
   }
 
   void handleBottomNavTap(int index) {
@@ -195,10 +120,7 @@ class _BookmarkScreenState extends State<BookmarkScreen> {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder:
-                            (context) => BookmarkCreateScreen(
-                              savedRecipes: allSavedRecipes,
-                            ),
+                        builder: (context) => const BookmarkCreateScreen(),
                       ),
                     );
                   },
@@ -207,112 +129,151 @@ class _BookmarkScreenState extends State<BookmarkScreen> {
         ],
       ),
       body: SafeArea(
-        child: GridView.builder(
-          padding: const EdgeInsets.all(16),
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 2,
-            crossAxisSpacing: 16,
-            mainAxisSpacing: 16,
-            childAspectRatio: 1,
-          ),
-          itemCount: categories.length,
-          itemBuilder: (context, index) {
-            final category = categories[index];
-            final isSavedCategory = category.name == 'Saved';
-            return GestureDetector(
-              onTap: () {
-                if (selectedCategories.isNotEmpty) {
-                  if (!isSavedCategory) {
-                    toggleCategorySelection(index);
-                  }
-                } else {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder:
-                          (context) => BookmarkDetailScreen(category: category),
-                    ),
-                  );
-                }
-              },
-              onLongPress: () {
-                if (!isSavedCategory) {
-                  toggleCategorySelection(index);
-                }
-              },
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(12),
-                child: Stack(
-                  fit: StackFit.expand,
-                  children: [
-                    Image.asset(
-                      'assets/images/cookbooks/placeholder_image.jpg',
-                      fit: BoxFit.cover,
-                    ),
-                    Container(
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topCenter,
-                          end: Alignment.bottomCenter,
-                          colors: [
-                            Colors.transparent,
-                            Colors.black.withOpacity(0.7),
-                          ],
+        child: FutureBuilder<List<Map<String, dynamic>>>(
+          future: _bookmarkService.getBookmarkFolders(),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(child: CircularProgressIndicator());
+            }
+
+            if (snapshot.hasError) {
+              return Center(
+                child: Text(
+                  'Error loading bookmarks: ${snapshot.error}',
+                  style: GoogleFonts.dmSans(color: Colors.red),
+                ),
+              );
+            }
+
+            final folders = snapshot.data ?? [];
+
+            if (folders.isEmpty) {
+              return Center(
+                child: Text(
+                  'No bookmark folders found',
+                  style: GoogleFonts.dmSans(fontSize: 16, color: Colors.grey),
+                ),
+              );
+            }
+
+            return GridView.builder(
+              padding: const EdgeInsets.all(16),
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 2,
+                crossAxisSpacing: 16,
+                mainAxisSpacing: 16,
+                childAspectRatio: 1,
+              ),
+              itemCount: folders.length,
+              itemBuilder: (context, index) {
+                final folder = folders[index];
+                final category = BookmarkCategory.fromJson(folder);
+                final isSavedCategory = category.name == 'Saved';
+                final folderId = folder['id'];
+
+                return GestureDetector(
+                  onTap: () {
+                    if (selectedCategories.isNotEmpty) {
+                      if (!isSavedCategory) {
+                        toggleCategorySelection(folderId);
+                      }
+                    } else {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder:
+                              (context) =>
+                                  BookmarkDetailScreen(category: category),
                         ),
-                      ),
-                    ),
-                    Positioned(
-                      left: 10,
-                      bottom: 10,
-                      child: Text(
-                        category.name,
-                        style: GoogleFonts.dmSans(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
+                      );
+                    }
+                  },
+                  onLongPress: () {
+                    if (!isSavedCategory) {
+                      toggleCategorySelection(folderId);
+                    }
+                  },
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        Image.asset(
+                          'assets/images/cookbooks/placeholder_image.jpg',
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) {
+                            return Container(
+                              color: Colors.grey[300],
+                              child: const Icon(Icons.image, size: 50),
+                            );
+                          },
                         ),
-                      ),
-                    ),
-                    if (selectedCategories.contains(index))
-                      Positioned(
-                        top: 10,
-                        left: 10,
-                        child: Container(
-                          padding: const EdgeInsets.all(1),
+                        Container(
                           decoration: BoxDecoration(
-                            color: Colors.grey.withOpacity(0.5),
-                            shape: BoxShape.circle,
-                          ),
-                          child: const Icon(
-                            Icons.check_circle,
-                            size: 24,
-                            color: Color(0xFFAFF4C6),
+                            gradient: LinearGradient(
+                              begin: Alignment.topCenter,
+                              end: Alignment.bottomCenter,
+                              colors: [
+                                Colors.transparent,
+                                Colors.black.withOpacity(0.7),
+                              ],
+                            ),
                           ),
                         ),
-                      ),
-                    if (selectedCategories.isEmpty && !isSavedCategory)
-                      Positioned(
-                        top: 8,
-                        right: 8,
-                        child: GestureDetector(
-                          onTap: () => _navigateToEdit(category),
-                          child: Container(
-                            padding: const EdgeInsets.all(4),
-                            decoration: BoxDecoration(
-                              color: Colors.black.withOpacity(0.4),
-                              shape: BoxShape.circle,
-                            ),
-                            child: const Icon(
-                              SolarIconsOutline.penNewSquare,
-                              size: 20,
+                        Positioned(
+                          left: 10,
+                          bottom: 10,
+                          child: Text(
+                            category.name,
+                            style: GoogleFonts.dmSans(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
                               color: Colors.white,
                             ),
                           ),
                         ),
-                      ),
-                  ],
-                ),
-              ),
+                        if (selectedCategories.contains(folderId))
+                          Positioned(
+                            top: 10,
+                            left: 10,
+                            child: Container(
+                              padding: const EdgeInsets.all(1),
+                              decoration: BoxDecoration(
+                                color: Colors.grey.withOpacity(0.5),
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(
+                                Icons.check_circle,
+                                size: 24,
+                                color: Color(0xFFAFF4C6),
+                              ),
+                            ),
+                          ),
+                        if (selectedCategories.isEmpty && !isSavedCategory)
+                          Positioned(
+                            top: 8,
+                            right: 8,
+                            child: GestureDetector(
+                              onTap: () => _navigateToEdit(category),
+                              child: Container(
+                                padding: const EdgeInsets.all(4),
+                                decoration: BoxDecoration(
+                                  color: Colors.black.withOpacity(0.4),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(
+                                  SolarIconsOutline.penNewSquare,
+                                  size: 20,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                );
+              },
             );
           },
         ),

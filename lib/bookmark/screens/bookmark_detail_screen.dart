@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:iconoir_flutter/iconoir_flutter.dart'
-    hide Key, Text, List, Navigator;
-import 'dart:ui';
 
 import '../../bottomnavbar/bottom-navbar.dart';
+import '../../services/bookmark_service.dart';
 import '../models/bookmark_category.dart';
 import '../models/recipe_item.dart';
 import '../widgets/recipe_card.dart';
@@ -12,53 +10,7 @@ import 'bookmark_create_screen.dart';
 
 class BookmarkDetailScreen extends StatelessWidget {
   final BookmarkCategory category;
-  final List<RecipeItem> allSavedRecipes = [
-    RecipeItem(
-      name: 'Roti Panggang Blueberry',
-      imageUrl: 'cookbooks/sandwich.jpg',
-      rating: 4.8,
-      reviewCount: 128,
-      calories: 23,
-      prepTime: 2,
-      cookTime: 12,
-    ),
-    RecipeItem(
-      name: 'Roti Panggang Blackberry',
-      imageUrl: 'cookbooks/sandwich.jpg',
-      rating: 4.8,
-      reviewCount: 128,
-      calories: 24,
-      prepTime: 2,
-      cookTime: 12,
-    ),
-    RecipeItem(
-      name: 'Nasi Goreng Spesial',
-      imageUrl: 'placeholder_image.jpg',
-      rating: 4.5,
-      reviewCount: 210,
-      calories: 350,
-      prepTime: 2,
-      cookTime: 20,
-    ),
-    RecipeItem(
-      name: 'Ayam Bakar Madu',
-      imageUrl: 'placeholder_image.jpg',
-      rating: 4.9,
-      reviewCount: 305,
-      calories: 420,
-      prepTime: 4,
-      cookTime: 45,
-    ),
-    RecipeItem(
-      name: 'Sate Ayam Bumbu Kacang',
-      imageUrl: 'placeholder_image.jpg',
-      rating: 4.7,
-      reviewCount: 180,
-      calories: 380,
-      prepTime: 3,
-      cookTime: 30,
-    ),
-  ];
+  final BookmarkService _bookmarkService = BookmarkService();
 
   BookmarkDetailScreen({Key? key, required this.category}) : super(key: key);
 
@@ -99,9 +51,7 @@ class BookmarkDetailScreen extends StatelessWidget {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder:
-                        (context) =>
-                            BookmarkCreateScreen(savedRecipes: allSavedRecipes),
+                    builder: (context) => const BookmarkCreateScreen(),
                   ),
                 );
               },
@@ -125,32 +75,73 @@ class BookmarkDetailScreen extends StatelessWidget {
             ),
             Expanded(
               child:
-                  category.recipes.isEmpty
+                  category.id == null
                       ? Center(
-                          child: Text(
-                            'Tidak ada resep dalam kategori ini',
-                            style: GoogleFonts.dmSans(
-                              fontSize: 16,
-                              color: Colors.grey,
-                            ),
+                        child: Text(
+                          'Invalid category ID',
+                          style: GoogleFonts.dmSans(
+                            fontSize: 16,
+                            color: Colors.red,
                           ),
-                        )
-                      : GridView.builder(
-                          padding: const EdgeInsets.all(16),
-                          gridDelegate:
-                              const SliverGridDelegateWithFixedCrossAxisCount(
-                            crossAxisCount: 2,
-                            crossAxisSpacing: 16,
-                            mainAxisSpacing: 16,
-                            childAspectRatio: 0.7,
-                          ),
-                          itemCount: category.recipes.length,
-                          itemBuilder: (context, index){
-                            return RecipeCard(
-                              recipe: category.recipes[index],
-                            );
-                          },
                         ),
+                      )
+                      : FutureBuilder<List<Map<String, dynamic>>>(
+                        future: _bookmarkService.getBookmarksFromFolder(
+                          category.id!,
+                        ),
+                        builder: (context, snapshot) {
+                          if (snapshot.connectionState ==
+                              ConnectionState.waiting) {
+                            return const Center(
+                              child: CircularProgressIndicator(),
+                            );
+                          }
+
+                          if (snapshot.hasError) {
+                            return Center(
+                              child: Text(
+                                'Error loading recipes: ${snapshot.error}',
+                                style: GoogleFonts.dmSans(
+                                  fontSize: 16,
+                                  color: Colors.red,
+                                ),
+                              ),
+                            );
+                          }
+
+                          final bookmarks =
+                              snapshot.data ?? <Map<String, dynamic>>[];
+
+                          if (bookmarks.isEmpty) {
+                            return Center(
+                              child: Text(
+                                'Tidak ada resep dalam kategori ini',
+                                style: GoogleFonts.dmSans(
+                                  fontSize: 16,
+                                  color: Colors.grey,
+                                ),
+                              ),
+                            );
+                          }
+
+                          return GridView.builder(
+                            padding: const EdgeInsets.all(16),
+                            gridDelegate:
+                                const SliverGridDelegateWithFixedCrossAxisCount(
+                                  crossAxisCount: 2,
+                                  crossAxisSpacing: 16,
+                                  mainAxisSpacing: 16,
+                                  childAspectRatio: 0.7,
+                                ),
+                            itemCount: bookmarks.length,
+                            itemBuilder: (context, index) {
+                              final bookmark = bookmarks[index];
+                              final recipe = RecipeItem.fromJson(bookmark);
+                              return RecipeCard(recipe: recipe);
+                            },
+                          );
+                        },
+                      ),
             ),
           ],
         ),
