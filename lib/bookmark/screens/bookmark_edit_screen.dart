@@ -3,81 +3,74 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 
-// Import bottom navigation components
-import '../bottomnavbar/bottom-navbar.dart';
-import 'bookmark.dart' show BookmarkCategory;
+import '../../bottomnavbar/bottom-navbar.dart';
+import '../models/bookmark_category.dart';
 
-class BookmarkEditScreen extends StatefulWidget{
+class BookmarkEditScreen extends StatefulWidget {
   final BookmarkCategory category;
 
-  const BookmarkEditScreen({
-    Key? key,
-    required this.category,
-  }) : super(key: key);
+  const BookmarkEditScreen({Key? key, required this.category})
+    : super(key: key);
 
   @override
   State<BookmarkEditScreen> createState() => _BookmarkEditScreenState();
 }
 
-class _BookmarkEditScreenState extends State<BookmarkEditScreen>{
+class _BookmarkEditScreenState extends State<BookmarkEditScreen> {
   late TextEditingController _nameController;
   final ImagePicker _picker = ImagePicker();
   File? _selectedImage;
-  
+
   @override
-  void initState(){
+  void initState() {
     super.initState();
     _nameController = TextEditingController(text: widget.category.name);
   }
 
   @override
-  void dispose(){
+  void dispose() {
     _nameController.dispose();
     super.dispose();
   }
 
-  void handleBottomNavTap(int index){
-    // In a real app, you'd navigate to different screens
+  void handleBottomNavTap(int index) {
     print('Navigated to index: $index');
   }
 
-  void saveChanges(){
-    // In a real app, you would update the bookmark in a database or state manager
-    // For this example, we'll just go back to the previous screen
+  void saveChanges() {
     Navigator.pop(context);
   }
 
-  Future<void> _pickImage() async{
-    try{
+  Future<void> _pickImage() async {
+    try {
       final XFile? pickedFile = await _picker.pickImage(
         source: ImageSource.gallery,
         maxWidth: 1000,
         maxHeight: 1000,
         imageQuality: 85,
       );
-      
-      if(pickedFile != null){
-        setState((){
+
+      if (pickedFile != null) {
+        setState(() {
           _selectedImage = File(pickedFile.path);
         });
       }
-    }
-    catch(e){
+    } catch (e) {
       print('Error picking image: $e');
     }
   }
 
-  void _showImageSourceOptions() async{
+  void _showImageSourceOptions() async {
     showModalBottomSheet(
       context: context,
-      builder: (context){
+      builder: (context) {
         return SafeArea(
           child: Wrap(
             children: [
               ListTile(
                 leading: const Icon(Icons.photo_library),
                 title: Text('Gallery', style: GoogleFonts.dmSans()),
-                onTap: (){
+                onTap: () {
                   Navigator.of(context).pop();
                   _pickImage();
                 },
@@ -85,23 +78,22 @@ class _BookmarkEditScreenState extends State<BookmarkEditScreen>{
               ListTile(
                 leading: const Icon(Icons.photo_camera),
                 title: Text('Camera', style: GoogleFonts.dmSans()),
-                onTap: () async{
+                onTap: () async {
                   Navigator.of(context).pop();
-                  try{
+                  try {
                     final XFile? photo = await _picker.pickImage(
                       source: ImageSource.camera,
                       maxWidth: 1000,
                       maxHeight: 1000,
                       imageQuality: 85,
                     );
-                    
-                    if(photo != null){
-                      setState((){
+
+                    if (photo != null) {
+                      setState(() {
                         _selectedImage = File(photo.path);
                       });
                     }
-                  }
-                  catch(e){
+                  } catch (e) {
                     print('Error taking photo: $e');
                   }
                 },
@@ -114,7 +106,7 @@ class _BookmarkEditScreenState extends State<BookmarkEditScreen>{
   }
 
   @override
-  Widget build(BuildContext context){
+  Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
@@ -141,7 +133,6 @@ class _BookmarkEditScreenState extends State<BookmarkEditScreen>{
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                // Subtitle
                 Text(
                   'Edit Bookmark',
                   style: GoogleFonts.dmSans(
@@ -151,36 +142,29 @@ class _BookmarkEditScreenState extends State<BookmarkEditScreen>{
                   ),
                 ),
                 const SizedBox(height: 24),
-                
-                // Image with border
+
                 GestureDetector(
                   onTap: _showImageSourceOptions,
                   child: Container(
                     height: 200,
                     width: 200,
                     decoration: BoxDecoration(
-                      border: Border.all(
-                        color: Colors.purple,
-                        width: 3,
-                      ),
+                      border: Border.all(color: Colors.purple, width: 3),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(5),
-                      child: _selectedImage != null
-                        ? Image.file(
-                            _selectedImage!,
-                            fit: BoxFit.cover,
-                          )
-                        : Image.asset(
-                            'assets/images/cookbooks/placeholder_image.jpg',
-                            fit: BoxFit.cover,
-                          ),
+                      child:
+                          _selectedImage != null
+                              ? Image.file(_selectedImage!, fit: BoxFit.cover)
+                              : Image.asset(
+                                'assets/images/cookbooks/placeholder_image.jpg',
+                                fit: BoxFit.cover,
+                              ),
                     ),
                   ),
                 ),
-                
-                // Change cover text
+
                 GestureDetector(
                   onTap: _showImageSourceOptions,
                   child: Padding(
@@ -195,29 +179,28 @@ class _BookmarkEditScreenState extends State<BookmarkEditScreen>{
                     ),
                   ),
                 ),
-                
-                // Name text field
+
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
+                  ),
                   decoration: BoxDecoration(
                     color: const Color(0xFFF0E0E0),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: TextField(
                     controller: _nameController,
-                    style: GoogleFonts.dmSans(
-                      fontSize: 16,
-                    ),
+                    style: GoogleFonts.dmSans(fontSize: 16),
                     decoration: const InputDecoration(
                       border: InputBorder.none,
                       hintText: 'Enter bookmark name',
                     ),
                   ),
                 ),
-                
+
                 const SizedBox(height: 40),
-                
-                // Edit button
+
                 Container(
                   width: double.infinity,
                   height: 50,
@@ -245,10 +228,9 @@ class _BookmarkEditScreenState extends State<BookmarkEditScreen>{
         ),
       ),
       bottomNavigationBar: BottomNavBar(
-        currentIndex: 1, // 1 for bookmark screen
+        currentIndex: 1,
         onTap: handleBottomNavTap,
-        onFabPressed: (){
-          // Handle FAB pressed action
+        onFabPressed: () {
           print('FAB pressed on BookmarkEditScreen');
         },
       ),
