@@ -148,9 +148,18 @@ class _HomePageDetailScreenState extends State<HomePageDetailScreen> {
                 ),
                 itemCount: _currentRecipes.length,
                 itemBuilder: (context, index){
+                  final recipe = _currentRecipes[index];
                   return RecipeCard(
-                    recipe: _currentRecipes[index],
-                    onBookmarkTap: () => _toggleBookmark(_currentRecipes[index].id),
+                    recipe: recipe,
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => RecipeDetailScreen(recipeId: recipe.id),
+                        ),
+                      );
+                    },
+                    onBookmarkTap: () => _toggleBookmark(recipe.id),
                   );
                 },
               ),

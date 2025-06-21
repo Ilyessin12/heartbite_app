@@ -774,7 +774,7 @@ class _HomePageState extends State<HomePage> {
             child: recipe.imageUrl != null && recipe.imageUrl!.isNotEmpty
                 ? Image.network(recipe.imageUrl!, fit: BoxFit.cover, width: double.infinity, height: double.infinity,
                     errorBuilder: (context, error, stackTrace) => Image.asset('assets/images/cookbooks/placeholder_image.jpg', fit: BoxFit.cover))
-                : Image.asset('assets/images/cookbooks/placeholder_image.jpg', // Fallback to placeholder if imageUrl is null or empty
+                : Image.asset('assets/images/cookbooks/placeholder_image.jpg', // Fallback to placeholder
               fit: BoxFit.cover,
               width: double.infinity,
               height: double.infinity,

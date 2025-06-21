@@ -19,18 +19,17 @@ class RecipeService {
           recipe_categories(category_id, categories(name)),
           recipe_gallery_images(id, image_url, caption, order_index)
         ''')
-        .eq('is_published', true)
-        .order('created_at', ascending: false)
+        .eq('is_published', true);
+        // Apply .or() filter before .order(), .limit(), and .range()
+    if (searchQuery != null && searchQuery.isNotEmpty) {
+      final searchPattern = '%${searchQuery.trim().replaceAll(' ', '%')}%';
+      query = query.or('title.ilike.$searchPattern,description.ilike.$searchPattern');
+    }
+
+    query = query.order('created_at', ascending: false)
         .limit(limit)
         .range(offset, offset + limit - 1);
 
-    if (searchQuery != null && searchQuery.isNotEmpty) {
-      final searchPattern = '%${searchQuery.trim().replaceAll(' ', '%')}%';
-      // Corrected usage of .or() filter for Supabase Flutter.
-      // It takes a single string argument with conditions separated by commas.
-      query = query.or('title.ilike.$searchPattern,description.ilike.$searchPattern');
-    }
-    
     final response = await query;
     return List<Map<String, dynamic>>.from(response);
   }
