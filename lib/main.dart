@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'welcome_pages/welcome.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'screens/test_supabase.dart'; // Tambahkan import ini
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -12,6 +14,10 @@ void main() async {
     print("ERROR loading .env file: $e");
   }
 
+  await Supabase.initialize(
+    url: dotenv.env['SUPABASE_URL'] ?? '',
+    anonKey: dotenv.env['SUPABASE_ANON_KEY'] ?? '',
+  );
   runApp(const MyApp());
 }
 
@@ -44,7 +50,31 @@ class MyApp extends StatelessWidget {
           bodySmall: TextStyle(color: Colors.black54),
         ),
       ),
-      home: const WelcomeScreen(),
+      home: const HomeScreenWrapper(),
+    );
+  }
+}
+
+// Tambahkan class baru ini
+class HomeScreenWrapper extends StatelessWidget {
+  const HomeScreenWrapper({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: const WelcomeScreen(), // Tetap menggunakan WelcomeScreen sebagai konten utama
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {
+          // Navigasi ke test_supabase.dart saat tombol ditekan
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const TestSupabaseScreen()),
+          );
+        },
+        backgroundColor: const Color(0xFF1E90FF),
+        child: const Icon(Icons.science, color: Colors.white),
+        tooltip: 'Test Supabase',
+      ),
     );
   }
 }
