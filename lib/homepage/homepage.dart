@@ -8,14 +8,12 @@ import '../bottomnavbar/bottom-navbar.dart';
 import 'homepage-detail.dart';
 import '../services/recipe_service.dart';
 import '../models/recipe_model.dart';
-import '../recipe/create_recipe_screen.dart'; // Import CreateRecipeScreen
-import '../recipe_detail/screens/recipe_detail_screen.dart'; // Import RecipeDetailScreen
-import '../recipe_detail/models/recipe.dart' as DetailRecipeModel; // Alias for detail model
+import '../recipe/create_recipe_screen.dart';
+import '../recipe_detail/screens/recipe_detail_screen.dart';
+import '../recipe_detail/models/recipe.dart' as DetailRecipeModel;
 import '../recipe_detail/models/ingredient.dart' as DetailIngredientModel;
 import '../recipe_detail/models/direction.dart' as DetailDirectionModel;
 import '../recipe_detail/models/comment.dart' as DetailCommentModel;
-
-// Comments for old RecipeItem definition removed for clarity
 
 // DisplayRecipeItem is the primary model for recipe cards in this file.
 class DisplayRecipeItem {
@@ -197,7 +195,7 @@ class _HomePageState extends State<HomePage> {
       MaterialPageRoute(
         builder: (context) => HomePageDetailScreen(
           title: title,
-          recipes: recipes, // Pass List<DisplayRecipeItem> directly
+          recipes: recipes,
         ),
       ),
     );
@@ -348,11 +346,15 @@ class _HomePageState extends State<HomePage> {
         ],
       ),
       body: SafeArea(
-        child: _showSearchResults
-            ? _buildSearchResultsView()
-            : _showFilters
-                ? _buildFiltersView()
-                : _buildHomeContent(),
+        child: _isLoading
+            ? Center(child: CircularProgressIndicator())
+            : _loadingError.isNotEmpty
+                ? Center(child: Text(_loadingError, style: TextStyle(color: Colors.red)))
+                : _showSearchResults
+                    ? _buildSearchResultsView()
+                    : _showFilters
+                        ? _buildFiltersView()
+                        : _buildHomeContent(),
       ),
       bottomNavigationBar: BottomNavBar(
         currentIndex: _currentIndex,
@@ -363,30 +365,30 @@ class _HomePageState extends State<HomePage> {
   }
 
   Widget _buildHomeContent(){
-    return ListView(
-      children: [
-        // Resep Masakan Terbaru Section
-        _buildSectionTitle("Resep Masakan Terbaru"),
-        _buildHorizontalRecipeList(_latestRecipes),
+    return RefreshIndicator(
+      onRefresh: () => _fetchRecipes(),
+      child: ListView(
+        children: [
+          _buildSectionTitle("Resep Masakan Terbaru"),
+          _buildHorizontalRecipeList(_latestRecipes),
 
-        // Popular Recipes Section
-        _buildSectionTitle(
-          "Popular Recipes",
-          showViewAll: true,
-          onViewAllTap: () => _navigateToGroupDetail("Popular Recipes", _popularRecipes),
-        ),
-        _buildRecipeGrid(_popularRecipes),
+          _buildSectionTitle(
+            "Popular Recipes",
+            showViewAll: true,
+            onViewAllTap: () => _navigateToGroupDetail("Popular Recipes", _popularRecipes),
+          ),
+          _buildRecipeGrid(_popularRecipes),
 
-        // Menu Sarapan Mudah Section
-        _buildSectionTitle(
-          "Menu Sarapan Mudah",
-          showViewAll: true,
-          onViewAllTap: () => _navigateToGroupDetail("Menu Sarapan Mudah", _breakfastRecipes),
-        ),
-        _buildRecipeGrid(_breakfastRecipes),
+          _buildSectionTitle(
+            "Menu Sarapan Mudah",
+            showViewAll: true,
+            onViewAllTap: () => _navigateToGroupDetail("Menu Sarapan Mudah", _breakfastRecipes),
+          ),
+          _buildRecipeGrid(_breakfastRecipes),
 
-        const SizedBox(height: 20),
-      ],
+          const SizedBox(height: 20),
+        ],
+      ),
     );
   }
 
@@ -422,7 +424,7 @@ class _HomePageState extends State<HomePage> {
                   onTap: (){
                     _searchController.text = _searchHistory[index];
                     _searchController.selection = TextSelection.fromPosition(
-                        TextPosition(offset: _searchController.text.length)); // Move cursor to end
+                        TextPosition(offset: _searchController.text.length));
                     _performSearch(_searchHistory[index]);
                   },
                 );
@@ -458,7 +460,7 @@ class _HomePageState extends State<HomePage> {
           Padding(
             padding: const EdgeInsets.all(16.0),
             child: Text(
-              "Hasil Pencarian (${_searchResults.length})", // Show count
+              "Hasil Pencarian (${_searchResults.length})",
               style: GoogleFonts.dmSans(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
@@ -477,10 +479,11 @@ class _HomePageState extends State<HomePage> {
               ),
               itemCount: _searchResults.length,
               itemBuilder: (context, index){
+                final recipe = _searchResults[index];
                 return RecipeCard(
-                  recipe: _searchResults[index],
-                  onTap: () => _navigateToRecipeDetail(_searchResults[index]), // Ditambahkan
-                  onBookmarkTap: () => _toggleBookmark(_searchResults[index].id),
+                  recipe: recipe,
+                  onTap: () => _navigateToRecipeDetail(recipe),
+                  onBookmarkTap: () => _toggleBookmark(recipe.id),
                 );
               },
             ),
@@ -521,8 +524,6 @@ class _HomePageState extends State<HomePage> {
               ],
             ),
             const SizedBox(height: 16),
-
-            // Durasi Memasak (Cooking Duration)
             Text(
               "Durasi Memasak",
               style: GoogleFonts.dmSans(
@@ -536,23 +537,18 @@ class _HomePageState extends State<HomePage> {
               spacing: 8,
               runSpacing: 8,
               children: _cookingTimeOptions.map((option){
-                // Check if this option is the currently selected one
                 final bool isSelected = _selectedCookingTimeOption?['label'] == option['label'];
-
                 return FilterChip(
                   label: Text(option["label"].toString()),
                   selected: isSelected,
                   onSelected: (selected){
                     setState((){
                       if(selected){
-                        // Select this option
                         _selectedCookingTimeOption = option;
                       } else {
-                        // Deselect if it was the selected one
                         if(isSelected){
                            _selectedCookingTimeOption = null;
                         }
-                        // Note: This setup allows only one cooking time selection.
                       }
                     });
                   },
@@ -567,10 +563,8 @@ class _HomePageState extends State<HomePage> {
               }).toList(),
             ),
             const SizedBox(height: 24),
-
-            // Alergi (Allergies) - Exclude these
             Text(
-              "Hindari Alergen", // Changed title for clarity
+              "Hindari Alergen",
               style: GoogleFonts.dmSans(
                 fontSize: 16,
                 fontWeight: FontWeight.bold,
@@ -606,8 +600,6 @@ class _HomePageState extends State<HomePage> {
               }).toList(),
             ),
             const SizedBox(height: 24),
-
-            // Pola Makan (Diet Pattern) - Must match all selected
             Text(
               "Pola Makan",
               style: GoogleFonts.dmSans(
@@ -645,10 +637,8 @@ class _HomePageState extends State<HomePage> {
               }).toList(),
             ),
             const SizedBox(height: 24),
-
-            // Saya Tidak Punya (I Don't Have) - Exclude recipes needing these
             Text(
-              "Peralatan yang Tidak Dimiliki", // Changed title for clarity
+              "Peralatan yang Tidak Dimiliki",
               style: GoogleFonts.dmSans(
                 fontSize: 16,
                 fontWeight: FontWeight.bold,
@@ -684,12 +674,10 @@ class _HomePageState extends State<HomePage> {
               }).toList(),
             ),
             const SizedBox(height: 32),
-
-            // Apply Button
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
-                onPressed: _applyFilters, // Apply filters calls _updateSearchResults now
+                onPressed: _applyFilters,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF8E1616),
                   foregroundColor: Colors.white,
@@ -752,11 +740,12 @@ class _HomePageState extends State<HomePage> {
         padding: const EdgeInsets.symmetric(horizontal: 16.0),
         itemCount: recipes.length,
         itemBuilder: (context, index){
+          final recipe = recipes[index];
           return Padding(
             padding: const EdgeInsets.only(right: 16.0),
             child: GestureDetector(
-              onTap: () => _navigateToRecipeDetail(recipes[index]), // Corrected to navigate to individual recipe detail
-              child: _buildLatestRecipeCard(recipes[index]),
+              onTap: () => _navigateToRecipeDetail(recipe),
+              child: _buildLatestRecipeCard(recipe),
             ),
           );
         },
@@ -774,13 +763,12 @@ class _HomePageState extends State<HomePage> {
             child: recipe.imageUrl != null && recipe.imageUrl!.isNotEmpty
                 ? Image.network(recipe.imageUrl!, fit: BoxFit.cover, width: double.infinity, height: double.infinity,
                     errorBuilder: (context, error, stackTrace) => Image.asset('assets/images/cookbooks/placeholder_image.jpg', fit: BoxFit.cover))
-                : Image.asset('assets/images/cookbooks/placeholder_image.jpg', // Fallback to placeholder
+                : Image.asset('assets/images/cookbooks/placeholder_image.jpg',
               fit: BoxFit.cover,
               width: double.infinity,
               height: double.infinity,
             ),
           ),
-          // Gradient overlay
           Positioned.fill(
             child: Container(
               decoration: BoxDecoration(
@@ -794,7 +782,6 @@ class _HomePageState extends State<HomePage> {
               ),
             ),
           ),
-          // Text content
           Positioned(
             bottom: 10,
             left: 10,
@@ -810,7 +797,6 @@ class _HomePageState extends State<HomePage> {
               overflow: TextOverflow.ellipsis,
             ),
           ),
-          // Add bookmark toggle here if needed for latest recipes
           Positioned(
             top: 10,
             right: 10,
@@ -860,19 +846,19 @@ class _HomePageState extends State<HomePage> {
       ),
       itemCount: recipes.length,
       itemBuilder: (context, index){
+        final recipe = recipes[index];
         return RecipeCard(
-          recipe: recipes[index],
-          onTap: () => _navigateToRecipeDetail(recipes[index]),
-          onBookmarkTap: () => _toggleBookmark(recipes[index].id),
+          recipe: recipe,
+          onTap: () => _navigateToRecipeDetail(recipe),
+          onBookmarkTap: () => _toggleBookmark(recipe.id),
         );
       },
     );
   }
 }
 
-// Recipe Card component
 class RecipeCard extends StatelessWidget {
-  final DisplayRecipeItem recipe; // Parameter already uses DisplayRecipeItem
+  final DisplayRecipeItem recipe;
   final VoidCallback onBookmarkTap;
   final VoidCallback onTap;
 
@@ -887,143 +873,140 @@ class RecipeCard extends StatelessWidget {
   Widget build(BuildContext context){
     return ClipRRect(
       borderRadius: BorderRadius.circular(12),
-      child: Stack(
-        children: [
-          // Recipe image
-          Positioned.fill(
-            child: Image.asset(
-              recipe.imagePath,
-              fit: BoxFit.cover,
+      child: GestureDetector(
+        onTap: onTap,
+        child: Stack(
+          children: [
+            Positioned.fill(
+              child: recipe.imageUrl != null && recipe.imageUrl!.isNotEmpty
+                  ? Image.network(recipe.imageUrl!, fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) =>
+                          Image.asset('assets/images/cookbooks/placeholder_image.jpg', fit: BoxFit.cover))
+                  : Image.asset('assets/images/cookbooks/placeholder_image.jpg', fit: BoxFit.cover)
             ),
-          ),
-          // Gradient overlay for text visibility
-          Positioned.fill(
-            child: Container(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [Colors.transparent, Colors.black.withOpacity(0.7)],
-                  stops: const [0.6, 1.0],
+            Positioned.fill(
+              child: Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [Colors.transparent, Colors.black.withOpacity(0.7)],
+                    stops: const [0.6, 1.0],
+                  ),
                 ),
               ),
             ),
-          ),
-          // Bookmark icon with blur background
-          Positioned(
-            top: 10,
-            right: 10,
-            child: GestureDetector(
-              onTap: onBookmarkTap,
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(20),
-                child: BackdropFilter(
-                  filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
-                  child: Container(
-                    padding: const EdgeInsets.all(6),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.2),
-                      borderRadius: BorderRadius.circular(20),
+            Positioned(
+              top: 10,
+              right: 10,
+              child: GestureDetector(
+                onTap: onBookmarkTap,
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(20),
+                  child: BackdropFilter(
+                    filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
+                    child: Container(
+                      padding: const EdgeInsets.all(6),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: recipe.isBookmarked
+                          ? const BookmarkSolid(
+                              width: 18,
+                              height: 18,
+                              color: Colors.white,
+                            )
+                          : const Bookmark(
+                              width: 18,
+                              height: 18,
+                              color: Colors.white,
+                            ),
                     ),
-                    child: recipe.isBookmarked
-                        ? const BookmarkSolid(
-                            width: 18,
-                            height: 18,
-                            color: Colors.white,
-                          )
-                        : const Bookmark(
-                            width: 18,
-                            height: 18,
+                  ),
+                ),
+              ),
+            ),
+            Positioned(
+              bottom: 10,
+              left: 10,
+              right: 10,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const Icon(Icons.star, size: 16, color: Colors.amber),
+                      const SizedBox(width: 4),
+                      Text(
+                        '${recipe.rating} (${recipe.reviewCount} ulasan)',
+                        style: GoogleFonts.dmSans(
+                          fontSize: 12,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    recipe.name,
+                    style: GoogleFonts.dmSans(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.start,
+                    children: [
+                      Flexible(
+                        child: Text(
+                          recipe.calories != null ? '${recipe.calories} Cal' : 'N/A Cal',
+                          style: GoogleFonts.dmSans(
+                            fontSize: 11,
                             color: Colors.white,
                           ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      const Text(
+                        ' | ',
+                        style: TextStyle(fontSize: 11, color: Colors.white),
+                      ),
+                      Flexible(
+                        child: Text(
+                          recipe.servings,
+                          style: GoogleFonts.dmSans(
+                            fontSize: 11,
+                            color: Colors.white,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      const Text(
+                        ' | ',
+                        style: TextStyle(fontSize: 11, color: Colors.white),
+                      ),
+                      Flexible(
+                        child: Text(
+                          '${recipe.cookingTimeMinutes} min',
+                          style: GoogleFonts.dmSans(
+                            fontSize: 11,
+                            color: Colors.white,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
                   ),
-                ),
+                ],
               ),
-            ),
-          ),
-          // Recipe details overlaid on image
-          Positioned(
-            bottom: 10,
-            left: 10,
-            right: 10,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Rating
-                Row(
-                  children: [
-                    const Icon(Icons.star, size: 16, color: Colors.amber),
-                    const SizedBox(width: 4),
-                    Text(
-                      '${recipe.rating} (${recipe.reviewCount} ulasan)',
-                      style: GoogleFonts.dmSans(
-                        fontSize: 12,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 4),
-                // Recipe name
-                Text(
-                  recipe.name,
-                  style: GoogleFonts.dmSans(
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 8),
-                // Recipe info with dividers
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.start,
-                  children: [
-                    Flexible(
-                      child: Text(
-                        '${recipe.calories} Cal',
-                        style: GoogleFonts.dmSans(
-                          fontSize: 11,
-                          color: Colors.white,
-                        ),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    const Text(
-                      ' | ',
-                      style: TextStyle(fontSize: 11, color: Colors.white),
-                    ),
-                    Flexible(
-                      child: Text(
-                        recipe.prepTime,
-                        style: GoogleFonts.dmSans(
-                          fontSize: 11,
-                          color: Colors.white,
-                        ),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    const Text(
-                      ' | ',
-                      style: TextStyle(fontSize: 11, color: Colors.white),
-                    ),
-                    Flexible(
-                      child: Text(
-                        '${recipe.cookTime} min',
-                        style: GoogleFonts.dmSans(
-                          fontSize: 11,
-                          color: Colors.white,
-                        ),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ],
+            )
+          ],
+        ),
       ),
     );
   }
