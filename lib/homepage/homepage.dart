@@ -4,45 +4,62 @@ import 'package:solar_icons/solar_icons.dart';
 import 'package:iconoir_flutter/iconoir_flutter.dart' hide Key, Text, Navigator, List, Map;
 import 'dart:ui';
 
-// Import bottom navigation bar
 import '../bottomnavbar/bottom-navbar.dart';
-// Import the detail screen
 import 'homepage-detail.dart';
+import '../services/recipe_service.dart';
+import '../models/recipe_model.dart';
+import '../recipe/create_recipe_screen.dart';
+import '../recipe_detail/screens/recipe_detail_screen.dart';
+import '../recipe_detail/models/recipe.dart' as DetailRecipeModel;
+import '../recipe_detail/models/ingredient.dart' as DetailIngredientModel;
+import '../recipe_detail/models/direction.dart' as DetailDirectionModel;
+import '../recipe_detail/models/comment.dart' as DetailCommentModel;
 
-// Enhanced RecipeItem model with additional fields for search filtering
-class RecipeItem {
-  final String id;
+// DisplayRecipeItem is the primary model for recipe cards in this file.
+class DisplayRecipeItem {
+  final int id;
   final String name;
   final double rating;
   final int reviewCount;
-  final int calories;
-  final String prepTime;
-  final int cookTime;
-  final String imagePath;
+  final int? calories;
+  final String servings;
+  final int cookingTimeMinutes;
+  final String? imageUrl;
   bool isBookmarked;
 
-  // Additional fields for filtering
-  final List<String> allergens; // e.g., "Laktosa", "Gluten", "Kacang", "Seafood"
-  final List<String> dietTypes; // e.g., "Vegetarian", "Vegan", "Keto", "Pescatarian", "Clean Eating"
-  final int cookingDurationMinutes; // For filtering by cooking time
-  final List<String> requiredAppliances; // e.g., "Oven", "Blender", "Microwave", "Wajan", "Mixer", "Air Fryer"
+  final List<String> allergens;
+  final List<String> dietTypes;
+  final List<String> requiredAppliances;
 
-  RecipeItem({
+  DisplayRecipeItem({
     required this.id,
     required this.name,
-    required this.rating,
-    required this.reviewCount,
-    required this.calories,
-    required this.prepTime,
-    required this.cookTime,
-    required this.imagePath,
+    this.rating = 0.0,
+    this.reviewCount = 0,
+    this.calories,
+    required this.servings,
+    required this.cookingTimeMinutes,
+    this.imageUrl,
     this.isBookmarked = false,
     this.allergens = const [],
     this.dietTypes = const [],
-    this.cookingDurationMinutes = 0,
     this.requiredAppliances = const [],
   });
+
+  factory DisplayRecipeItem.fromSupabase(Map<String, dynamic> data) {
+    return DisplayRecipeItem(
+      id: data['id'] as int,
+      name: data['title'] as String? ?? 'No Title',
+      rating: (data['rating'] as num?)?.toDouble() ?? 0.0,
+      reviewCount: data['review_count'] as int? ?? 0,
+      calories: data['calories'] as int?,
+      servings: "${data['servings'] as int? ?? 1} Porsi",
+      cookingTimeMinutes: data['cooking_time_minutes'] as int? ?? 0,
+      imageUrl: data['image_url'] as String?,
+    );
+  }
 }
+
 
 class HomePage extends StatefulWidget {
   const HomePage({Key? key}) : super(key: key);
@@ -52,11 +69,18 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  int _currentIndex = 0; // For BottomNavBar
+  int _currentIndex = 0;
   bool _showSearchResults = false;
   bool _showFilters = false;
   final TextEditingController _searchController = TextEditingController();
-  List<RecipeItem> _searchResults = [];
+
+  final RecipeService _recipeService = RecipeService();
+  List<DisplayRecipeItem> _allFetchedRecipes = [];
+  List<DisplayRecipeItem> _searchResults = [];
+  bool _isLoading = true;
+  String _loadingError = '';
+
+
   List<String> _searchHistory = [
     "Resep ayam bumbu kuning",
     "Ayam geprek",
@@ -64,191 +88,67 @@ class _HomePageState extends State<HomePage> {
     "jus alpukat segar bergizi",
   ];
 
-  // Selected filters
-  // RangeValues _cookingTimeRange = const RangeValues(0, 60); // Removed
   List<String> _selectedAllergens = [];
   List<String> _selectedDietTypes = [];
   List<String> _selectedAppliances = [];
-  Map<String, Object>? _selectedCookingTimeOption; // Added
+  Map<String, Object>? _selectedCookingTimeOption;
 
-  // Filter options
   final List<String> _allergenOptions = ["Laktosa", "Gluten", "Kacang", "Seafood", "Telur", "Kerang"];
   final List<String> _dietTypeOptions = ["Vegetarian", "Vegan", "Keto", "Pescatarian", "Clean Eating"];
   final List<String> _applianceOptions = ["Oven", "Blender", "Microwave", "Wajan", "Mixer", "Air Fryer"];
-  // Adjusted cooking time options to avoid overlap and simplify logic
   final List<Map<String, Object>> _cookingTimeOptions = [
     {"label": "< 15 Menit", "min": 0, "max": 14},
     {"label": "15 - 30 Menit", "min": 15, "max": 30},
     {"label": "30 - 60 Menit", "min": 31, "max": 60},
-    {"label": "> 60 Menit", "min": 61, "max": 999}, // Use a large number for max
+    {"label": "> 60 Menit", "min": 61, "max": 999},
   ];
 
-  // Dummy data with enhanced fields for filtering
-  final List<RecipeItem> _allRecipes = [
-    RecipeItem(
-      id: 'l1',
-      name: "Sandwich with boiled egg",
-      rating: 4.5,
-      reviewCount: 128,
-      calories: 23,
-      prepTime: "1-2 Porsi",
-      cookTime: 12,
-      imagePath: 'assets/images/cookbooks/sandwich.jpg',
-      allergens: ["Telur", "Gluten"],
-      dietTypes: ["Vegetarian"],
-      cookingDurationMinutes: 12,
-      requiredAppliances: ["Wajan"],
-    ),
-    RecipeItem(
-      id: 'l2',
-      name: "Fruity blueberry toast",
-      rating: 4.8,
-      reviewCount: 150,
-      calories: 23,
-      prepTime: "1-2 Porsi",
-      cookTime: 10,
-      imagePath: 'assets/images/cookbooks/blueberry-toast.jpg',
-      allergens: ["Gluten"],
-      dietTypes: ["Vegetarian", "Clean Eating"],
-      cookingDurationMinutes: 10,
-      requiredAppliances: ["Oven", "Blender"],
-    ),
-    RecipeItem(
-      id: 'l3',
-      name: "Blueberry pancakes",
-      rating: 4.7,
-      reviewCount: 200,
-      calories: 23,
-      prepTime: "1-2 Porsi",
-      cookTime: 20,
-      imagePath: 'assets/images/cookbooks/blueberry-pancake.jpg',
-      allergens: ["Laktosa", "Gluten", "Telur"],
-      dietTypes: ["Vegetarian"],
-      cookingDurationMinutes: 20,
-      requiredAppliances: ["Wajan", "Mixer"],
-    ),
-    RecipeItem(
-      id: 'p1',
-      name: "Resep ayam bumbu kuning",
-      rating: 4.5,
-      reviewCount: 128,
-      calories: 45,
-      prepTime: "3-4 Porsi",
-      cookTime: 45,
-      imagePath: 'assets/images/cookbooks/ayam-bumbu.jpg',
-      allergens: [],
-      dietTypes: [],
-      cookingDurationMinutes: 45,
-      requiredAppliances: ["Wajan", "Blender"],
-    ),
-    RecipeItem(
-      id: 'p2',
-      name: "Ayam geprek pedas",
-      rating: 4.8,
-      reviewCount: 150,
-      calories: 50,
-      prepTime: "2-3 Porsi",
-      cookTime: 35,
-      imagePath: 'assets/images/cookbooks/ayam-geprek.jpg',
-      allergens: ["Gluten"],
-      dietTypes: [],
-      cookingDurationMinutes: 35,
-      requiredAppliances: ["Wajan"],
-    ),
-    RecipeItem(
-      id: 'p3',
-      name: "Kue nastar lembut",
-      rating: 4.7,
-      reviewCount: 200,
-      calories: 30,
-      prepTime: "20 Buah",
-      cookTime: 60,
-      imagePath: 'assets/images/cookbooks/nastar.jpg',
-      allergens: ["Laktosa", "Gluten", "Telur"],
-      dietTypes: ["Vegetarian"],
-      cookingDurationMinutes: 60,
-      requiredAppliances: ["Oven", "Mixer"],
-    ),
-    RecipeItem(
-      id: 'p4',
-      name: "Jus alpukat segar bergizi",
-      rating: 4.7,
-      reviewCount: 200,
-      calories: 15,
-      prepTime: "1-2 Gelas",
-      cookTime: 5,
-      imagePath: 'assets/images/cookbooks/jus-alpukat.jpg',
-      allergens: [],
-      dietTypes: ["Vegetarian", "Vegan", "Clean Eating"],
-      cookingDurationMinutes: 5,
-      requiredAppliances: ["Blender"],
-    ),
-    RecipeItem(
-      id: 'b1',
-      name: "Nasi goreng seafood",
-      rating: 4.5,
-      reviewCount: 128,
-      calories: 40,
-      prepTime: "1-2 Porsi",
-      cookTime: 15,
-      imagePath: 'assets/images/cookbooks/nasgor-seafood.jpg',
-      allergens: ["Seafood"],
-      dietTypes: ["Pescatarian"],
-      cookingDurationMinutes: 15,
-      requiredAppliances: ["Wajan"],
-    ),
-    RecipeItem(
-      id: 'b2',
-      name: "Salad buah keto",
-      rating: 4.8,
-      reviewCount: 150,
-      calories: 20,
-      prepTime: "1-2 Porsi",
-      cookTime: 10,
-      imagePath: 'assets/images/cookbooks/salad-buah-keto.jpg',
-      allergens: [],
-      dietTypes: ["Vegetarian", "Vegan", "Keto", "Clean Eating"],
-      cookingDurationMinutes: 10,
-      requiredAppliances: [],
-    ),
-    RecipeItem(
-      id: 'b3',
-      name: "Tumis sayur sehat",
-      rating: 4.7,
-      reviewCount: 200,
-      calories: 18,
-      prepTime: "3-4 Porsi",
-      cookTime: 20,
-      imagePath: 'assets/images/cookbooks/tumis-sayur.jpg',
-      allergens: [],
-      dietTypes: ["Vegetarian", "Vegan", "Clean Eating"],
-      cookingDurationMinutes: 20,
-      requiredAppliances: ["Wajan"],
-    ),
-  ];
+  List<DisplayRecipeItem> get _latestRecipes => _allFetchedRecipes.take(3).toList();
+  List<DisplayRecipeItem> get _popularRecipes => _allFetchedRecipes.skip(3).take(4).toList();
+  List<DisplayRecipeItem> get _breakfastRecipes => _allFetchedRecipes.skip(7).take(4).toList();
 
-  // Filtered lists for different sections
-  List<RecipeItem> get _latestRecipes => _allRecipes.take(3).toList();
-  List<RecipeItem> get _popularRecipes => _allRecipes.skip(3).take(4).toList();
-  List<RecipeItem> get _breakfastRecipes => _allRecipes.skip(7).take(4).toList();
 
   @override
   void initState(){
     super.initState();
+    _fetchRecipes();
     _searchController.addListener((){
-      // Trigger an update when search text changes, but only if not empty
-      // If empty, we might want to show history or clear results depending on focus
       if(_searchController.text.isNotEmpty){
         _updateSearchResults();
       } else {
-        // When text is cleared, decide whether to show history or default home
         setState((){
-          _showSearchResults = true; // Keep showing search view for history
-          _searchResults = []; // Clear results, history will show if text is empty
+          _showSearchResults = true;
+          _searchResults = [];
         });
       }
     });
   }
+
+  Future<void> _fetchRecipes({String? searchQuery}) async {
+    setState(() {
+      _isLoading = true;
+      _loadingError = '';
+    });
+    try {
+      final recipesData = await _recipeService.getPublicRecipesWithDetails(searchQuery: searchQuery);
+      setState(() {
+        _allFetchedRecipes = recipesData.map((data) => DisplayRecipeItem.fromSupabase(data)).toList();
+        _isLoading = false;
+        if (searchQuery != null && searchQuery.isNotEmpty) {
+            _searchResults = List.from(_allFetchedRecipes);
+        } else {
+            _searchResults = [];
+        }
+      });
+    } catch (e) {
+      print("Error fetching recipes: $e");
+      setState(() {
+        _isLoading = false;
+        _loadingError = "Gagal memuat resep: ${e.toString()}";
+      });
+    }
+  }
+
 
   @override
   void dispose(){
@@ -260,61 +160,59 @@ class _HomePageState extends State<HomePage> {
     setState((){
       _currentIndex = index;
     });
-    // Handle navigation based on index
     if(index == 1){
-      // Navigate to Bookmark screen
       print('Navigate to Bookmark');
     }
   }
 
-  void _onFabPressed(){
-    // Handle FAB press action
-    print('FAB pressed on HomePage');
+  void _onFabPressed() async {
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const CreateRecipeScreen()),
+    );
+    if (result == true) {
+      _fetchRecipes();
+    }
   }
 
-  void _toggleBookmark(String recipeId){
+
+  void _toggleBookmark(int recipeId){
     setState((){
-      // Find and update the recipe in all lists
-      final index = _allRecipes.indexWhere((recipe) => recipe.id == recipeId);
+      final index = _allFetchedRecipes.indexWhere((recipe) => recipe.id == recipeId);
       if(index != -1){
-        _allRecipes[index].isBookmarked = !_allRecipes[index].isBookmarked;
-        // Also update in search results if the item exists there
+        _allFetchedRecipes[index].isBookmarked = !_allFetchedRecipes[index].isBookmarked;
         final searchIndex = _searchResults.indexWhere((recipe) => recipe.id == recipeId);
         if(searchIndex != -1){
-          _searchResults[searchIndex].isBookmarked = _allRecipes[index].isBookmarked;
+          _searchResults[searchIndex].isBookmarked = _allFetchedRecipes[index].isBookmarked;
         }
       }
     });
   }
 
-  void _navigateToDetail(String title, List<RecipeItem> recipes){
+  void _navigateToGroupDetail(String title, List<DisplayRecipeItem> recipes){
     Navigator.push(
       context,
       MaterialPageRoute(
         builder: (context) => HomePageDetailScreen(
           title: title,
-          // Pass a copy to avoid state issues if detail screen modifies bookmark status
-          recipes: List<RecipeItem>.from(recipes.map((recipe) =>
-            RecipeItem(
-              id: recipe.id,
-              name: recipe.name,
-              rating: recipe.rating,
-              reviewCount: recipe.reviewCount,
-              calories: recipe.calories,
-              prepTime: recipe.prepTime,
-              cookTime: recipe.cookTime,
-              imagePath: recipe.imagePath,
-              isBookmarked: recipe.isBookmarked, // Pass current status
-              allergens: recipe.allergens,
-              dietTypes: recipe.dietTypes,
-              cookingDurationMinutes: recipe.cookingDurationMinutes,
-              requiredAppliances: recipe.requiredAppliances,
-            )
-          )),
+          recipes: recipes,
         ),
       ),
     );
   }
+
+  void _navigateToRecipeDetail(DisplayRecipeItem recipeItem) async {
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => RecipeDetailScreen(recipeId: recipeItem.id),
+      ),
+    );
+    if (result == true) {
+        _fetchRecipes();
+    }
+  }
+
 
   void _performSearch(String query){
     if(query.isNotEmpty && !_searchHistory.contains(query)){
@@ -325,9 +223,9 @@ class _HomePageState extends State<HomePage> {
         }
       });
     }
-    _updateSearchResults(); // Update results based on new query and existing filters
+    _fetchRecipes(searchQuery: query);
     setState((){
-      _showSearchResults = true; // Ensure results/history view is shown
+      _showSearchResults = true;
       _showFilters = false;
     });
   }
@@ -341,14 +239,14 @@ class _HomePageState extends State<HomePage> {
   void _toggleFilters(){
     setState((){
       _showFilters = !_showFilters;
-      _showSearchResults = false; // Hide search results when showing filters
+      _showSearchResults = false;
     });
   }
 
   void _applyFilters(){
-    _updateSearchResults(); // Update results based on new filters and existing query
+    _updateSearchResults();
     setState((){
-      _showSearchResults = true; // Show the filtered results
+      _showSearchResults = true;
       _showFilters = false;
     });
   }
@@ -358,40 +256,32 @@ class _HomePageState extends State<HomePage> {
       _selectedAllergens = [];
       _selectedDietTypes = [];
       _selectedAppliances = [];
-      _selectedCookingTimeOption = null; // Reset cooking time selection
-      // Optionally clear search text or keep it
-      // _searchController.clear();
+      _selectedCookingTimeOption = null;
     });
-    _updateSearchResults(); // Update results after resetting filters
+    _updateSearchResults();
   }
 
-  // New central function to handle filtering and searching
   void _updateSearchResults(){
     final String query = _searchController.text.toLowerCase();
 
-    final filtered = _allRecipes.where((recipe){
-      // 1. Check search query match (if query exists)
+    List<DisplayRecipeItem> recipesToFilter = List.from(_allFetchedRecipes);
+
+    final filtered = recipesToFilter.where((recipe){
       final queryMatch = query.isEmpty || recipe.name.toLowerCase().contains(query);
 
-      // 2. Check filter matches
-      // Check cooking time based on selected option
       final cookingTimeMatches = _selectedCookingTimeOption == null ||
-                                (recipe.cookingDurationMinutes >= (_selectedCookingTimeOption!['min'] as int) &&
-                                 recipe.cookingDurationMinutes <= (_selectedCookingTimeOption!['max'] as int));
+                                (recipe.cookingTimeMinutes >= (_selectedCookingTimeOption!['min'] as int) &&
+                                 recipe.cookingTimeMinutes <= (_selectedCookingTimeOption!['max'] as int));
 
-      // Check allergens (exclude recipes containing selected allergens)
       final allergensMatch = _selectedAllergens.isEmpty ||
                             !_selectedAllergens.any((allergen) => recipe.allergens.contains(allergen));
 
-      // Check diet types (must contain all selected types)
       final dietTypesMatch = _selectedDietTypes.isEmpty ||
                             _selectedDietTypes.every((diet) => recipe.dietTypes.contains(diet));
 
-      // Check appliances (exclude recipes requiring appliances user doesn't have)
       final appliancesMatch = _selectedAppliances.isEmpty ||
                              !_selectedAppliances.any((appliance) => recipe.requiredAppliances.contains(appliance));
 
-      // Combine query and filter results
       return queryMatch && cookingTimeMatches && allergensMatch && dietTypesMatch && appliancesMatch;
     }).toList();
 
@@ -403,6 +293,7 @@ class _HomePageState extends State<HomePage> {
 
   @override
   Widget build(BuildContext context){
+
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
@@ -415,7 +306,7 @@ class _HomePageState extends State<HomePage> {
             backgroundImage: AssetImage("assets/images/homepage/placeholder_profile.jpg"),
           ),
         ),
-        title: Container( // Removed GestureDetector, handled by TextField onTap
+        title: Container(
           height: 40,
           decoration: BoxDecoration(
             color: Colors.grey[200],
@@ -429,14 +320,14 @@ class _HomePageState extends State<HomePage> {
               prefixIcon: Icon(Icons.search, color: Colors.grey[600]),
               suffixIcon: IconButton(
                 icon: Icon(SolarIconsOutline.tuningSquare, color: Colors.grey[600]),
-                onPressed: _toggleFilters, // Keep toggle filter button
+                onPressed: _toggleFilters,
               ),
               border: InputBorder.none,
-              contentPadding: EdgeInsets.symmetric(vertical: 10.0, horizontal: 0), // Adjust padding
+              contentPadding: EdgeInsets.symmetric(vertical: 10.0, horizontal: 0),
             ),
             style: GoogleFonts.dmSans(color: Colors.black),
-            onSubmitted: _performSearch, // Use onSubmitted for explicit search action
-            onTap: (){ // Show search/history view on tap
+            onSubmitted: _performSearch,
+            onTap: (){
               setState((){
                 _showSearchResults = true;
                 _showFilters = false;
@@ -455,11 +346,15 @@ class _HomePageState extends State<HomePage> {
         ],
       ),
       body: SafeArea(
-        child: _showSearchResults
-            ? _buildSearchResultsView()
-            : _showFilters
-                ? _buildFiltersView()
-                : _buildHomeContent(),
+        child: _isLoading
+            ? Center(child: CircularProgressIndicator())
+            : _loadingError.isNotEmpty
+                ? Center(child: Text(_loadingError, style: TextStyle(color: Colors.red)))
+                : _showSearchResults
+                    ? _buildSearchResultsView()
+                    : _showFilters
+                        ? _buildFiltersView()
+                        : _buildHomeContent(),
       ),
       bottomNavigationBar: BottomNavBar(
         currentIndex: _currentIndex,
@@ -470,30 +365,30 @@ class _HomePageState extends State<HomePage> {
   }
 
   Widget _buildHomeContent(){
-    return ListView(
-      children: [
-        // Resep Masakan Terbaru Section
-        _buildSectionTitle("Resep Masakan Terbaru"),
-        _buildHorizontalRecipeList(_latestRecipes),
+    return RefreshIndicator(
+      onRefresh: () => _fetchRecipes(),
+      child: ListView(
+        children: [
+          _buildSectionTitle("Resep Masakan Terbaru"),
+          _buildHorizontalRecipeList(_latestRecipes),
 
-        // Popular Recipes Section
-        _buildSectionTitle(
-          "Popular Recipes",
-          showViewAll: true,
-          onViewAllTap: () => _navigateToDetail("Popular Recipes", _popularRecipes),
-        ),
-        _buildRecipeGrid(_popularRecipes),
+          _buildSectionTitle(
+            "Popular Recipes",
+            showViewAll: true,
+            onViewAllTap: () => _navigateToGroupDetail("Popular Recipes", _popularRecipes),
+          ),
+          _buildRecipeGrid(_popularRecipes),
 
-        // Menu Sarapan Mudah Section
-        _buildSectionTitle(
-          "Menu Sarapan Mudah",
-          showViewAll: true,
-          onViewAllTap: () => _navigateToDetail("Menu Sarapan Mudah", _breakfastRecipes),
-        ),
-        _buildRecipeGrid(_breakfastRecipes),
+          _buildSectionTitle(
+            "Menu Sarapan Mudah",
+            showViewAll: true,
+            onViewAllTap: () => _navigateToGroupDetail("Menu Sarapan Mudah", _breakfastRecipes),
+          ),
+          _buildRecipeGrid(_breakfastRecipes),
 
-        const SizedBox(height: 20),
-      ],
+          const SizedBox(height: 20),
+        ],
+      ),
     );
   }
 
@@ -529,7 +424,7 @@ class _HomePageState extends State<HomePage> {
                   onTap: (){
                     _searchController.text = _searchHistory[index];
                     _searchController.selection = TextSelection.fromPosition(
-                        TextPosition(offset: _searchController.text.length)); // Move cursor to end
+                        TextPosition(offset: _searchController.text.length));
                     _performSearch(_searchHistory[index]);
                   },
                 );
@@ -565,7 +460,7 @@ class _HomePageState extends State<HomePage> {
           Padding(
             padding: const EdgeInsets.all(16.0),
             child: Text(
-              "Hasil Pencarian (${_searchResults.length})", // Show count
+              "Hasil Pencarian (${_searchResults.length})",
               style: GoogleFonts.dmSans(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
@@ -584,9 +479,11 @@ class _HomePageState extends State<HomePage> {
               ),
               itemCount: _searchResults.length,
               itemBuilder: (context, index){
+                final recipe = _searchResults[index];
                 return RecipeCard(
-                  recipe: _searchResults[index],
-                  onBookmarkTap: () => _toggleBookmark(_searchResults[index].id),
+                  recipe: recipe,
+                  onTap: () => _navigateToRecipeDetail(recipe),
+                  onBookmarkTap: () => _toggleBookmark(recipe.id),
                 );
               },
             ),
@@ -627,8 +524,6 @@ class _HomePageState extends State<HomePage> {
               ],
             ),
             const SizedBox(height: 16),
-
-            // Durasi Memasak (Cooking Duration)
             Text(
               "Durasi Memasak",
               style: GoogleFonts.dmSans(
@@ -642,23 +537,18 @@ class _HomePageState extends State<HomePage> {
               spacing: 8,
               runSpacing: 8,
               children: _cookingTimeOptions.map((option){
-                // Check if this option is the currently selected one
                 final bool isSelected = _selectedCookingTimeOption?['label'] == option['label'];
-
                 return FilterChip(
                   label: Text(option["label"].toString()),
                   selected: isSelected,
                   onSelected: (selected){
                     setState((){
                       if(selected){
-                        // Select this option
                         _selectedCookingTimeOption = option;
                       } else {
-                        // Deselect if it was the selected one
                         if(isSelected){
                            _selectedCookingTimeOption = null;
                         }
-                        // Note: This setup allows only one cooking time selection.
                       }
                     });
                   },
@@ -673,10 +563,8 @@ class _HomePageState extends State<HomePage> {
               }).toList(),
             ),
             const SizedBox(height: 24),
-
-            // Alergi (Allergies) - Exclude these
             Text(
-              "Hindari Alergen", // Changed title for clarity
+              "Hindari Alergen",
               style: GoogleFonts.dmSans(
                 fontSize: 16,
                 fontWeight: FontWeight.bold,
@@ -712,8 +600,6 @@ class _HomePageState extends State<HomePage> {
               }).toList(),
             ),
             const SizedBox(height: 24),
-
-            // Pola Makan (Diet Pattern) - Must match all selected
             Text(
               "Pola Makan",
               style: GoogleFonts.dmSans(
@@ -751,10 +637,8 @@ class _HomePageState extends State<HomePage> {
               }).toList(),
             ),
             const SizedBox(height: 24),
-
-            // Saya Tidak Punya (I Don't Have) - Exclude recipes needing these
             Text(
-              "Peralatan yang Tidak Dimiliki", // Changed title for clarity
+              "Peralatan yang Tidak Dimiliki",
               style: GoogleFonts.dmSans(
                 fontSize: 16,
                 fontWeight: FontWeight.bold,
@@ -790,12 +674,10 @@ class _HomePageState extends State<HomePage> {
               }).toList(),
             ),
             const SizedBox(height: 32),
-
-            // Apply Button
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
-                onPressed: _applyFilters, // Apply filters calls _updateSearchResults now
+                onPressed: _applyFilters,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF8E1616),
                   foregroundColor: Colors.white,
@@ -850,7 +732,7 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Widget _buildHorizontalRecipeList(List<RecipeItem> recipes){
+  Widget _buildHorizontalRecipeList(List<DisplayRecipeItem> recipes) {
     return Container(
       height: 180,
       child: ListView.builder(
@@ -858,14 +740,12 @@ class _HomePageState extends State<HomePage> {
         padding: const EdgeInsets.symmetric(horizontal: 16.0),
         itemCount: recipes.length,
         itemBuilder: (context, index){
+          final recipe = recipes[index];
           return Padding(
             padding: const EdgeInsets.only(right: 16.0),
             child: GestureDetector(
-              // Navigate to a detail view specifically for "Latest Recipes"
-              // Or potentially navigate to the recipe's own detail page directly
-              onTap: () => _navigateToDetail("Resep Masakan Terbaru", recipes), // Example: Navigates to a list view
-              // onTap: () => _navigateToRecipeDetail(recipes[index]), // Alternative: Navigate to specific recipe
-              child: _buildLatestRecipeCard(recipes[index]),
+              onTap: () => _navigateToRecipeDetail(recipe),
+              child: _buildLatestRecipeCard(recipe),
             ),
           );
         },
@@ -873,21 +753,22 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Widget _buildLatestRecipeCard(RecipeItem recipe){
+  Widget _buildLatestRecipeCard(DisplayRecipeItem recipe) {
     return Container(
       width: 250,
       child: Stack(
         children: [
           ClipRRect(
             borderRadius: BorderRadius.circular(12),
-            child: Image.asset(
-              recipe.imagePath,
+            child: recipe.imageUrl != null && recipe.imageUrl!.isNotEmpty
+                ? Image.network(recipe.imageUrl!, fit: BoxFit.cover, width: double.infinity, height: double.infinity,
+                    errorBuilder: (context, error, stackTrace) => Image.asset('assets/images/cookbooks/placeholder_image.jpg', fit: BoxFit.cover))
+                : Image.asset('assets/images/cookbooks/placeholder_image.jpg',
               fit: BoxFit.cover,
               width: double.infinity,
               height: double.infinity,
             ),
           ),
-          // Gradient overlay
           Positioned.fill(
             child: Container(
               decoration: BoxDecoration(
@@ -901,7 +782,6 @@ class _HomePageState extends State<HomePage> {
               ),
             ),
           ),
-          // Text content
           Positioned(
             bottom: 10,
             left: 10,
@@ -917,12 +797,11 @@ class _HomePageState extends State<HomePage> {
               overflow: TextOverflow.ellipsis,
             ),
           ),
-          // Add bookmark toggle here if needed for latest recipes
           Positioned(
             top: 10,
             right: 10,
             child: GestureDetector(
-              onTap: () => _toggleBookmark(recipe.id), // Use the main toggle function
+              onTap: () => _toggleBookmark(recipe.id),
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(20),
                 child: BackdropFilter(
@@ -954,7 +833,7 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Widget _buildRecipeGrid(List<RecipeItem> recipes){
+  Widget _buildRecipeGrid(List<DisplayRecipeItem> recipes) {
     return GridView.builder(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
@@ -967,23 +846,26 @@ class _HomePageState extends State<HomePage> {
       ),
       itemCount: recipes.length,
       itemBuilder: (context, index){
+        final recipe = recipes[index];
         return RecipeCard(
-          recipe: recipes[index],
-          onBookmarkTap: () => _toggleBookmark(recipes[index].id),
+          recipe: recipe,
+          onTap: () => _navigateToRecipeDetail(recipe),
+          onBookmarkTap: () => _toggleBookmark(recipe.id),
         );
       },
     );
   }
 }
 
-// Recipe Card component
 class RecipeCard extends StatelessWidget {
-  final RecipeItem recipe;
+  final DisplayRecipeItem recipe;
   final VoidCallback onBookmarkTap;
+  final VoidCallback onTap;
 
   const RecipeCard({
     Key? key,
     required this.recipe,
+    required this.onTap,
     required this.onBookmarkTap,
   }) : super(key: key);
 
@@ -991,143 +873,140 @@ class RecipeCard extends StatelessWidget {
   Widget build(BuildContext context){
     return ClipRRect(
       borderRadius: BorderRadius.circular(12),
-      child: Stack(
-        children: [
-          // Recipe image
-          Positioned.fill(
-            child: Image.asset(
-              recipe.imagePath,
-              fit: BoxFit.cover,
+      child: GestureDetector(
+        onTap: onTap,
+        child: Stack(
+          children: [
+            Positioned.fill(
+              child: recipe.imageUrl != null && recipe.imageUrl!.isNotEmpty
+                  ? Image.network(recipe.imageUrl!, fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) =>
+                          Image.asset('assets/images/cookbooks/placeholder_image.jpg', fit: BoxFit.cover))
+                  : Image.asset('assets/images/cookbooks/placeholder_image.jpg', fit: BoxFit.cover)
             ),
-          ),
-          // Gradient overlay for text visibility
-          Positioned.fill(
-            child: Container(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [Colors.transparent, Colors.black.withOpacity(0.7)],
-                  stops: const [0.6, 1.0],
+            Positioned.fill(
+              child: Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [Colors.transparent, Colors.black.withOpacity(0.7)],
+                    stops: const [0.6, 1.0],
+                  ),
                 ),
               ),
             ),
-          ),
-          // Bookmark icon with blur background
-          Positioned(
-            top: 10,
-            right: 10,
-            child: GestureDetector(
-              onTap: onBookmarkTap,
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(20),
-                child: BackdropFilter(
-                  filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
-                  child: Container(
-                    padding: const EdgeInsets.all(6),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.2),
-                      borderRadius: BorderRadius.circular(20),
+            Positioned(
+              top: 10,
+              right: 10,
+              child: GestureDetector(
+                onTap: onBookmarkTap,
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(20),
+                  child: BackdropFilter(
+                    filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
+                    child: Container(
+                      padding: const EdgeInsets.all(6),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: recipe.isBookmarked
+                          ? const BookmarkSolid(
+                              width: 18,
+                              height: 18,
+                              color: Colors.white,
+                            )
+                          : const Bookmark(
+                              width: 18,
+                              height: 18,
+                              color: Colors.white,
+                            ),
                     ),
-                    child: recipe.isBookmarked
-                        ? const BookmarkSolid(
-                            width: 18,
-                            height: 18,
-                            color: Colors.white,
-                          )
-                        : const Bookmark(
-                            width: 18,
-                            height: 18,
+                  ),
+                ),
+              ),
+            ),
+            Positioned(
+              bottom: 10,
+              left: 10,
+              right: 10,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const Icon(Icons.star, size: 16, color: Colors.amber),
+                      const SizedBox(width: 4),
+                      Text(
+                        '${recipe.rating} (${recipe.reviewCount} ulasan)',
+                        style: GoogleFonts.dmSans(
+                          fontSize: 12,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    recipe.name,
+                    style: GoogleFonts.dmSans(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.start,
+                    children: [
+                      Flexible(
+                        child: Text(
+                          recipe.calories != null ? '${recipe.calories} Cal' : 'N/A Cal',
+                          style: GoogleFonts.dmSans(
+                            fontSize: 11,
                             color: Colors.white,
                           ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      const Text(
+                        ' | ',
+                        style: TextStyle(fontSize: 11, color: Colors.white),
+                      ),
+                      Flexible(
+                        child: Text(
+                          recipe.servings,
+                          style: GoogleFonts.dmSans(
+                            fontSize: 11,
+                            color: Colors.white,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      const Text(
+                        ' | ',
+                        style: TextStyle(fontSize: 11, color: Colors.white),
+                      ),
+                      Flexible(
+                        child: Text(
+                          '${recipe.cookingTimeMinutes} min',
+                          style: GoogleFonts.dmSans(
+                            fontSize: 11,
+                            color: Colors.white,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
                   ),
-                ),
+                ],
               ),
-            ),
-          ),
-          // Recipe details overlaid on image
-          Positioned(
-            bottom: 10,
-            left: 10,
-            right: 10,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Rating
-                Row(
-                  children: [
-                    const Icon(Icons.star, size: 16, color: Colors.amber),
-                    const SizedBox(width: 4),
-                    Text(
-                      '${recipe.rating} (${recipe.reviewCount} ulasan)',
-                      style: GoogleFonts.dmSans(
-                        fontSize: 12,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 4),
-                // Recipe name
-                Text(
-                  recipe.name,
-                  style: GoogleFonts.dmSans(
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 8),
-                // Recipe info with dividers
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.start,
-                  children: [
-                    Flexible(
-                      child: Text(
-                        '${recipe.calories} Cal',
-                        style: GoogleFonts.dmSans(
-                          fontSize: 11,
-                          color: Colors.white,
-                        ),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    const Text(
-                      ' | ',
-                      style: TextStyle(fontSize: 11, color: Colors.white),
-                    ),
-                    Flexible(
-                      child: Text(
-                        recipe.prepTime,
-                        style: GoogleFonts.dmSans(
-                          fontSize: 11,
-                          color: Colors.white,
-                        ),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    const Text(
-                      ' | ',
-                      style: TextStyle(fontSize: 11, color: Colors.white),
-                    ),
-                    Flexible(
-                      child: Text(
-                        '${recipe.cookTime} min',
-                        style: GoogleFonts.dmSans(
-                          fontSize: 11,
-                          color: Colors.white,
-                        ),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ],
+            )
+          ],
+        ),
       ),
     );
   }

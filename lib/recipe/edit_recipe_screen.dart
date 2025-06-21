@@ -1,13 +1,17 @@
-import 'dart:io'; 
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:image_picker/image_picker.dart'; 
-import '../services/image_upload_service.dart'; 
+import 'package:image_picker/image_picker.dart';
+// import 'package:supabase_flutter/supabase_flutter.dart'; // Tidak digunakan secara langsung di sini
+import '../services/image_upload_service.dart';
+import '../services/recipe_service.dart';
+import '../models/recipe_model.dart';
+import '../services/supabase_client.dart'; // Untuk SupabaseClientWrapper().auth.currentUser
 
 class EditRecipeScreen extends StatefulWidget {
-  final Map<String, dynamic> recipeData;
+  final RecipeModel recipe;
 
-  const EditRecipeScreen({super.key, required this.recipeData});
+  const EditRecipeScreen({super.key, required this.recipe});
 
   @override
   State<EditRecipeScreen> createState() => _EditRecipeScreenState();
@@ -16,7 +20,6 @@ class EditRecipeScreen extends StatefulWidget {
 class _EditRecipeScreenState extends State<EditRecipeScreen> {
   final _formKey = GlobalKey<FormState>();
 
-  // Controllers for TextFormFields
   late TextEditingController _titleController;
   late TextEditingController _descriptionController;
   
@@ -25,7 +28,8 @@ class _EditRecipeScreenState extends State<EditRecipeScreen> {
 
   final ImagePicker _picker = ImagePicker(); 
   final ImageUploadService _imageUploadService = ImageUploadService(); 
-  bool _isUploading = false; 
+  final RecipeService _recipeService = RecipeService();
+  bool _isUploadingOrSaving = false; // Nama variabel yang benar
 
   late TextEditingController _caloriesController;
   late TextEditingController _servingsController;
@@ -34,32 +38,22 @@ class _EditRecipeScreenState extends State<EditRecipeScreen> {
   late TextEditingController _ingredientsController;
   late TextEditingController _directionsController;
 
-  List<String> _galleryImageUrls = []; 
+  List<String> _existingGalleryImageUrls = [];
   List<File> _newSelectedGalleryImageFiles = []; 
 
   @override
   void initState() {
     super.initState();
-    _titleController = TextEditingController(text: widget.recipeData['title']?.toString() ?? '');
-    _descriptionController = TextEditingController(text: widget.recipeData['description']?.toString() ?? '');
-    _existingImageUrl = widget.recipeData['image_url'] as String?;
-    _caloriesController = TextEditingController(text: widget.recipeData['calories']?.toString() ?? '');
-    _servingsController = TextEditingController(text: widget.recipeData['servings']?.toString() ?? '1');
-    _cookingMinutesController = TextEditingController(text: widget.recipeData['cooking_time_minutes']?.toString() ?? '');
-    _difficultyLevelController = TextEditingController(text: widget.recipeData['difficulty_level']?.toString() ?? 'medium');
-    _ingredientsController = TextEditingController(text: widget.recipeData['ingredients_text']?.toString() ?? '');
-    _directionsController = TextEditingController(text: widget.recipeData['directions_text']?.toString() ?? '');
-
-    var galleryData = widget.recipeData['gallery_image_urls'];
-    if (galleryData is List) {
-      _galleryImageUrls = List<String>.from(galleryData.whereType<String>());
-    } else if (galleryData is String && galleryData.isNotEmpty) {
-      if (galleryData.contains('\n')) {
-         _galleryImageUrls = galleryData.split('\n').where((url) => url.trim().isNotEmpty).toList();
-      } else {
-        _galleryImageUrls = [galleryData];
-      }
-    }
+    _titleController = TextEditingController(text: widget.recipe.title);
+    _descriptionController = TextEditingController(text: widget.recipe.description ?? '');
+    _existingImageUrl = widget.recipe.image_url;
+    _caloriesController = TextEditingController(text: widget.recipe.calories?.toString() ?? '');
+    _servingsController = TextEditingController(text: widget.recipe.servings.toString());
+    _cookingMinutesController = TextEditingController(text: widget.recipe.cooking_time_minutes.toString());
+    _difficultyLevelController = TextEditingController(text: widget.recipe.difficulty_level);
+    _ingredientsController = TextEditingController(text: widget.recipe.ingredients_text ?? '');
+    _directionsController = TextEditingController(text: widget.recipe.directions_text ?? '');
+    _existingGalleryImageUrls = List<String>.from(widget.recipe.gallery_image_urls ?? []);
   }
 
   @override
@@ -76,74 +70,105 @@ class _EditRecipeScreenState extends State<EditRecipeScreen> {
   }
 
   Future<void> _saveChanges() async {
-    if (_formKey.currentState!.validate()) {
-      _formKey.currentState!.save();
+    if (!_formKey.currentState!.validate()) {
+      return;
+    }
+    _formKey.currentState!.save();
 
-      if (_isUploading) return;
-
-      setState(() {
-        _isUploading = true;
-      });
-
-      String? finalMainImageUrl = _existingImageUrl; 
-      if (_newSelectedImageFile != null) {
-        finalMainImageUrl = await _imageUploadService.uploadImage(_newSelectedImageFile!);
-        if (finalMainImageUrl == null) {
-          setState(() { _isUploading = false; });
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Main recipe image upload failed. Please try again.')),
-            );
-          }
-          return;
-        }
-      }
-
-      List<String> finalGalleryImageUrls = List.from(_galleryImageUrls); 
-      if (_newSelectedGalleryImageFiles.isNotEmpty) {
-        for (File imageFile in _newSelectedGalleryImageFiles) {
-          String? url = await _imageUploadService.uploadImage(imageFile);
-          if (url != null) {
-            finalGalleryImageUrls.add(url);
-          } else {
-            print('A new gallery image failed to upload and will be skipped.');
-          }
-        }
-      }
-
-      Map<String, dynamic> updatedRecipeData = {
-        'id': widget.recipeData['id'],
-        'user_id': widget.recipeData['user_id'], 
-        'title': _titleController.text,
-        'description': _descriptionController.text.isEmpty ? null : _descriptionController.text,
-        'image_url': finalMainImageUrl ?? '',
-        'calories': int.tryParse(_caloriesController.text) ?? widget.recipeData['calories'],
-        'servings': int.tryParse(_servingsController.text) ?? widget.recipeData['servings'],
-        'cooking_time_minutes': int.tryParse(_cookingMinutesController.text) ?? widget.recipeData['cooking_time_minutes'],
-        'difficulty_level': _difficultyLevelController.text.isEmpty ? (widget.recipeData['difficulty_level'] ?? 'medium') : _difficultyLevelController.text,
-        'ingredients_text': _ingredientsController.text,
-        'directions_text': _directionsController.text,
-        'gallery_image_urls': finalGalleryImageUrls,
-        'like_count': widget.recipeData['like_count'] ?? 0, 
-      };
-      
-      setState(() {
-        _isUploading = false;
-      });
-
-      print('Updated Recipe Data: $updatedRecipeData');
-      
+    final currentUser = SupabaseClientWrapper().auth.currentUser;
+    if (currentUser == null) {
       if (mounted) {
-         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Recipe updated successfully (simulated)!')),
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('You must be logged in to edit a recipe.')),
         );
-        Navigator.pop(context);
+      }
+      return;
+    }
+
+    if (widget.recipe.user_id != currentUser.id) {
+        if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('You are not authorized to edit this recipe.')),
+            );
+        }
+        return;
+    }
+
+    if (_isUploadingOrSaving) return;
+
+    setState(() {
+      _isUploadingOrSaving = true;
+    });
+
+    String? finalMainImageUrl = _existingImageUrl;
+    if (_newSelectedImageFile != null) {
+      finalMainImageUrl = await _imageUploadService.uploadImage(_newSelectedImageFile!);
+      if (finalMainImageUrl == null) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Main recipe image upload failed. Please try again.')),
+          );
+          setState(() { _isUploadingOrSaving = false; });
+        }
+        return;
+      }
+    }
+
+    List<String> finalGalleryImageUrls = List.from(_existingGalleryImageUrls);
+
+    if (_newSelectedGalleryImageFiles.isNotEmpty) {
+      for (File imageFile in _newSelectedGalleryImageFiles) {
+        String? url = await _imageUploadService.uploadImage(imageFile);
+        if (url != null) {
+          finalGalleryImageUrls.add(url);
+        } else {
+          print('A new gallery image failed to upload and will be skipped.');
+        }
+      }
+    }
+
+    RecipeModel recipeToUpdate = RecipeModel(
+      id: widget.recipe.id,
+      user_id: widget.recipe.user_id,
+      title: _titleController.text,
+      description: _descriptionController.text.isEmpty ? null : _descriptionController.text,
+      image_url: finalMainImageUrl,
+      calories: int.tryParse(_caloriesController.text),
+      servings: int.parse(_servingsController.text),
+      cooking_time_minutes: int.parse(_cookingMinutesController.text),
+      difficulty_level: _difficultyLevelController.text.isEmpty ? 'medium' : _difficultyLevelController.text,
+      is_published: widget.recipe.is_published,
+      created_at: widget.recipe.created_at,
+      ingredients_text: _ingredientsController.text.isEmpty ? null : _ingredientsController.text,
+      directions_text: _directionsController.text.isEmpty ? null : _directionsController.text,
+    );
+
+    try {
+      await _recipeService.updateRecipe(recipeToUpdate, finalGalleryImageUrls);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Recipe updated successfully!')),
+        );
+        Navigator.pop(context, true);
+      }
+    } catch (e) {
+      print('Error updating recipe: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to update recipe: ${e.toString()}')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isUploadingOrSaving = false;
+        });
       }
     }
   }
 
   Future<void> _pickImage() async {
-    if (_isUploading) return;
+    if (_isUploadingOrSaving) return;
     final XFile? pickedFile = await _picker.pickImage(source: ImageSource.gallery);
     if (pickedFile != null) {
       setState(() {
@@ -153,7 +178,7 @@ class _EditRecipeScreenState extends State<EditRecipeScreen> {
   }
 
   Future<void> _pickGalleryImages() async {
-    if (_isUploading) return;
+    if (_isUploadingOrSaving) return;
     final List<XFile> pickedFiles = await _picker.pickMultiImage();
     if (pickedFiles.isNotEmpty) {
       setState(() {
@@ -204,7 +229,6 @@ class _EditRecipeScreenState extends State<EditRecipeScreen> {
                   keyboardType: TextInputType.multiline,
                 ),
                 const SizedBox(height: 16),
-                // Main Image display and picker UI
                 Padding(
                   padding: const EdgeInsets.symmetric(vertical: 16.0),
                   child: Column(
@@ -242,7 +266,7 @@ class _EditRecipeScreenState extends State<EditRecipeScreen> {
                         ),
                       ElevatedButton.icon(
                         key: const Key('pick_image_button_edit'), 
-                        onPressed: _isUploading ? null : _pickImage,
+                        onPressed: _isUploadingOrSaving ? null : _pickImage,
                         icon: const Icon(Icons.image),
                         label: Text(_existingImageUrl != null && _existingImageUrl!.isNotEmpty ? 'Change Image' : 'Pick Image'),
                         style: ElevatedButton.styleFrom(backgroundColor: Colors.grey[300], foregroundColor: Colors.black87),
@@ -257,6 +281,12 @@ class _EditRecipeScreenState extends State<EditRecipeScreen> {
                   style: textStyle,
                   decoration: InputDecoration(labelText: 'Calories (e.g., 250)', labelStyle: labelStyle),
                   keyboardType: TextInputType.number,
+                  validator: (value) {
+                    if (value != null && value.isNotEmpty && int.tryParse(value) == null) {
+                      return 'Please enter a valid number for calories';
+                    }
+                    return null;
+                  },
                 ),
                 const SizedBox(height: 16),
                 TextFormField(
@@ -298,6 +328,12 @@ class _EditRecipeScreenState extends State<EditRecipeScreen> {
                   controller: _difficultyLevelController,
                   style: textStyle,
                   decoration: InputDecoration(labelText: 'Difficulty Level (e.g., easy, medium, hard)', labelStyle: labelStyle),
+                  validator: (value) {
+                    if (value != null && value.isNotEmpty && !['easy', 'medium', 'hard'].contains(value.toLowerCase())) {
+                      return 'Must be easy, medium, or hard';
+                    }
+                    return null;
+                  },
                 ),
                 const SizedBox(height: 16),
                 TextFormField(
@@ -311,12 +347,6 @@ class _EditRecipeScreenState extends State<EditRecipeScreen> {
                   ),
                   maxLines: null, 
                   keyboardType: TextInputType.multiline,
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Please enter ingredients';
-                    }
-                    return null;
-                  },
                 ),
                 const SizedBox(height: 16),
                 TextFormField(
@@ -330,15 +360,8 @@ class _EditRecipeScreenState extends State<EditRecipeScreen> {
                   ),
                   maxLines: null, 
                   keyboardType: TextInputType.multiline,
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Please enter directions';
-                    }
-                    return null;
-                  },
                 ),
                 const SizedBox(height: 16),
-                // Gallery Image Picker UI
                 Padding(
                   padding: const EdgeInsets.symmetric(vertical: 16.0),
                   child: Column(
@@ -348,26 +371,26 @@ class _EditRecipeScreenState extends State<EditRecipeScreen> {
                       const SizedBox(height: 8),
                       ElevatedButton.icon(
                         key: const Key('pick_gallery_images_button_edit'), 
-                        onPressed: _isUploading ? null : _pickGalleryImages,  
+                        onPressed: _isUploadingOrSaving ? null : _pickGalleryImages,
                         icon: const Icon(Icons.photo_library),
                         label: const Text('Add More Gallery Images'),
                         style: ElevatedButton.styleFrom(backgroundColor: Colors.grey[300], foregroundColor: Colors.black87),
                       ),
                       const SizedBox(height: 8),
-                      if (_galleryImageUrls.isNotEmpty || _newSelectedGalleryImageFiles.isNotEmpty)
-                        Container(
+                      if (_existingGalleryImageUrls.isNotEmpty || _newSelectedGalleryImageFiles.isNotEmpty)
+                        SizedBox( // Changed Container to SizedBox for height constraint
                           height: 120, 
                           child: ListView.builder(
                             scrollDirection: Axis.horizontal,
-                            itemCount: _galleryImageUrls.length + _newSelectedGalleryImageFiles.length,
+                            itemCount: _existingGalleryImageUrls.length + _newSelectedGalleryImageFiles.length,
                             itemBuilder: (context, index) {
                               Widget imageWidget;
-                              bool isNewFile = index >= _galleryImageUrls.length;
+                              bool isNewFile = index >= _existingGalleryImageUrls.length;
                               
                               if (isNewFile) {
-                                imageWidget = Image.file(_newSelectedGalleryImageFiles[index - _galleryImageUrls.length], fit: BoxFit.cover);
+                                imageWidget = Image.file(_newSelectedGalleryImageFiles[(index - _existingGalleryImageUrls.length).toInt()], fit: BoxFit.cover);
                               } else {
-                                imageWidget = Image.network(_galleryImageUrls[index], fit: BoxFit.cover,
+                                imageWidget = Image.network(_existingGalleryImageUrls[index], fit: BoxFit.cover,
                                   errorBuilder: (context, error, stackTrace) => const Icon(Icons.broken_image, size: 50),
                                 );
                               }
@@ -390,9 +413,9 @@ class _EditRecipeScreenState extends State<EditRecipeScreen> {
                                         onPressed: () {
                                           setState(() {
                                             if (isNewFile) {
-                                              _newSelectedGalleryImageFiles.removeAt(index - _galleryImageUrls.length);
+                                              _newSelectedGalleryImageFiles.removeAt((index - _existingGalleryImageUrls.length).toInt());
                                             } else {
-                                              _galleryImageUrls.removeAt(index);
+                                              _existingGalleryImageUrls.removeAt(index);
                                             }
                                           });
                                         },
@@ -410,7 +433,7 @@ class _EditRecipeScreenState extends State<EditRecipeScreen> {
                   ),
                 ),
                 const SizedBox(height: 32),
-                _isUploading
+                _isUploadingOrSaving
                   ? const Center(child: CircularProgressIndicator())
                   : ElevatedButton(
                       key: const Key('save_button'), 

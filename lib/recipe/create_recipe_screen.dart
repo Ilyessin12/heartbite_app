@@ -1,9 +1,12 @@
-import 'dart:io'; // Added for File type
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:image_picker/image_picker.dart'; // For ImagePicker
-import '../services/image_upload_service.dart'; // Your service
-// Models no longer used, data will be mapped directly for database schema
+import 'package:image_picker/image_picker.dart';
+import 'package:supabase_flutter/supabase_flutter.dart'; // Import Supabase
+import '../services/image_upload_service.dart';
+import '../services/recipe_service.dart'; // Import RecipeService
+import '../models/recipe_model.dart'; // Import RecipeModel
+import '../services/supabase_client.dart'; // Import SupabaseClientWrapper for user ID
 
 class CreateRecipeScreen extends StatefulWidget {
   const CreateRecipeScreen({super.key});
@@ -15,26 +18,29 @@ class CreateRecipeScreen extends StatefulWidget {
 class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
   final _formKey = GlobalKey<FormState>();
 
-  // Controllers for TextFormFields
   final _titleController = TextEditingController();
-  final _descriptionController = TextEditingController(); // New
-  File? _selectedImageFile; // Added for image picking
-  List<File> _selectedGalleryImageFiles = []; // Added for gallery images
+  final _descriptionController = TextEditingController();
+  File? _selectedImageFile;
+  List<File> _selectedGalleryImageFiles = [];
 
-  final ImagePicker _picker = ImagePicker(); // Added
-  final ImageUploadService _imageUploadService = ImageUploadService(); // Added
-  bool _isUploading = false; // Added
+  final ImagePicker _picker = ImagePicker();
+  final ImageUploadService _imageUploadService = ImageUploadService();
+  final RecipeService _recipeService = RecipeService(); // Instantiate RecipeService
+  bool _isUploadingOrSaving = false;
 
   final _caloriesController = TextEditingController();
-  final _servingsController = TextEditingController(text: '1'); 
+  final _servingsController = TextEditingController(text: '1');
   final _cookingMinutesController = TextEditingController();
-  final _difficultyLevelController = TextEditingController(text: 'medium'); 
+  final _difficultyLevelController = TextEditingController(text: 'medium');
+
+  // Controllers for ingredients and directions - data will be passed to RecipeModel
+  // but not directly saved to 'recipes' table columns by RecipeService.createRecipe
+  // This can be used later if we decide to parse and save them to related tables.
   final _ingredientsController = TextEditingController();
   final _directionsController = TextEditingController();
 
   @override
   void dispose() {
-    // Dispose controllers
     _titleController.dispose();
     _descriptionController.dispose();
     _caloriesController.dispose();
@@ -47,73 +53,96 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
   }
 
   Future<void> _saveRecipe() async {
-    if (_formKey.currentState!.validate()) {
-      _formKey.currentState!.save();
+    if (!_formKey.currentState!.validate()) {
+      return;
+    }
+    _formKey.currentState!.save();
 
-      if (_isUploading) return; 
+    // final currentUser = SupabaseClientWrapper().auth.currentUser; // Commented out user check
+    // if (currentUser == null) {
+    //   if (mounted) {
+    //     ScaffoldMessenger.of(context).showSnackBar(
+    //       const SnackBar(content: Text('You must be logged in to create a recipe.')),
+    //     );
+    //   }
+    //   return;
+    // }
 
-      setState(() {
-        _isUploading = true;
-      });
+    if (_isUploadingOrSaving) return;
 
-      String? mainImageUrl;
-      if (_selectedImageFile != null) {
-        mainImageUrl = await _imageUploadService.uploadImage(_selectedImageFile!);
-        if (mainImageUrl == null) {
-          setState(() { _isUploading = false; });
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Main recipe image upload failed. Please try again.')),
-            );
-          }
-          return; 
+    setState(() {
+      _isUploadingOrSaving = true;
+    });
+
+    String? mainImageUrl;
+    if (_selectedImageFile != null) {
+      mainImageUrl = await _imageUploadService.uploadImage(_selectedImageFile!);
+      if (mainImageUrl == null) {
+        setState(() { _isUploadingOrSaving = false; });
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Main recipe image upload failed. Please try again.')),
+          );
+        }
+        return;
+      }
+    }
+
+    List<String> galleryImageUrls = [];
+    if (_selectedGalleryImageFiles.isNotEmpty) {
+      for (File imageFile in _selectedGalleryImageFiles) {
+        String? url = await _imageUploadService.uploadImage(imageFile);
+        if (url != null) {
+          galleryImageUrls.add(url);
+        } else {
+          print('A gallery image failed to upload and will be skipped.');
+          // Optionally, inform the user about skipped images
         }
       }
+    }
 
-      List<String> galleryImageUrls = [];
-      if (_selectedGalleryImageFiles.isNotEmpty) {
-        for (File imageFile in _selectedGalleryImageFiles) {
-          String? url = await _imageUploadService.uploadImage(imageFile);
-          if (url != null) {
-            galleryImageUrls.add(url);
-          } else {
-            print('A gallery image failed to upload and will be skipped.');
-          }
-        }
-      }
+    const String hardcodedUserId = '325c40cc-d255-4f93-bf5f-40bc196ca093';
 
-      Map<String, dynamic> recipeData = {
-        'user_id': 1, 
-        'title': _titleController.text,
-        'description': _descriptionController.text.isEmpty ? null : _descriptionController.text,
-        'image_url': mainImageUrl ?? '',
-        'calories': int.tryParse(_caloriesController.text),
-        'servings': int.tryParse(_servingsController.text) ?? 1,
-        'cooking_time_minutes': int.tryParse(_cookingMinutesController.text),
-        'difficulty_level': _difficultyLevelController.text.isEmpty ? 'medium' : _difficultyLevelController.text,
-        'ingredients_text': _ingredientsController.text,
-        'directions_text': _directionsController.text,
-        'gallery_image_urls': galleryImageUrls,
-        'like_count': 0,
-      };
+    RecipeModel recipeToCreate = RecipeModel(
+      user_id: hardcodedUserId, // Use hardcoded user_id
+      title: _titleController.text,
+      description: _descriptionController.text.isEmpty ? null : _descriptionController.text,
+      image_url: mainImageUrl,
+      calories: int.tryParse(_caloriesController.text),
+      servings: int.tryParse(_servingsController.text) ?? 1,
+      cooking_time_minutes: int.parse(_cookingMinutesController.text),
+      difficulty_level: _difficultyLevelController.text.isEmpty ? 'medium' : _difficultyLevelController.text,
+      is_published: true,
+      ingredients_text: _ingredientsController.text.isEmpty ? null : _ingredientsController.text,
+      directions_text: _directionsController.text.isEmpty ? null : _directionsController.text,
+    );
 
-      setState(() {
-        _isUploading = false;
-      });
-
-      print('Recipe Data to Save: $recipeData');
-      
+    try {
+      await _recipeService.createRecipe(recipeToCreate, galleryImageUrls);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Recipe created successfully (simulated)!')),
+          const SnackBar(content: Text('Recipe created successfully!')),
         );
-        Navigator.pop(context);
+        Navigator.pop(context, true); // Pop and indicate success
+      }
+    } catch (e) {
+      print('Error saving recipe: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to create recipe: ${e.toString()}')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isUploadingOrSaving = false;
+        });
       }
     }
   }
 
   Future<void> _pickImage() async {
-    if (_isUploading) return;
+    if (_isUploadingOrSaving) return; // Use the corrected variable name
     final XFile? pickedFile = await _picker.pickImage(source: ImageSource.gallery);
     if (pickedFile != null) {
       setState(() {
@@ -123,7 +152,7 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
   }
 
   Future<void> _pickGalleryImages() async {
-    if (_isUploading) return;
+    if (_isUploadingOrSaving) return;
     final List<XFile> pickedFiles = await _picker.pickMultiImage();
     if (pickedFiles.isNotEmpty) {
       setState(() {
@@ -139,7 +168,7 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('Create Recipe (DB Schema)', style: GoogleFonts.dmSans(fontWeight: FontWeight.bold)),
+        title: Text('Create New Recipe', style: GoogleFonts.dmSans(fontWeight: FontWeight.bold)),
         backgroundColor: Colors.white,
         foregroundColor: Colors.black,
         elevation: 1,
@@ -190,7 +219,7 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
                   ),
                 ElevatedButton.icon(
                   key: const Key('pick_image_button'), 
-                  onPressed: _isUploading ? null : _pickImage, // Disable if uploading
+                  onPressed: _isUploadingOrSaving ? null : _pickImage, // Changed _isUploading to _isUploadingOrSaving
                   icon: const Icon(Icons.image),
                   label: const Text('Pick Recipe Image'),
                   style: ElevatedButton.styleFrom(backgroundColor: Colors.grey[300], foregroundColor: Colors.black87),
@@ -202,6 +231,12 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
                   style: textStyle,
                   decoration: InputDecoration(labelText: 'Calories (e.g., 250)', labelStyle: labelStyle),
                   keyboardType: TextInputType.number,
+                  validator: (value) { // Optional: Add validation for calories if needed
+                    if (value != null && value.isNotEmpty && int.tryParse(value) == null) {
+                      return 'Please enter a valid number for calories';
+                    }
+                    return null;
+                  },
                 ),
                 const SizedBox(height: 16),
                 TextFormField( 
@@ -243,6 +278,12 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
                   controller: _difficultyLevelController,
                   style: textStyle,
                   decoration: InputDecoration(labelText: 'Difficulty Level (e.g., easy, medium, hard)', labelStyle: labelStyle),
+                   validator: (value) {
+                    if (value != null && value.isNotEmpty && !['easy', 'medium', 'hard'].contains(value.toLowerCase())) {
+                      return 'Must be easy, medium, or hard';
+                    }
+                    return null;
+                  },
                 ),
                 const SizedBox(height: 16),
                 TextFormField(
@@ -256,12 +297,13 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
                   ),
                   maxLines: null, 
                   keyboardType: TextInputType.multiline,
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Please enter ingredients';
-                    }
-                    return null;
-                  },
+                  // Validator is optional here as this text isn't directly saved to a mandatory DB column by createRecipe
+                  // validator: (value) {
+                  //   if (value == null || value.isEmpty) {
+                  //     return 'Please enter ingredients';
+                  //   }
+                  //   return null;
+                  // },
                 ),
                 const SizedBox(height: 16),
                 TextFormField(
@@ -275,12 +317,13 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
                   ),
                   maxLines: null, 
                   keyboardType: TextInputType.multiline,
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Please enter directions';
-                    }
-                    return null;
-                  },
+                  // Validator is optional here, similar to ingredients
+                  // validator: (value) {
+                  //   if (value == null || value.isEmpty) {
+                  //     return 'Please enter directions';
+                  //   }
+                  //   return null;
+                  // },
                 ),
                 const SizedBox(height: 16),
                 // Gallery Image Picker UI
@@ -293,7 +336,7 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
                       const SizedBox(height: 8),
                       ElevatedButton.icon(
                         key: const Key('pick_gallery_images_button'), 
-                        onPressed: _isUploading ? null : _pickGalleryImages, // Disable if uploading
+                        onPressed: _isUploadingOrSaving ? null : _pickGalleryImages, // Changed _isUploading to _isUploadingOrSaving
                         icon: const Icon(Icons.photo_library),
                         label: const Text('Add Gallery Images'),
                         style: ElevatedButton.styleFrom(backgroundColor: Colors.grey[300], foregroundColor: Colors.black87),
@@ -343,10 +386,10 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
                   ),
                 ),
                 const SizedBox(height: 32),
-                _isUploading
+                _isUploadingOrSaving // Changed _isUploading to _isUploadingOrSaving
                   ? const Center(child: CircularProgressIndicator())
                   : ElevatedButton(
-                      key: const Key('save_button'), // Corrected key name
+                      key: const Key('save_button'),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.teal,
                         padding: const EdgeInsets.symmetric(vertical: 16),

@@ -51,4 +51,4 @@ app.*.map.json
 .env
 
 #file main lokal
-#/lib/myMain.dart
+/lib/myMain.dart
