@@ -156,21 +156,31 @@ class RecipeModel {
           ? DateTime.tryParse(json['updated_at'] as String)
           : null,
       ingredients: json['recipe_ingredients'] != null && json['recipe_ingredients'] is List
-          ? (json['recipe_ingredients'] as List).whereType<Map<String, dynamic>>().map((i) {
-              try {
-                return RecipeIngredientModel.fromJson(i);
-              } catch (e) {
-                print('Error parsing RecipeIngredientModel from item: $i, error: $e');
+          ? (json['recipe_ingredients'] as List).map((item) {
+              if (item is Map<String, dynamic>) {
+                try {
+                  return RecipeIngredientModel.fromJson(item);
+                } catch (e) {
+                  print('Error parsing RecipeIngredientModel from item: $item, error: $e');
+                  return null;
+                }
+              } else {
+                print('Skipping non-map item in recipe_ingredients: $item of type ${item.runtimeType}');
                 return null;
               }
             }).whereType<RecipeIngredientModel>().toList()
           : null,
       instructions: json['recipe_instructions'] != null && json['recipe_instructions'] is List
-          ? (json['recipe_instructions'] as List).whereType<Map<String, dynamic>>().map((i) {
-              try {
-                return RecipeInstructionModel.fromJson(i);
-              } catch (e) {
-                print('Error parsing RecipeInstructionModel from item: $i, error: $e');
+          ? (json['recipe_instructions'] as List).map((item) {
+              if (item is Map<String, dynamic>) {
+                try {
+                  return RecipeInstructionModel.fromJson(item);
+                } catch (e) {
+                  print('Error parsing RecipeInstructionModel from item: $item, error: $e');
+                  return null;
+                }
+              } else {
+                print('Skipping non-map item in recipe_instructions: $item of type ${item.runtimeType}');
                 return null;
               }
             }).whereType<RecipeInstructionModel>().toList()
