@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import 'welcome_pages/welcome.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'screens/test_supabase.dart'; // Tambahkan import ini
 
-Future<void> main() async {
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   try { 
@@ -13,24 +14,10 @@ Future<void> main() async {
     print("ERROR loading .env file: $e");
   }
 
-  // Add this check after loading the .env file
-  if (dotenv.env['SUPABASE_URL'] == null || 
-      dotenv.env['SUPABASE_URL']!.isEmpty ||
-      dotenv.env['SUPABASE_ANON_KEY'] == null || 
-      dotenv.env['SUPABASE_ANON_KEY']!.isEmpty) {
-    throw Exception('Missing Supabase credentials in .env file');
-  }
-
-  try {
-    await Supabase.initialize(
-      url: dotenv.env['SUPABASE_URL'] ?? '',
-      anonKey: dotenv.env['SUPABASE_ANON_KEY'] ?? '',
-    );
-    print("SUCCESS: Supabase initialized.");
-  } catch (e) {
-    print("ERROR initializing Supabase: $e");
-  }
-  
+  await Supabase.initialize(
+    url: dotenv.env['SUPABASE_URL'] ?? '',
+    anonKey: dotenv.env['SUPABASE_ANON_KEY'] ?? '',
+  );
   runApp(const MyApp());
 }
 
@@ -63,7 +50,31 @@ class MyApp extends StatelessWidget {
           bodySmall: TextStyle(color: Colors.black54),
         ),
       ),
-      home: const WelcomeScreen(),
+      home: const HomeScreenWrapper(),
+    );
+  }
+}
+
+// Tambahkan class baru ini
+class HomeScreenWrapper extends StatelessWidget {
+  const HomeScreenWrapper({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: const WelcomeScreen(), // Tetap menggunakan WelcomeScreen sebagai konten utama
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {
+          // Navigasi ke test_supabase.dart saat tombol ditekan
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const TestSupabaseScreen()),
+          );
+        },
+        backgroundColor: const Color(0xFF1E90FF),
+        child: const Icon(Icons.science, color: Colors.white),
+        tooltip: 'Test Supabase',
+      ),
     );
   }
 }
