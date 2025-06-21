@@ -2,14 +2,13 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:supabase_flutter/supabase_flutter.dart'; // Import Supabase
+// import 'package:supabase_flutter/supabase_flutter.dart'; // Tidak digunakan secara langsung di sini
 import '../services/image_upload_service.dart';
-import '../services/recipe_service.dart'; // Import RecipeService
-import '../models/recipe_model.dart';   // Import RecipeModel
-import '../services/supabase_client.dart'; // Import SupabaseClientWrapper for user ID
+import '../services/recipe_service.dart';
+import '../models/recipe_model.dart';
+import '../services/supabase_client.dart'; // Untuk SupabaseClientWrapper().auth.currentUser
 
 class EditRecipeScreen extends StatefulWidget {
-  // Expecting a RecipeModel object instead of Map<String, dynamic>
   final RecipeModel recipe;
 
   const EditRecipeScreen({super.key, required this.recipe});
@@ -29,15 +28,15 @@ class _EditRecipeScreenState extends State<EditRecipeScreen> {
 
   final ImagePicker _picker = ImagePicker(); 
   final ImageUploadService _imageUploadService = ImageUploadService(); 
-  final RecipeService _recipeService = RecipeService(); // Instantiate RecipeService
-  bool _isUploadingOrSaving = false;
+  final RecipeService _recipeService = RecipeService();
+  bool _isUploadingOrSaving = false; // Nama variabel yang benar
 
   late TextEditingController _caloriesController;
   late TextEditingController _servingsController;
   late TextEditingController _cookingMinutesController;
   late TextEditingController _difficultyLevelController;
-  late TextEditingController _ingredientsController; // For UI, data passed to RecipeModel
-  late TextEditingController _directionsController;  // For UI, data passed to RecipeModel
+  late TextEditingController _ingredientsController;
+  late TextEditingController _directionsController;
 
   List<String> _existingGalleryImageUrls = [];
   List<File> _newSelectedGalleryImageFiles = []; 
@@ -45,7 +44,6 @@ class _EditRecipeScreenState extends State<EditRecipeScreen> {
   @override
   void initState() {
     super.initState();
-    // Initialize controllers from the RecipeModel
     _titleController = TextEditingController(text: widget.recipe.title);
     _descriptionController = TextEditingController(text: widget.recipe.description ?? '');
     _existingImageUrl = widget.recipe.image_url;
@@ -53,11 +51,8 @@ class _EditRecipeScreenState extends State<EditRecipeScreen> {
     _servingsController = TextEditingController(text: widget.recipe.servings.toString());
     _cookingMinutesController = TextEditingController(text: widget.recipe.cooking_time_minutes.toString());
     _difficultyLevelController = TextEditingController(text: widget.recipe.difficulty_level);
-
-    // Initialize ingredients and directions from RecipeModel if they exist
     _ingredientsController = TextEditingController(text: widget.recipe.ingredients_text ?? '');
     _directionsController = TextEditingController(text: widget.recipe.directions_text ?? '');
-
     _existingGalleryImageUrls = List<String>.from(widget.recipe.gallery_image_urls ?? []);
   }
 
@@ -89,7 +84,7 @@ class _EditRecipeScreenState extends State<EditRecipeScreen> {
       }
       return;
     }
-    // Authorization: Check if the current user is the owner of the recipe
+
     if (widget.recipe.user_id != currentUser.id) {
         if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
@@ -98,7 +93,6 @@ class _EditRecipeScreenState extends State<EditRecipeScreen> {
         }
         return;
     }
-
 
     if (_isUploadingOrSaving) return;
 
@@ -110,20 +104,18 @@ class _EditRecipeScreenState extends State<EditRecipeScreen> {
     if (_newSelectedImageFile != null) {
       finalMainImageUrl = await _imageUploadService.uploadImage(_newSelectedImageFile!);
       if (finalMainImageUrl == null) {
-        setState(() { _isUploadingOrSaving = false; });
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Main recipe image upload failed. Please try again.')),
           );
+          setState(() { _isUploadingOrSaving = false; });
         }
         return;
       }
     }
 
-    // Combine existing URLs (that were not removed) with newly uploaded URLs
-    List<String> finalGalleryImageUrls = List.from(_existingGalleryImageUrls); // Start with current images
+    List<String> finalGalleryImageUrls = List.from(_existingGalleryImageUrls);
 
-    // Upload new gallery images if any
     if (_newSelectedGalleryImageFiles.isNotEmpty) {
       for (File imageFile in _newSelectedGalleryImageFiles) {
         String? url = await _imageUploadService.uploadImage(imageFile);
@@ -136,20 +128,19 @@ class _EditRecipeScreenState extends State<EditRecipeScreen> {
     }
 
     RecipeModel recipeToUpdate = RecipeModel(
-      id: widget.recipe.id, // Keep the original ID
-      user_id: widget.recipe.user_id, // Keep the original user_id
+      id: widget.recipe.id,
+      user_id: widget.recipe.user_id,
       title: _titleController.text,
       description: _descriptionController.text.isEmpty ? null : _descriptionController.text,
       image_url: finalMainImageUrl,
       calories: int.tryParse(_caloriesController.text),
-      servings: int.parse(_servingsController.text), // Validated
-      cooking_time_minutes: int.parse(_cookingMinutesController.text), // Validated
+      servings: int.parse(_servingsController.text),
+      cooking_time_minutes: int.parse(_cookingMinutesController.text),
       difficulty_level: _difficultyLevelController.text.isEmpty ? 'medium' : _difficultyLevelController.text,
-      is_published: widget.recipe.is_published, // Keep original publish status or add UI to change
-      created_at: widget.recipe.created_at, // Keep original creation time
+      is_published: widget.recipe.is_published,
+      created_at: widget.recipe.created_at,
       ingredients_text: _ingredientsController.text.isEmpty ? null : _ingredientsController.text,
       directions_text: _directionsController.text.isEmpty ? null : _directionsController.text,
-      // gallery_image_urls will be handled by the service by passing finalGalleryImageUrls
     );
 
     try {
@@ -158,7 +149,7 @@ class _EditRecipeScreenState extends State<EditRecipeScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Recipe updated successfully!')),
         );
-        Navigator.pop(context, true); // Pop and indicate success
+        Navigator.pop(context, true);
       }
     } catch (e) {
       print('Error updating recipe: $e');
@@ -187,7 +178,7 @@ class _EditRecipeScreenState extends State<EditRecipeScreen> {
   }
 
   Future<void> _pickGalleryImages() async {
-    if (_isUploadingOrSaving) return; // Changed _isUploading to _isUploadingOrSaving
+    if (_isUploadingOrSaving) return;
     final List<XFile> pickedFiles = await _picker.pickMultiImage();
     if (pickedFiles.isNotEmpty) {
       setState(() {
@@ -238,7 +229,6 @@ class _EditRecipeScreenState extends State<EditRecipeScreen> {
                   keyboardType: TextInputType.multiline,
                 ),
                 const SizedBox(height: 16),
-                // Main Image display and picker UI
                 Padding(
                   padding: const EdgeInsets.symmetric(vertical: 16.0),
                   child: Column(
@@ -276,7 +266,7 @@ class _EditRecipeScreenState extends State<EditRecipeScreen> {
                         ),
                       ElevatedButton.icon(
                         key: const Key('pick_image_button_edit'), 
-                        onPressed: _isUploadingOrSaving ? null : _pickImage, // Changed
+                        onPressed: _isUploadingOrSaving ? null : _pickImage,
                         icon: const Icon(Icons.image),
                         label: Text(_existingImageUrl != null && _existingImageUrl!.isNotEmpty ? 'Change Image' : 'Pick Image'),
                         style: ElevatedButton.styleFrom(backgroundColor: Colors.grey[300], foregroundColor: Colors.black87),
@@ -291,6 +281,12 @@ class _EditRecipeScreenState extends State<EditRecipeScreen> {
                   style: textStyle,
                   decoration: InputDecoration(labelText: 'Calories (e.g., 250)', labelStyle: labelStyle),
                   keyboardType: TextInputType.number,
+                  validator: (value) {
+                    if (value != null && value.isNotEmpty && int.tryParse(value) == null) {
+                      return 'Please enter a valid number for calories';
+                    }
+                    return null;
+                  },
                 ),
                 const SizedBox(height: 16),
                 TextFormField(
@@ -332,6 +328,12 @@ class _EditRecipeScreenState extends State<EditRecipeScreen> {
                   controller: _difficultyLevelController,
                   style: textStyle,
                   decoration: InputDecoration(labelText: 'Difficulty Level (e.g., easy, medium, hard)', labelStyle: labelStyle),
+                  validator: (value) {
+                    if (value != null && value.isNotEmpty && !['easy', 'medium', 'hard'].contains(value.toLowerCase())) {
+                      return 'Must be easy, medium, or hard';
+                    }
+                    return null;
+                  },
                 ),
                 const SizedBox(height: 16),
                 TextFormField(
@@ -345,12 +347,6 @@ class _EditRecipeScreenState extends State<EditRecipeScreen> {
                   ),
                   maxLines: null, 
                   keyboardType: TextInputType.multiline,
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Please enter ingredients';
-                    }
-                    return null;
-                  },
                 ),
                 const SizedBox(height: 16),
                 TextFormField(
@@ -364,15 +360,8 @@ class _EditRecipeScreenState extends State<EditRecipeScreen> {
                   ),
                   maxLines: null, 
                   keyboardType: TextInputType.multiline,
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Please enter directions';
-                    }
-                    return null;
-                  },
                 ),
                 const SizedBox(height: 16),
-                // Gallery Image Picker UI
                 Padding(
                   padding: const EdgeInsets.symmetric(vertical: 16.0),
                   child: Column(
@@ -382,170 +371,26 @@ class _EditRecipeScreenState extends State<EditRecipeScreen> {
                       const SizedBox(height: 8),
                       ElevatedButton.icon(
                         key: const Key('pick_gallery_images_button_edit'), 
-                        onPressed: _isUploadingOrSaving ? null : _pickGalleryImages,  // Changed
+                        onPressed: _isUploadingOrSaving ? null : _pickGalleryImages,
                         icon: const Icon(Icons.photo_library),
                         label: const Text('Add More Gallery Images'),
                         style: ElevatedButton.styleFrom(backgroundColor: Colors.grey[300], foregroundColor: Colors.black87),
                       ),
                       const SizedBox(height: 8),
-                      if (_existingGalleryImageUrls.isNotEmpty || _newSelectedGalleryImageFiles.isNotEmpty) // Changed
-                        Container(
-                          height: 120,
-                          child: ListView.builder(
-                            scrollDirection: Axis.horizontal,
-                            itemCount: _existingGalleryImageUrls.length + _newSelectedGalleryImageFiles.length, // Changed
-                            itemBuilder: (context, index) {
-                              Widget imageWidget;
-                              bool isNewFile = index >= _existingGalleryImageUrls.length; // Changed
-
-                              if (isNewFile) {
-                                imageWidget = Image.file(_newSelectedGalleryImageFiles[(index - _existingGalleryImageUrls.length).toInt()], fit: BoxFit.cover); // Changed and added .toInt()
-                              } else {
-                                imageWidget = Image.network(_existingGalleryImageUrls[index], fit: BoxFit.cover, // Changed
-                                  errorBuilder: (context, error, stackTrace) => const Icon(Icons.broken_image, size: 50),
-                                );
-                              }
-
-                              return Padding(
-                                padding: const EdgeInsets.only(right: 8.0),
-                                child: Stack(
-                                  children: [
-                                    Container(
-                                      width: 100,
-                                      height: 100,
-                                      decoration: BoxDecoration(border: Border.all(color: Colors.grey)),
-                                      child: imageWidget,
-                                    ),
-                                    Positioned(
-                                      top: -10,
-                                      right: -10,
-                                      child: IconButton(
-                                        icon: const Icon(Icons.remove_circle, color: Colors.red, size: 20),
-                                        onPressed: () {
-                                          setState(() {
-                                            if (isNewFile) {
-                                              _newSelectedGalleryImageFiles.removeAt((index - _existingGalleryImageUrls.length).toInt()); // Changed and added .toInt()
-                                            } else {
-                                              _existingGalleryImageUrls.removeAt(index); // Changed
-                                            }
-                                          });
-                                        },
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              );
-                            },
-                          ),
-                        )
-                      else
-                        Text("No gallery images yet.", style: GoogleFonts.dmSans()),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 32),
-                _isUploadingOrSaving // Changed
-                  ? const Center(child: CircularProgressIndicator())
-                  : ElevatedButton(
-                      key: const Key('save_button'),
-                      ElevatedButton.icon(
-                        key: const Key('pick_gallery_images_button_edit'),
-                        onPressed: _isUploadingOrSaving ? null : _pickGalleryImages,  // Changed to _isUploadingOrSaving
-                        icon: const Icon(Icons.photo_library),
-                        label: const Text('Add More Gallery Images'),
-                        style: ElevatedButton.styleFrom(backgroundColor: Colors.grey[300], foregroundColor: Colors.black87),
-                      ),
-                      const SizedBox(height: 8),
-                      if (_existingGalleryImageUrls.isNotEmpty || _newSelectedGalleryImageFiles.isNotEmpty) // Changed to _existingGalleryImageUrls
-                        Container(
-                          height: 120,
-                          child: ListView.builder(
-                            scrollDirection: Axis.horizontal,
-                            itemCount: _existingGalleryImageUrls.length + _newSelectedGalleryImageFiles.length, // Changed to _existingGalleryImageUrls
-                            itemBuilder: (context, index) {
-                              Widget imageWidget;
-                              bool isNewFile = index >= _existingGalleryImageUrls.length; // Changed to _existingGalleryImageUrls
-
-                              if (isNewFile) {
-                                // Ensure index is int for List.removeAt() and access
-                                imageWidget = Image.file(_newSelectedGalleryImageFiles[(index - _existingGalleryImageUrls.length).toInt()], fit: BoxFit.cover);
-                              } else {
-                                imageWidget = Image.network(_existingGalleryImageUrls[index], fit: BoxFit.cover, // Changed to _existingGalleryImageUrls
-                                  errorBuilder: (context, error, stackTrace) => const Icon(Icons.broken_image, size: 50),
-                                );
-                              }
-
-                              return Padding(
-                                padding: const EdgeInsets.only(right: 8.0),
-                                child: Stack(
-                                  children: [
-                                    Container(
-                                      width: 100,
-                                      height: 100,
-                                      decoration: BoxDecoration(border: Border.all(color: Colors.grey)),
-                                      child: imageWidget,
-                                    ),
-                                    Positioned(
-                                      top: -10,
-                                      right: -10,
-                                      child: IconButton(
-                                        icon: const Icon(Icons.remove_circle, color: Colors.red, size: 20),
-                                        onPressed: () {
-                                          setState(() {
-                                            if (isNewFile) {
-                                              _newSelectedGalleryImageFiles.removeAt((index - _existingGalleryImageUrls.length).toInt()); // Ensure int index
-                                            } else {
-                                              _existingGalleryImageUrls.removeAt(index); // Changed to _existingGalleryImageUrls
-                                            }
-                                          });
-                                        },
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              );
-                            },
-                          ),
-                        )
-                      else
-                        Text("No gallery images yet.", style: GoogleFonts.dmSans()),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 32),
-                _isUploadingOrSaving // Changed to _isUploadingOrSaving
-                  ? const Center(child: CircularProgressIndicator())
-                  : ElevatedButton(
-                      key: const Key('save_button'),
-                  padding: const EdgeInsets.symmetric(vertical: 16.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text("Gallery Images", style: GoogleFonts.dmSans(fontSize: 16, fontWeight: FontWeight.bold)),
-                      const SizedBox(height: 8),
-                      ElevatedButton.icon(
-                        key: const Key('pick_gallery_images_button_edit'),
-                        onPressed: _isUploadingOrSaving ? null : _pickGalleryImages,  // Changed to _isUploadingOrSaving
-                        icon: const Icon(Icons.photo_library),
-                        label: const Text('Add More Gallery Images'),
-                        style: ElevatedButton.styleFrom(backgroundColor: Colors.grey[300], foregroundColor: Colors.black87),
-                      ),
-                      const SizedBox(height: 8),
-                      if (_existingGalleryImageUrls.isNotEmpty || _newSelectedGalleryImageFiles.isNotEmpty) // Changed to _existingGalleryImageUrls
-                        Container(
+                      if (_existingGalleryImageUrls.isNotEmpty || _newSelectedGalleryImageFiles.isNotEmpty)
+                        SizedBox( // Changed Container to SizedBox for height constraint
                           height: 120, 
                           child: ListView.builder(
                             scrollDirection: Axis.horizontal,
-                            itemCount: _existingGalleryImageUrls.length + _newSelectedGalleryImageFiles.length, // Changed to _existingGalleryImageUrls
+                            itemCount: _existingGalleryImageUrls.length + _newSelectedGalleryImageFiles.length,
                             itemBuilder: (context, index) {
                               Widget imageWidget;
-                              bool isNewFile = index >= _existingGalleryImageUrls.length; // Changed to _existingGalleryImageUrls
+                              bool isNewFile = index >= _existingGalleryImageUrls.length;
                               
                               if (isNewFile) {
-                                // Ensure index is int for List.removeAt() and access
                                 imageWidget = Image.file(_newSelectedGalleryImageFiles[(index - _existingGalleryImageUrls.length).toInt()], fit: BoxFit.cover);
                               } else {
-                                imageWidget = Image.network(_existingGalleryImageUrls[index], fit: BoxFit.cover, // Changed to _existingGalleryImageUrls
+                                imageWidget = Image.network(_existingGalleryImageUrls[index], fit: BoxFit.cover,
                                   errorBuilder: (context, error, stackTrace) => const Icon(Icons.broken_image, size: 50),
                                 );
                               }
@@ -568,9 +413,9 @@ class _EditRecipeScreenState extends State<EditRecipeScreen> {
                                         onPressed: () {
                                           setState(() {
                                             if (isNewFile) {
-                                              _newSelectedGalleryImageFiles.removeAt((index - _existingGalleryImageUrls.length).toInt()); // Ensure int index
+                                              _newSelectedGalleryImageFiles.removeAt((index - _existingGalleryImageUrls.length).toInt());
                                             } else {
-                                              _existingGalleryImageUrls.removeAt(index); // Changed to _existingGalleryImageUrls
+                                              _existingGalleryImageUrls.removeAt(index);
                                             }
                                           });
                                         },
@@ -588,7 +433,7 @@ class _EditRecipeScreenState extends State<EditRecipeScreen> {
                   ),
                 ),
                 const SizedBox(height: 32),
-                _isUploadingOrSaving // Changed to _isUploadingOrSaving
+                _isUploadingOrSaving
                   ? const Center(child: CircularProgressIndicator())
                   : ElevatedButton(
                       key: const Key('save_button'), 

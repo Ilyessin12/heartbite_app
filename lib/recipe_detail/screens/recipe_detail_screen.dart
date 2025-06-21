@@ -456,13 +456,13 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
                     ),
                     const SizedBox(height: 8),
                     GalleryGrid(
-                      images: widget.recipe.galleryImages,
+                      images: _recipe!.galleryImages, // Perbaikan di sini
                       onImageTap: (index) {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
                             builder: (context) => GalleryScreen(
-                              images: widget.recipe.galleryImages,
+                              images: _recipe!.galleryImages, // Perbaikan di sini
                               initialIndex: index,
                             ),
                           ),
