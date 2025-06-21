@@ -10,17 +10,32 @@ class RecipeCard extends StatelessWidget {
   const RecipeCard({Key? key, required this.recipe}) : super(key: key);
 
   @override
-  Widget build(BuildContext context){
+  Widget build(BuildContext context) {
     return ClipRRect(
       borderRadius: BorderRadius.circular(12),
       child: Stack(
         fit: StackFit.expand,
         children: [
           Positioned.fill(
-            child: Image.asset(
-              'assets/images/cookbooks/placeholder_image.jpg',
-              fit: BoxFit.cover,
-            ),
+            child:
+                recipe.imageUrl.isNotEmpty &&
+                        !recipe.imageUrl.startsWith('assets/')
+                    ? Image.network(
+                      recipe.imageUrl,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) {
+                        return Image.asset(
+                          'assets/images/cookbooks/placeholder_image.jpg',
+                          fit: BoxFit.cover,
+                        );
+                      },
+                    )
+                    : Image.asset(
+                      recipe.imageUrl.isNotEmpty
+                          ? recipe.imageUrl
+                          : 'assets/images/cookbooks/placeholder_image.jpg',
+                      fit: BoxFit.cover,
+                    ),
           ),
           Positioned.fill(
             child: Container(

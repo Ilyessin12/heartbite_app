@@ -3,11 +3,12 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'welcome_pages/welcome.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'screens/test_supabase.dart'; // Tambahkan import ini
+import 'bookmark/screens/bookmark_screen.dart'; // Import bookmark screen
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  try { 
+  try {
     await dotenv.load(fileName: ".env");
     print("SUCCESS: .env file loaded.");
   } catch (e) {
@@ -62,18 +63,40 @@ class HomeScreenWrapper extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: const WelcomeScreen(), // Tetap menggunakan WelcomeScreen sebagai konten utama
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          // Navigasi ke test_supabase.dart saat tombol ditekan
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (context) => const TestSupabaseScreen()),
-          );
-        },
-        backgroundColor: const Color(0xFF1E90FF),
-        child: const Icon(Icons.science, color: Colors.white),
-        tooltip: 'Test Supabase',
+      body:
+          const WelcomeScreen(), // Tetap menggunakan WelcomeScreen sebagai konten utama
+      floatingActionButton: Column(
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: [
+          FloatingActionButton(
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const BookmarkScreen()),
+              );
+            },
+            backgroundColor: const Color(0xFF8E1616),
+            child: const Icon(Icons.bookmark, color: Colors.white),
+            heroTag: "bookmark",
+            tooltip: 'Bookmarks',
+          ),
+          const SizedBox(height: 10),
+          FloatingActionButton(
+            onPressed: () {
+              // Navigasi ke test_supabase.dart saat tombol ditekan
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const TestSupabaseScreen(),
+                ),
+              );
+            },
+            backgroundColor: const Color(0xFF1E90FF),
+            child: const Icon(Icons.science, color: Colors.white),
+            heroTag: "test",
+            tooltip: 'Test Supabase',
+          ),
+        ],
       ),
     );
   }

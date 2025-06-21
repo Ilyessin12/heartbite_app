@@ -5,6 +5,7 @@ import 'package:image_picker/image_picker.dart';
 
 import '../../bottomnavbar/bottom-navbar.dart';
 import '../../services/bookmark_service.dart';
+import '../../services/image_upload_service.dart';
 import '../models/bookmark_category.dart';
 
 class BookmarkEditScreen extends StatefulWidget {
@@ -19,6 +20,7 @@ class BookmarkEditScreen extends StatefulWidget {
 
 class _BookmarkEditScreenState extends State<BookmarkEditScreen> {
   final BookmarkService _bookmarkService = BookmarkService();
+  final ImageUploadService _imageUploadService = ImageUploadService();
   late TextEditingController _nameController;
   final ImagePicker _picker = ImagePicker();
   File? _selectedImage;
@@ -48,10 +50,24 @@ class _BookmarkEditScreenState extends State<BookmarkEditScreen> {
     }
 
     try {
+      // Upload new image to Cloudinary if selected
+      String? finalImageUrl = widget.category.imageUrl;
+      if (_selectedImage != null) {
+        finalImageUrl = await _imageUploadService.uploadImage(_selectedImage!);
+        if (finalImageUrl == null) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Image upload failed. Please try again.'),
+            ),
+          );
+          return;
+        }
+      }
+
       await _bookmarkService.updateBookmarkFolder(
         folderId: widget.category.id!,
         name: _nameController.text.trim(),
-        imageUrl: _selectedImage?.path ?? widget.category.imageUrl,
+        imageUrl: finalImageUrl,
       );
 
       ScaffoldMessenger.of(context).showSnackBar(
@@ -182,8 +198,24 @@ class _BookmarkEditScreenState extends State<BookmarkEditScreen> {
                       child:
                           _selectedImage != null
                               ? Image.file(_selectedImage!, fit: BoxFit.cover)
+                              : widget.category.imageUrl.isNotEmpty &&
+                                  !widget.category.imageUrl.startsWith(
+                                    'assets/',
+                                  )
+                              ? Image.network(
+                                widget.category.imageUrl,
+                                fit: BoxFit.cover,
+                                errorBuilder: (context, error, stackTrace) {
+                                  return Image.asset(
+                                    'assets/images/cookbooks/placeholder_image.jpg',
+                                    fit: BoxFit.cover,
+                                  );
+                                },
+                              )
                               : Image.asset(
-                                'assets/images/cookbooks/placeholder_image.jpg',
+                                widget.category.imageUrl.isNotEmpty
+                                    ? widget.category.imageUrl
+                                    : 'assets/images/cookbooks/placeholder_image.jpg',
                                 fit: BoxFit.cover,
                               ),
                     ),

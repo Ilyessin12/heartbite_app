@@ -198,16 +198,30 @@ class _BookmarkScreenState extends State<BookmarkScreen> {
                     child: Stack(
                       fit: StackFit.expand,
                       children: [
-                        Image.asset(
-                          'assets/images/cookbooks/placeholder_image.jpg',
-                          fit: BoxFit.cover,
-                          errorBuilder: (context, error, stackTrace) {
-                            return Container(
-                              color: Colors.grey[300],
-                              child: const Icon(Icons.image, size: 50),
-                            );
-                          },
-                        ),
+                        category.imageUrl.isNotEmpty &&
+                                !category.imageUrl.startsWith('assets/')
+                            ? Image.network(
+                              category.imageUrl,
+                              fit: BoxFit.cover,
+                              errorBuilder: (context, error, stackTrace) {
+                                return Image.asset(
+                                  'assets/images/cookbooks/placeholder_image.jpg',
+                                  fit: BoxFit.cover,
+                                );
+                              },
+                            )
+                            : Image.asset(
+                              category.imageUrl.isNotEmpty
+                                  ? category.imageUrl
+                                  : 'assets/images/cookbooks/placeholder_image.jpg',
+                              fit: BoxFit.cover,
+                              errorBuilder: (context, error, stackTrace) {
+                                return Container(
+                                  color: Colors.grey[300],
+                                  child: const Icon(Icons.image, size: 50),
+                                );
+                              },
+                            ),
                         Container(
                           decoration: BoxDecoration(
                             gradient: LinearGradient(

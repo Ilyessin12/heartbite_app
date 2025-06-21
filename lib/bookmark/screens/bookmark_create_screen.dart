@@ -6,6 +6,8 @@ import 'package:image_picker/image_picker.dart';
 
 import '../../bottomnavbar/bottom-navbar.dart';
 import '../../services/bookmark_service.dart';
+import '../../services/image_upload_service.dart';
+import '../../services/recipe_service.dart';
 import '../models/recipe_item.dart';
 import '../widgets/recipe_card.dart';
 
@@ -18,18 +20,50 @@ class BookmarkCreateScreen extends StatefulWidget {
 
 class _BookmarkCreateScreenState extends State<BookmarkCreateScreen> {
   final BookmarkService _bookmarkService = BookmarkService();
+  final ImageUploadService _imageUploadService = ImageUploadService();
+  final RecipeService _recipeService = RecipeService();
   final TextEditingController _titleController = TextEditingController();
   final ImagePicker _picker = ImagePicker();
   File? _selectedImage;
   List<RecipeItem> _selectedRecipes = [];
+  List<RecipeItem> _availableRecipes = [];
   bool _isSelectingCover = false;
   bool _isSelectingRecipes = true;
+  bool _isLoadingRecipes = false;
 
   final List<String> _coverOptions = [
     'assets/images/cookbooks/placeholder_image.jpg',
     'assets/images/cookbooks/placeholder_image.jpg',
     'assets/images/cookbooks/placeholder_image.jpg',
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadAvailableRecipes();
+  }
+
+  Future<void> _loadAvailableRecipes() async {
+    setState(() {
+      _isLoadingRecipes = true;
+    });
+
+    try {
+      final recipesData = await _recipeService.getPublicRecipesWithDetails(
+        limit: 50,
+      );
+      setState(() {
+        _availableRecipes =
+            recipesData.map((data) => RecipeItem.fromJson(data)).toList();
+        _isLoadingRecipes = false;
+      });
+    } catch (e) {
+      print("Error loading recipes: $e");
+      setState(() {
+        _isLoadingRecipes = false;
+      });
+    }
+  }
 
   @override
   void dispose() {
@@ -65,6 +99,20 @@ class _BookmarkCreateScreenState extends State<BookmarkCreateScreen> {
     }
 
     try {
+      // Upload image to Cloudinary first
+      String? finalImageUrl;
+      if (_selectedImage != null) {
+        finalImageUrl = await _imageUploadService.uploadImage(_selectedImage!);
+        if (finalImageUrl == null) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Image upload failed. Please try again.'),
+            ),
+          );
+          return;
+        }
+      }
+
       final recipeIds =
           _selectedRecipes
               .where((recipe) => recipe.id != null)
@@ -74,8 +122,7 @@ class _BookmarkCreateScreenState extends State<BookmarkCreateScreen> {
       await _bookmarkService.createBookmarkFolder(
         name: _titleController.text.trim(),
         imageUrl:
-            _selectedImage?.path ??
-            'assets/images/cookbooks/placeholder_image.jpg',
+            finalImageUrl ?? 'assets/images/cookbooks/placeholder_image.jpg',
         recipeIds: recipeIds,
       );
 
@@ -434,40 +481,6 @@ class _BookmarkCreateScreenState extends State<BookmarkCreateScreen> {
   }
 
   Widget _buildRecipeSelectionScreen() {
-    // For now, using hardcoded recipes. Later this should fetch from a recipe service
-    final List<RecipeItem> availableRecipes = [
-      RecipeItem(
-        id: 1,
-        name: 'Roti Panggang Blueberry',
-        imageUrl: 'placeholder_image.jpg',
-        rating: 4.8,
-        reviewCount: 128,
-        calories: 23,
-        prepTime: 2,
-        cookTime: 12,
-      ),
-      RecipeItem(
-        id: 2,
-        name: 'Roti Panggang Blackberry',
-        imageUrl: 'placeholder_image.jpg',
-        rating: 4.8,
-        reviewCount: 128,
-        calories: 24,
-        prepTime: 2,
-        cookTime: 12,
-      ),
-      RecipeItem(
-        id: 3,
-        name: 'Nasi Goreng Spesial',
-        imageUrl: 'placeholder_image.jpg',
-        rating: 4.5,
-        reviewCount: 210,
-        calories: 350,
-        prepTime: 2,
-        cookTime: 20,
-      ),
-    ];
-
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
@@ -555,7 +568,9 @@ class _BookmarkCreateScreenState extends State<BookmarkCreateScreen> {
             ),
             Expanded(
               child:
-                  availableRecipes.isEmpty
+                  _isLoadingRecipes
+                      ? const Center(child: CircularProgressIndicator())
+                      : _availableRecipes.isEmpty
                       ? Center(
                         child: Text(
                           'Tidak ada resep tersimpan.',
@@ -574,9 +589,9 @@ class _BookmarkCreateScreenState extends State<BookmarkCreateScreen> {
                               mainAxisSpacing: 16,
                               childAspectRatio: 0.7,
                             ),
-                        itemCount: availableRecipes.length,
+                        itemCount: _availableRecipes.length,
                         itemBuilder: (context, index) {
-                          final recipe = availableRecipes[index];
+                          final recipe = _availableRecipes[index];
                           final isSelected = _selectedRecipes.any(
                             (item) => item.name == recipe.name,
                           );
