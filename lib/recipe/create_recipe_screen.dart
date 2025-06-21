@@ -179,6 +179,28 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
     }
   }
 
+  // Method to pick the main recipe image
+  Future<void> _pickImage() async {
+    if (_isUploadingOrSaving) return;
+    final XFile? pickedFile = await _picker.pickImage(source: ImageSource.gallery);
+    if (pickedFile != null) {
+      setState(() {
+        _selectedImageFile = File(pickedFile.path);
+      });
+    }
+  }
+
+  // Method to pick gallery images
+  Future<void> _pickGalleryImages() async {
+    if (_isUploadingOrSaving) return;
+    final List<XFile> pickedFiles = await _picker.pickMultiImage();
+    if (pickedFiles.isNotEmpty && mounted) {
+      setState(() {
+        _selectedGalleryImageFiles.addAll(pickedFiles.map((xf) => File(xf.path)).toList());
+      });
+    }
+  }
+
   Future<void> _saveRecipe() async {
     if (!_formKey.currentState!.validate()) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -256,8 +278,6 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
           image_url: imageUrl,
         ));
       } else if (imageUrl != null) {
-        // If text is empty but there's an image, maybe still add it or warn user?
-        // For now, only adding if text is present. This can be adjusted.
          print('Instruction step ${i + 1} has an image but no text. It will be skipped.');
          if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
@@ -267,13 +287,8 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
       }
     }
 
-    // Check if there's at least one instruction step with text
-    if (finalInstructions.isEmpty && _instructionSteps.any((s) => s.textController.text.trim().isNotEmpty)) {
-        // This case should ideally be caught by form validation on instruction text fields
-    } else if (finalInstructions.isEmpty && _instructionSteps.isNotEmpty && _instructionSteps.every((s) => s.textController.text.trim().isEmpty)) {
-        // All instruction steps are empty, maybe don't save any?
-        // Or allow saving recipe without instructions if desired.
-        // For now, if all text fields are empty, finalInstructions will be empty.
+    if (finalInstructions.isEmpty && _instructionSteps.isNotEmpty && _instructionSteps.every((s) => s.textController.text.trim().isEmpty && s.selectedImageFile == null)) {
+        // If all instruction steps are effectively empty (no text, no image selected), treat as no instructions.
     }
 
 
@@ -284,13 +299,13 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
       image_url: mainImageUrl,
       calories: int.tryParse(_caloriesController.text),
       servings: int.tryParse(_servingsController.text) ?? 1,
-      cooking_time_minutes: int.parse(_cookingMinutesController.text), // Assuming this is validated by form
+      cooking_time_minutes: int.parse(_cookingMinutesController.text),
       difficulty_level: _difficultyLevelController.text.isEmpty ? 'medium' : _difficultyLevelController.text,
       is_published: true,
       ingredients_text: _ingredientsController.text.isEmpty ? null : _ingredientsController.text,
       directions_text: null,
       ingredients: ingredients,
-      instructions: finalInstructions.isNotEmpty ? finalInstructions : null, // Send null if no valid instructions
+      instructions: finalInstructions.isNotEmpty ? finalInstructions : null,
       gallery_image_urls: galleryImageUrls,
     );
 
@@ -464,7 +479,7 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
                 // Dynamic Instructions List
                 Text("Instructions", style: GoogleFonts.dmSans(fontSize: 16, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 8),
-                if (_instructionSteps.isEmpty) // Should not happen due to initState, but good for robustness
+                if (_instructionSteps.isEmpty)
                   Padding(
                     padding: const EdgeInsets.symmetric(vertical: 8.0),
                     child: Text("No instruction steps added yet.", style: labelStyle),
@@ -474,7 +489,7 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
                     int idx = entry.key;
                     InstructionStepData stepData = entry.value;
                     return Card(
-                      key: stepData.id, // Use UniqueKey for list items
+                      key: stepData.id,
                       margin: const EdgeInsets.symmetric(vertical: 4.0),
                       child: Padding(
                         padding: const EdgeInsets.all(8.0),
@@ -495,15 +510,9 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
                                     keyboardType: TextInputType.multiline,
                                     maxLines: null,
                                     validator: (value) {
-                                      // Only validate if it's not the only step and it's empty.
-                                      // Or, always require if it's not the last, empty step being added.
-                                      // For simplicity: if it's not the only step, it must have text.
-                                      // The form validation will catch if all are empty.
                                       if (_instructionSteps.length > 1 && (value == null || value.isEmpty) && stepData.selectedImageFile == null) {
                                         // return 'Instruction cannot be empty if it\'s not the only step, or remove it.';
                                       }
-                                      // A single empty step is allowed if user wants to save without instructions
-                                      // But _saveRecipe will skip it if text is empty.
                                       return null;
                                     },
                                   ),
