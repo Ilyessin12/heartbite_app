@@ -37,10 +37,19 @@ class GalleryGrid extends StatelessWidget {
               children: [
                 ClipRRect(
                   borderRadius: BorderRadius.circular(8),
-                  child: Image.asset(
-                    displayImages[index],
-                    fit: BoxFit.cover,
-                  ),
+                  child: displayImages[index].isNotEmpty
+                      ? Image.network(
+                          displayImages[index],
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) => Image.asset(
+                            'assets/images/cookbooks/placeholder_image.jpg',
+                            fit: BoxFit.cover,
+                          ),
+                        )
+                      : Image.asset(
+                          'assets/images/cookbooks/placeholder_image.jpg',
+                          fit: BoxFit.cover,
+                        ),
                 ),
                 Container(
                   decoration: BoxDecoration(
@@ -67,10 +76,19 @@ class GalleryGrid extends StatelessWidget {
           onTap: () => onImageTap(index),
           child: ClipRRect(
             borderRadius: BorderRadius.circular(8),
-            child: Image.asset(
-              displayImages[index],
-              fit: BoxFit.cover,
-            ),
+            child: displayImages[index].isNotEmpty
+                ? Image.network(
+                    displayImages[index],
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) => Image.asset(
+                      'assets/images/cookbooks/placeholder_image.jpg',
+                      fit: BoxFit.cover,
+                    ),
+                  )
+                : Image.asset(
+                    'assets/images/cookbooks/placeholder_image.jpg',
+                    fit: BoxFit.cover,
+                  ),
           ),
         );
       },

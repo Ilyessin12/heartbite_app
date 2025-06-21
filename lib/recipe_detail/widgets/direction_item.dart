@@ -51,12 +51,25 @@ class DirectionItem extends StatelessWidget {
                       alignment: Alignment.centerLeft,
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(8),
-                        child: Image.asset(
-                          direction.imageUrl!,
-                          width: 120,
-                          height: 120,
-                          fit: BoxFit.cover,
-                        ),
+                        child: direction.imageUrl != null && direction.imageUrl!.isNotEmpty
+                            ? Image.network(
+                                direction.imageUrl!,
+                                width: 120,
+                                height: 120,
+                                fit: BoxFit.cover,
+                                errorBuilder: (context, error, stackTrace) => Image.asset(
+                                  'assets/images/cookbooks/placeholder_image.jpg', // Placeholder image
+                                  width: 120,
+                                  height: 120,
+                                  fit: BoxFit.cover,
+                                ),
+                              )
+                            : Image.asset(
+                                'assets/images/cookbooks/placeholder_image.jpg', // Placeholder for empty/null URL
+                                width: 120,
+                                height: 120,
+                                fit: BoxFit.cover,
+                              ),
                       ),
                     ),
                   ],

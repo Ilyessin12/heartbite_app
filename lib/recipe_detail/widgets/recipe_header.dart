@@ -78,9 +78,20 @@ class RecipeHeader extends StatelessWidget {
           children: [
             ClipRRect(
               borderRadius: BorderRadius.circular(16),
-              child: Image.asset(
-                recipe.imageUrl,
-                width: double.infinity,
+              child: recipe.imageUrl.isNotEmpty
+                  ? Image.network(
+                      recipe.imageUrl,
+                      width: double.infinity,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) => Image.asset(
+                        'assets/images/cookbooks/placeholder_image.jpg', // Placeholder image
+                        width: double.infinity,
+                        fit: BoxFit.cover,
+                      ),
+                    )
+                  : Image.asset(
+                      'assets/images/cookbooks/placeholder_image.jpg', // Placeholder for empty URL
+                      width: double.infinity,
                 fit: BoxFit.cover,
               ),
             ),
