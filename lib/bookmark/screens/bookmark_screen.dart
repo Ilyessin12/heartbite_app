@@ -4,6 +4,7 @@ import 'package:solar_icons/solar_icons.dart';
 
 import '../../bottomnavbar/bottom-navbar.dart';
 import '../../services/bookmark_service.dart';
+import '../../recipe/create_recipe_screen.dart';
 import 'bookmark_detail_screen.dart';
 import 'bookmark_create_screen.dart';
 import 'bookmark_edit_screen.dart';
@@ -46,12 +47,11 @@ class _BookmarkScreenState extends State<BookmarkScreen> {
   }
 
   void handleBottomNavTap(int index) {
-    print('Navigated to index: $index');
     if (index == 0) {
-      if (Navigator.canPop(context)) {
-        Navigator.popUntil(context, (route) => route.isFirst);
-      }
+      // Navigate back to Homepage
+      Navigator.popUntil(context, (route) => route.isFirst);
     }
+    // index == 1 is already bookmark screen, so no action needed
   }
 
   void _navigateToEdit(BookmarkCategory category) {
@@ -298,8 +298,17 @@ class _BookmarkScreenState extends State<BookmarkScreen> {
           BottomNavBar(
             currentIndex: 1,
             onTap: handleBottomNavTap,
-            onFabPressed: () {
-              print('FAB pressed on BookmarkScreen');
+            onFabPressed: () async {
+              final result = await Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const CreateRecipeScreen(),
+                ),
+              );
+              if (result == true) {
+                // Refresh bookmarks if needed
+                setState(() {});
+              }
             },
           ),
         ],

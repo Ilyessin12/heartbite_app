@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../bottomnavbar/bottom-navbar.dart';
 import '../../services/bookmark_service.dart';
+import '../../recipe/create_recipe_screen.dart';
 import '../models/bookmark_category.dart';
 import '../models/recipe_item.dart';
 import '../widgets/recipe_card.dart';
@@ -200,7 +201,13 @@ class _BookmarkDetailScreenState extends State<BookmarkDetailScreen> {
   }
 
   void handleBottomNavTap(int index) {
-    print('Navigated to index: $index');
+    if (index == 0) {
+      // Navigate back to Homepage
+      Navigator.popUntil(context, (route) => route.isFirst);
+    } else if (index == 1) {
+      // Navigate to main bookmark screen
+      Navigator.pop(context);
+    }
   }
 
   @override
@@ -469,8 +476,16 @@ class _BookmarkDetailScreenState extends State<BookmarkDetailScreen> {
           BottomNavBar(
             currentIndex: 1,
             onTap: handleBottomNavTap,
-            onFabPressed: () {
-              print('FAB pressed on BookmarkDetailScreen');
+            onFabPressed: () async {
+              final result = await Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const CreateRecipeScreen(),
+                ),
+              );
+              if (result == true) {
+                _loadBookmarks(); // Refresh bookmarks if needed
+              }
             },
           ),
         ],

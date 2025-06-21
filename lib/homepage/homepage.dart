@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:solar_icons/solar_icons.dart';
-import 'package:iconoir_flutter/iconoir_flutter.dart' hide Key, Text, Navigator, List, Map;
+import 'package:iconoir_flutter/iconoir_flutter.dart'
+    hide Key, Text, Navigator, List, Map;
 import 'dart:ui';
 
 import '../bottomnavbar/bottom-navbar.dart';
@@ -10,6 +11,7 @@ import '../services/recipe_service.dart';
 import '../models/recipe_model.dart';
 import '../recipe/create_recipe_screen.dart';
 import '../recipe_detail/screens/recipe_detail_screen.dart';
+import '../bookmark/screens/bookmark_screen.dart';
 import '../recipe_detail/models/recipe.dart' as DetailRecipeModel;
 import '../recipe_detail/models/ingredient.dart' as DetailIngredientModel;
 import '../recipe_detail/models/direction.dart' as DetailDirectionModel;
@@ -60,7 +62,6 @@ class DisplayRecipeItem {
   }
 }
 
-
 class HomePage extends StatefulWidget {
   const HomePage({Key? key}) : super(key: key);
 
@@ -80,7 +81,6 @@ class _HomePageState extends State<HomePage> {
   bool _isLoading = true;
   String _loadingError = '';
 
-
   List<String> _searchHistory = [
     "Resep ayam bumbu kuning",
     "Ayam geprek",
@@ -93,9 +93,29 @@ class _HomePageState extends State<HomePage> {
   List<String> _selectedAppliances = [];
   Map<String, Object>? _selectedCookingTimeOption;
 
-  final List<String> _allergenOptions = ["Laktosa", "Gluten", "Kacang", "Seafood", "Telur", "Kerang"];
-  final List<String> _dietTypeOptions = ["Vegetarian", "Vegan", "Keto", "Pescatarian", "Clean Eating"];
-  final List<String> _applianceOptions = ["Oven", "Blender", "Microwave", "Wajan", "Mixer", "Air Fryer"];
+  final List<String> _allergenOptions = [
+    "Laktosa",
+    "Gluten",
+    "Kacang",
+    "Seafood",
+    "Telur",
+    "Kerang",
+  ];
+  final List<String> _dietTypeOptions = [
+    "Vegetarian",
+    "Vegan",
+    "Keto",
+    "Pescatarian",
+    "Clean Eating",
+  ];
+  final List<String> _applianceOptions = [
+    "Oven",
+    "Blender",
+    "Microwave",
+    "Wajan",
+    "Mixer",
+    "Air Fryer",
+  ];
   final List<Map<String, Object>> _cookingTimeOptions = [
     {"label": "< 15 Menit", "min": 0, "max": 14},
     {"label": "15 - 30 Menit", "min": 15, "max": 30},
@@ -103,20 +123,22 @@ class _HomePageState extends State<HomePage> {
     {"label": "> 60 Menit", "min": 61, "max": 999},
   ];
 
-  List<DisplayRecipeItem> get _latestRecipes => _allFetchedRecipes.take(3).toList();
-  List<DisplayRecipeItem> get _popularRecipes => _allFetchedRecipes.skip(3).take(4).toList();
-  List<DisplayRecipeItem> get _breakfastRecipes => _allFetchedRecipes.skip(7).take(4).toList();
-
+  List<DisplayRecipeItem> get _latestRecipes =>
+      _allFetchedRecipes.take(3).toList();
+  List<DisplayRecipeItem> get _popularRecipes =>
+      _allFetchedRecipes.skip(3).take(4).toList();
+  List<DisplayRecipeItem> get _breakfastRecipes =>
+      _allFetchedRecipes.skip(7).take(4).toList();
 
   @override
-  void initState(){
+  void initState() {
     super.initState();
     _fetchRecipes();
-    _searchController.addListener((){
-      if(_searchController.text.isNotEmpty){
+    _searchController.addListener(() {
+      if (_searchController.text.isNotEmpty) {
         _updateSearchResults();
       } else {
-        setState((){
+        setState(() {
           _showSearchResults = true;
           _searchResults = [];
         });
@@ -130,14 +152,19 @@ class _HomePageState extends State<HomePage> {
       _loadingError = '';
     });
     try {
-      final recipesData = await _recipeService.getPublicRecipesWithDetails(searchQuery: searchQuery);
+      final recipesData = await _recipeService.getPublicRecipesWithDetails(
+        searchQuery: searchQuery,
+      );
       setState(() {
-        _allFetchedRecipes = recipesData.map((data) => DisplayRecipeItem.fromSupabase(data)).toList();
+        _allFetchedRecipes =
+            recipesData
+                .map((data) => DisplayRecipeItem.fromSupabase(data))
+                .toList();
         _isLoading = false;
         if (searchQuery != null && searchQuery.isNotEmpty) {
-            _searchResults = List.from(_allFetchedRecipes);
+          _searchResults = List.from(_allFetchedRecipes);
         } else {
-            _searchResults = [];
+          _searchResults = [];
         }
       });
     } catch (e) {
@@ -149,19 +176,22 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
-
   @override
-  void dispose(){
+  void dispose() {
     _searchController.dispose();
     super.dispose();
   }
 
-  void _onBottomNavTapped(int index){
-    setState((){
+  void _onBottomNavTapped(int index) {
+    setState(() {
       _currentIndex = index;
     });
-    if(index == 1){
-      print('Navigate to Bookmark');
+    if (index == 1) {
+      // Navigate to Bookmark screen
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (context) => const BookmarkScreen()),
+      );
     }
   }
 
@@ -175,28 +205,31 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
-
-  void _toggleBookmark(int recipeId){
-    setState((){
-      final index = _allFetchedRecipes.indexWhere((recipe) => recipe.id == recipeId);
-      if(index != -1){
-        _allFetchedRecipes[index].isBookmarked = !_allFetchedRecipes[index].isBookmarked;
-        final searchIndex = _searchResults.indexWhere((recipe) => recipe.id == recipeId);
-        if(searchIndex != -1){
-          _searchResults[searchIndex].isBookmarked = _allFetchedRecipes[index].isBookmarked;
+  void _toggleBookmark(int recipeId) {
+    setState(() {
+      final index = _allFetchedRecipes.indexWhere(
+        (recipe) => recipe.id == recipeId,
+      );
+      if (index != -1) {
+        _allFetchedRecipes[index].isBookmarked =
+            !_allFetchedRecipes[index].isBookmarked;
+        final searchIndex = _searchResults.indexWhere(
+          (recipe) => recipe.id == recipeId,
+        );
+        if (searchIndex != -1) {
+          _searchResults[searchIndex].isBookmarked =
+              _allFetchedRecipes[index].isBookmarked;
         }
       }
     });
   }
 
-  void _navigateToGroupDetail(String title, List<DisplayRecipeItem> recipes){
+  void _navigateToGroupDetail(String title, List<DisplayRecipeItem> recipes) {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => HomePageDetailScreen(
-          title: title,
-          recipes: recipes,
-        ),
+        builder:
+            (context) => HomePageDetailScreen(title: title, recipes: recipes),
       ),
     );
   }
@@ -209,50 +242,49 @@ class _HomePageState extends State<HomePage> {
       ),
     );
     if (result == true) {
-        _fetchRecipes();
+      _fetchRecipes();
     }
   }
 
-
-  void _performSearch(String query){
-    if(query.isNotEmpty && !_searchHistory.contains(query)){
-      setState((){
+  void _performSearch(String query) {
+    if (query.isNotEmpty && !_searchHistory.contains(query)) {
+      setState(() {
         _searchHistory.insert(0, query);
-        if(_searchHistory.length > 5){
+        if (_searchHistory.length > 5) {
           _searchHistory.removeLast();
         }
       });
     }
     _fetchRecipes(searchQuery: query);
-    setState((){
+    setState(() {
       _showSearchResults = true;
       _showFilters = false;
     });
   }
 
-  void _removeFromHistory(String item){
-    setState((){
+  void _removeFromHistory(String item) {
+    setState(() {
       _searchHistory.remove(item);
     });
   }
 
-  void _toggleFilters(){
-    setState((){
+  void _toggleFilters() {
+    setState(() {
       _showFilters = !_showFilters;
       _showSearchResults = false;
     });
   }
 
-  void _applyFilters(){
+  void _applyFilters() {
     _updateSearchResults();
-    setState((){
+    setState(() {
       _showSearchResults = true;
       _showFilters = false;
     });
   }
 
-  void _resetFilters(){
-    setState((){
+  void _resetFilters() {
+    setState(() {
       _selectedAllergens = [];
       _selectedDietTypes = [];
       _selectedAppliances = [];
@@ -261,39 +293,55 @@ class _HomePageState extends State<HomePage> {
     _updateSearchResults();
   }
 
-  void _updateSearchResults(){
+  void _updateSearchResults() {
     final String query = _searchController.text.toLowerCase();
 
     List<DisplayRecipeItem> recipesToFilter = List.from(_allFetchedRecipes);
 
-    final filtered = recipesToFilter.where((recipe){
-      final queryMatch = query.isEmpty || recipe.name.toLowerCase().contains(query);
+    final filtered =
+        recipesToFilter.where((recipe) {
+          final queryMatch =
+              query.isEmpty || recipe.name.toLowerCase().contains(query);
 
-      final cookingTimeMatches = _selectedCookingTimeOption == null ||
-                                (recipe.cookingTimeMinutes >= (_selectedCookingTimeOption!['min'] as int) &&
-                                 recipe.cookingTimeMinutes <= (_selectedCookingTimeOption!['max'] as int));
+          final cookingTimeMatches =
+              _selectedCookingTimeOption == null ||
+              (recipe.cookingTimeMinutes >=
+                      (_selectedCookingTimeOption!['min'] as int) &&
+                  recipe.cookingTimeMinutes <=
+                      (_selectedCookingTimeOption!['max'] as int));
 
-      final allergensMatch = _selectedAllergens.isEmpty ||
-                            !_selectedAllergens.any((allergen) => recipe.allergens.contains(allergen));
+          final allergensMatch =
+              _selectedAllergens.isEmpty ||
+              !_selectedAllergens.any(
+                (allergen) => recipe.allergens.contains(allergen),
+              );
 
-      final dietTypesMatch = _selectedDietTypes.isEmpty ||
-                            _selectedDietTypes.every((diet) => recipe.dietTypes.contains(diet));
+          final dietTypesMatch =
+              _selectedDietTypes.isEmpty ||
+              _selectedDietTypes.every(
+                (diet) => recipe.dietTypes.contains(diet),
+              );
 
-      final appliancesMatch = _selectedAppliances.isEmpty ||
-                             !_selectedAppliances.any((appliance) => recipe.requiredAppliances.contains(appliance));
+          final appliancesMatch =
+              _selectedAppliances.isEmpty ||
+              !_selectedAppliances.any(
+                (appliance) => recipe.requiredAppliances.contains(appliance),
+              );
 
-      return queryMatch && cookingTimeMatches && allergensMatch && dietTypesMatch && appliancesMatch;
-    }).toList();
+          return queryMatch &&
+              cookingTimeMatches &&
+              allergensMatch &&
+              dietTypesMatch &&
+              appliancesMatch;
+        }).toList();
 
-    setState((){
+    setState(() {
       _searchResults = filtered;
     });
   }
 
-
   @override
-  Widget build(BuildContext context){
-
+  Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
@@ -303,7 +351,9 @@ class _HomePageState extends State<HomePage> {
         leading: Padding(
           padding: const EdgeInsets.only(left: 16.0),
           child: CircleAvatar(
-            backgroundImage: AssetImage("assets/images/homepage/placeholder_profile.jpg"),
+            backgroundImage: AssetImage(
+              "assets/images/homepage/placeholder_profile.jpg",
+            ),
           ),
         ),
         title: Container(
@@ -319,16 +369,22 @@ class _HomePageState extends State<HomePage> {
               hintStyle: GoogleFonts.dmSans(color: Colors.grey[600]),
               prefixIcon: Icon(Icons.search, color: Colors.grey[600]),
               suffixIcon: IconButton(
-                icon: Icon(SolarIconsOutline.tuningSquare, color: Colors.grey[600]),
+                icon: Icon(
+                  SolarIconsOutline.tuningSquare,
+                  color: Colors.grey[600],
+                ),
                 onPressed: _toggleFilters,
               ),
               border: InputBorder.none,
-              contentPadding: EdgeInsets.symmetric(vertical: 10.0, horizontal: 0),
+              contentPadding: EdgeInsets.symmetric(
+                vertical: 10.0,
+                horizontal: 0,
+              ),
             ),
             style: GoogleFonts.dmSans(color: Colors.black),
             onSubmitted: _performSearch,
-            onTap: (){
-              setState((){
+            onTap: () {
+              setState(() {
                 _showSearchResults = true;
                 _showFilters = false;
               });
@@ -338,7 +394,7 @@ class _HomePageState extends State<HomePage> {
         actions: [
           IconButton(
             icon: Icon(SolarIconsOutline.bell, color: Colors.black),
-            onPressed: (){
+            onPressed: () {
               // Handle notification tap
             },
           ),
@@ -346,15 +402,21 @@ class _HomePageState extends State<HomePage> {
         ],
       ),
       body: SafeArea(
-        child: _isLoading
-            ? Center(child: CircularProgressIndicator())
-            : _loadingError.isNotEmpty
-                ? Center(child: Text(_loadingError, style: TextStyle(color: Colors.red)))
+        child:
+            _isLoading
+                ? Center(child: CircularProgressIndicator())
+                : _loadingError.isNotEmpty
+                ? Center(
+                  child: Text(
+                    _loadingError,
+                    style: TextStyle(color: Colors.red),
+                  ),
+                )
                 : _showSearchResults
-                    ? _buildSearchResultsView()
-                    : _showFilters
-                        ? _buildFiltersView()
-                        : _buildHomeContent(),
+                ? _buildSearchResultsView()
+                : _showFilters
+                ? _buildFiltersView()
+                : _buildHomeContent(),
       ),
       bottomNavigationBar: BottomNavBar(
         currentIndex: _currentIndex,
@@ -364,7 +426,7 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Widget _buildHomeContent(){
+  Widget _buildHomeContent() {
     return RefreshIndicator(
       onRefresh: () => _fetchRecipes(),
       child: ListView(
@@ -375,14 +437,20 @@ class _HomePageState extends State<HomePage> {
           _buildSectionTitle(
             "Popular Recipes",
             showViewAll: true,
-            onViewAllTap: () => _navigateToGroupDetail("Popular Recipes", _popularRecipes),
+            onViewAllTap:
+                () =>
+                    _navigateToGroupDetail("Popular Recipes", _popularRecipes),
           ),
           _buildRecipeGrid(_popularRecipes),
 
           _buildSectionTitle(
             "Menu Sarapan Mudah",
             showViewAll: true,
-            onViewAllTap: () => _navigateToGroupDetail("Menu Sarapan Mudah", _breakfastRecipes),
+            onViewAllTap:
+                () => _navigateToGroupDetail(
+                  "Menu Sarapan Mudah",
+                  _breakfastRecipes,
+                ),
           ),
           _buildRecipeGrid(_breakfastRecipes),
 
@@ -392,11 +460,11 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Widget _buildSearchResultsView(){
+  Widget _buildSearchResultsView() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        if(_searchController.text.isEmpty) ...[
+        if (_searchController.text.isEmpty) ...[
           Padding(
             padding: const EdgeInsets.all(16.0),
             child: Text(
@@ -411,7 +479,7 @@ class _HomePageState extends State<HomePage> {
           Expanded(
             child: ListView.builder(
               itemCount: _searchHistory.length,
-              itemBuilder: (context, index){
+              itemBuilder: (context, index) {
                 return ListTile(
                   title: Text(
                     _searchHistory[index],
@@ -421,17 +489,18 @@ class _HomePageState extends State<HomePage> {
                     icon: Icon(Icons.close, size: 18),
                     onPressed: () => _removeFromHistory(_searchHistory[index]),
                   ),
-                  onTap: (){
+                  onTap: () {
                     _searchController.text = _searchHistory[index];
                     _searchController.selection = TextSelection.fromPosition(
-                        TextPosition(offset: _searchController.text.length));
+                      TextPosition(offset: _searchController.text.length),
+                    );
                     _performSearch(_searchHistory[index]);
                   },
                 );
               },
             ),
           ),
-        ] else if(_searchResults.isEmpty) ...[
+        ] else if (_searchResults.isEmpty) ...[
           Expanded(
             child: Center(
               child: Column(
@@ -444,12 +513,18 @@ class _HomePageState extends State<HomePage> {
                     textAlign: TextAlign.center,
                     style: GoogleFonts.dmSans(fontSize: 16),
                   ),
-                  if(_selectedAllergens.isNotEmpty || _selectedDietTypes.isNotEmpty || _selectedAppliances.isNotEmpty || _selectedCookingTimeOption != null)
+                  if (_selectedAllergens.isNotEmpty ||
+                      _selectedDietTypes.isNotEmpty ||
+                      _selectedAppliances.isNotEmpty ||
+                      _selectedCookingTimeOption != null)
                     Padding(
                       padding: const EdgeInsets.only(top: 8.0),
                       child: Text(
                         "Coba sesuaikan filter Anda.",
-                        style: GoogleFonts.dmSans(fontSize: 14, color: Colors.grey),
+                        style: GoogleFonts.dmSans(
+                          fontSize: 14,
+                          color: Colors.grey,
+                        ),
                       ),
                     ),
                 ],
@@ -478,7 +553,7 @@ class _HomePageState extends State<HomePage> {
                 childAspectRatio: 0.7,
               ),
               itemCount: _searchResults.length,
-              itemBuilder: (context, index){
+              itemBuilder: (context, index) {
                 final recipe = _searchResults[index];
                 return RecipeCard(
                   recipe: recipe,
@@ -493,7 +568,7 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Widget _buildFiltersView(){
+  Widget _buildFiltersView() {
     return SingleChildScrollView(
       child: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -536,31 +611,33 @@ class _HomePageState extends State<HomePage> {
             Wrap(
               spacing: 8,
               runSpacing: 8,
-              children: _cookingTimeOptions.map((option){
-                final bool isSelected = _selectedCookingTimeOption?['label'] == option['label'];
-                return FilterChip(
-                  label: Text(option["label"].toString()),
-                  selected: isSelected,
-                  onSelected: (selected){
-                    setState((){
-                      if(selected){
-                        _selectedCookingTimeOption = option;
-                      } else {
-                        if(isSelected){
-                           _selectedCookingTimeOption = null;
-                        }
-                      }
-                    });
-                  },
-                  backgroundColor: Colors.white,
-                  selectedColor: Colors.grey[200],
-                  checkmarkColor: Colors.red[700],
-                  side: BorderSide(color: Colors.grey[300]!),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                );
-              }).toList(),
+              children:
+                  _cookingTimeOptions.map((option) {
+                    final bool isSelected =
+                        _selectedCookingTimeOption?['label'] == option['label'];
+                    return FilterChip(
+                      label: Text(option["label"].toString()),
+                      selected: isSelected,
+                      onSelected: (selected) {
+                        setState(() {
+                          if (selected) {
+                            _selectedCookingTimeOption = option;
+                          } else {
+                            if (isSelected) {
+                              _selectedCookingTimeOption = null;
+                            }
+                          }
+                        });
+                      },
+                      backgroundColor: Colors.white,
+                      selectedColor: Colors.grey[200],
+                      checkmarkColor: Colors.red[700],
+                      side: BorderSide(color: Colors.grey[300]!),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                    );
+                  }).toList(),
             ),
             const SizedBox(height: 24),
             Text(
@@ -575,29 +652,30 @@ class _HomePageState extends State<HomePage> {
             Wrap(
               spacing: 8,
               runSpacing: 8,
-              children: _allergenOptions.map((allergen){
-                final isSelected = _selectedAllergens.contains(allergen);
-                return FilterChip(
-                  label: Text(allergen),
-                  selected: isSelected,
-                  onSelected: (selected){
-                    setState((){
-                      if(selected){
-                        _selectedAllergens.add(allergen);
-                      } else {
-                        _selectedAllergens.remove(allergen);
-                      }
-                    });
-                  },
-                  backgroundColor: Colors.white,
-                  selectedColor: Colors.grey[200],
-                  checkmarkColor: Colors.red[700],
-                  side: BorderSide(color: Colors.grey[300]!),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                );
-              }).toList(),
+              children:
+                  _allergenOptions.map((allergen) {
+                    final isSelected = _selectedAllergens.contains(allergen);
+                    return FilterChip(
+                      label: Text(allergen),
+                      selected: isSelected,
+                      onSelected: (selected) {
+                        setState(() {
+                          if (selected) {
+                            _selectedAllergens.add(allergen);
+                          } else {
+                            _selectedAllergens.remove(allergen);
+                          }
+                        });
+                      },
+                      backgroundColor: Colors.white,
+                      selectedColor: Colors.grey[200],
+                      checkmarkColor: Colors.red[700],
+                      side: BorderSide(color: Colors.grey[300]!),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                    );
+                  }).toList(),
             ),
             const SizedBox(height: 24),
             Text(
@@ -612,29 +690,30 @@ class _HomePageState extends State<HomePage> {
             Wrap(
               spacing: 8,
               runSpacing: 8,
-              children: _dietTypeOptions.map((diet){
-                final isSelected = _selectedDietTypes.contains(diet);
-                return FilterChip(
-                  label: Text(diet),
-                  selected: isSelected,
-                  onSelected: (selected){
-                    setState((){
-                      if(selected){
-                        _selectedDietTypes.add(diet);
-                      } else {
-                        _selectedDietTypes.remove(diet);
-                      }
-                    });
-                  },
-                  backgroundColor: Colors.white,
-                  selectedColor: Colors.grey[200],
-                  checkmarkColor: Colors.red[700],
-                  side: BorderSide(color: Colors.grey[300]!),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                );
-              }).toList(),
+              children:
+                  _dietTypeOptions.map((diet) {
+                    final isSelected = _selectedDietTypes.contains(diet);
+                    return FilterChip(
+                      label: Text(diet),
+                      selected: isSelected,
+                      onSelected: (selected) {
+                        setState(() {
+                          if (selected) {
+                            _selectedDietTypes.add(diet);
+                          } else {
+                            _selectedDietTypes.remove(diet);
+                          }
+                        });
+                      },
+                      backgroundColor: Colors.white,
+                      selectedColor: Colors.grey[200],
+                      checkmarkColor: Colors.red[700],
+                      side: BorderSide(color: Colors.grey[300]!),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                    );
+                  }).toList(),
             ),
             const SizedBox(height: 24),
             Text(
@@ -649,29 +728,30 @@ class _HomePageState extends State<HomePage> {
             Wrap(
               spacing: 8,
               runSpacing: 8,
-              children: _applianceOptions.map((appliance){
-                final isSelected = _selectedAppliances.contains(appliance);
-                return FilterChip(
-                  label: Text(appliance),
-                  selected: isSelected,
-                  onSelected: (selected){
-                    setState((){
-                      if(selected){
-                        _selectedAppliances.add(appliance);
-                      } else {
-                        _selectedAppliances.remove(appliance);
-                      }
-                    });
-                  },
-                  backgroundColor: Colors.white,
-                  selectedColor: Colors.grey[200],
-                  checkmarkColor: Colors.red[700],
-                  side: BorderSide(color: Colors.grey[300]!),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                );
-              }).toList(),
+              children:
+                  _applianceOptions.map((appliance) {
+                    final isSelected = _selectedAppliances.contains(appliance);
+                    return FilterChip(
+                      label: Text(appliance),
+                      selected: isSelected,
+                      onSelected: (selected) {
+                        setState(() {
+                          if (selected) {
+                            _selectedAppliances.add(appliance);
+                          } else {
+                            _selectedAppliances.remove(appliance);
+                          }
+                        });
+                      },
+                      backgroundColor: Colors.white,
+                      selectedColor: Colors.grey[200],
+                      checkmarkColor: Colors.red[700],
+                      side: BorderSide(color: Colors.grey[300]!),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                    );
+                  }).toList(),
             ),
             const SizedBox(height: 32),
             SizedBox(
@@ -701,7 +781,11 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Widget _buildSectionTitle(String title, {bool showViewAll = false, VoidCallback? onViewAllTap}){
+  Widget _buildSectionTitle(
+    String title, {
+    bool showViewAll = false,
+    VoidCallback? onViewAllTap,
+  }) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 16.0),
       child: Row(
@@ -715,7 +799,7 @@ class _HomePageState extends State<HomePage> {
               color: Colors.black,
             ),
           ),
-          if(showViewAll)
+          if (showViewAll)
             GestureDetector(
               onTap: onViewAllTap,
               child: Text(
@@ -739,7 +823,7 @@ class _HomePageState extends State<HomePage> {
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 16.0),
         itemCount: recipes.length,
-        itemBuilder: (context, index){
+        itemBuilder: (context, index) {
           final recipe = recipes[index];
           return Padding(
             padding: const EdgeInsets.only(right: 16.0),
@@ -760,14 +844,25 @@ class _HomePageState extends State<HomePage> {
         children: [
           ClipRRect(
             borderRadius: BorderRadius.circular(12),
-            child: recipe.imageUrl != null && recipe.imageUrl!.isNotEmpty
-                ? Image.network(recipe.imageUrl!, fit: BoxFit.cover, width: double.infinity, height: double.infinity,
-                    errorBuilder: (context, error, stackTrace) => Image.asset('assets/images/cookbooks/placeholder_image.jpg', fit: BoxFit.cover))
-                : Image.asset('assets/images/cookbooks/placeholder_image.jpg',
-              fit: BoxFit.cover,
-              width: double.infinity,
-              height: double.infinity,
-            ),
+            child:
+                recipe.imageUrl != null && recipe.imageUrl!.isNotEmpty
+                    ? Image.network(
+                      recipe.imageUrl!,
+                      fit: BoxFit.cover,
+                      width: double.infinity,
+                      height: double.infinity,
+                      errorBuilder:
+                          (context, error, stackTrace) => Image.asset(
+                            'assets/images/cookbooks/placeholder_image.jpg',
+                            fit: BoxFit.cover,
+                          ),
+                    )
+                    : Image.asset(
+                      'assets/images/cookbooks/placeholder_image.jpg',
+                      fit: BoxFit.cover,
+                      width: double.infinity,
+                      height: double.infinity,
+                    ),
           ),
           Positioned.fill(
             child: Container(
@@ -812,17 +907,18 @@ class _HomePageState extends State<HomePage> {
                       color: Colors.white.withOpacity(0.2),
                       borderRadius: BorderRadius.circular(20),
                     ),
-                    child: recipe.isBookmarked
-                        ? const BookmarkSolid(
-                            width: 18,
-                            height: 18,
-                            color: Colors.white,
-                          )
-                        : const Bookmark(
-                            width: 18,
-                            height: 18,
-                            color: Colors.white,
-                          ),
+                    child:
+                        recipe.isBookmarked
+                            ? const BookmarkSolid(
+                              width: 18,
+                              height: 18,
+                              color: Colors.white,
+                            )
+                            : const Bookmark(
+                              width: 18,
+                              height: 18,
+                              color: Colors.white,
+                            ),
                   ),
                 ),
               ),
@@ -845,7 +941,7 @@ class _HomePageState extends State<HomePage> {
         childAspectRatio: 0.7,
       ),
       itemCount: recipes.length,
-      itemBuilder: (context, index){
+      itemBuilder: (context, index) {
         final recipe = recipes[index];
         return RecipeCard(
           recipe: recipe,
@@ -870,7 +966,7 @@ class RecipeCard extends StatelessWidget {
   }) : super(key: key);
 
   @override
-  Widget build(BuildContext context){
+  Widget build(BuildContext context) {
     return ClipRRect(
       borderRadius: BorderRadius.circular(12),
       child: GestureDetector(
@@ -878,11 +974,21 @@ class RecipeCard extends StatelessWidget {
         child: Stack(
           children: [
             Positioned.fill(
-              child: recipe.imageUrl != null && recipe.imageUrl!.isNotEmpty
-                  ? Image.network(recipe.imageUrl!, fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) =>
-                          Image.asset('assets/images/cookbooks/placeholder_image.jpg', fit: BoxFit.cover))
-                  : Image.asset('assets/images/cookbooks/placeholder_image.jpg', fit: BoxFit.cover)
+              child:
+                  recipe.imageUrl != null && recipe.imageUrl!.isNotEmpty
+                      ? Image.network(
+                        recipe.imageUrl!,
+                        fit: BoxFit.cover,
+                        errorBuilder:
+                            (context, error, stackTrace) => Image.asset(
+                              'assets/images/cookbooks/placeholder_image.jpg',
+                              fit: BoxFit.cover,
+                            ),
+                      )
+                      : Image.asset(
+                        'assets/images/cookbooks/placeholder_image.jpg',
+                        fit: BoxFit.cover,
+                      ),
             ),
             Positioned.fill(
               child: Container(
@@ -911,17 +1017,18 @@ class RecipeCard extends StatelessWidget {
                         color: Colors.white.withOpacity(0.2),
                         borderRadius: BorderRadius.circular(20),
                       ),
-                      child: recipe.isBookmarked
-                          ? const BookmarkSolid(
-                              width: 18,
-                              height: 18,
-                              color: Colors.white,
-                            )
-                          : const Bookmark(
-                              width: 18,
-                              height: 18,
-                              color: Colors.white,
-                            ),
+                      child:
+                          recipe.isBookmarked
+                              ? const BookmarkSolid(
+                                width: 18,
+                                height: 18,
+                                color: Colors.white,
+                              )
+                              : const Bookmark(
+                                width: 18,
+                                height: 18,
+                                color: Colors.white,
+                              ),
                     ),
                   ),
                 ),
@@ -964,7 +1071,9 @@ class RecipeCard extends StatelessWidget {
                     children: [
                       Flexible(
                         child: Text(
-                          recipe.calories != null ? '${recipe.calories} Cal' : 'N/A Cal',
+                          recipe.calories != null
+                              ? '${recipe.calories} Cal'
+                              : 'N/A Cal',
                           style: GoogleFonts.dmSans(
                             fontSize: 11,
                             color: Colors.white,
@@ -1004,7 +1113,7 @@ class RecipeCard extends StatelessWidget {
                   ),
                 ],
               ),
-            )
+            ),
           ],
         ),
       ),

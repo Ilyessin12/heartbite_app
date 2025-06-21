@@ -6,6 +6,7 @@ import 'package:image_picker/image_picker.dart';
 import '../../bottomnavbar/bottom-navbar.dart';
 import '../../services/bookmark_service.dart';
 import '../../services/image_upload_service.dart';
+import '../../recipe/create_recipe_screen.dart';
 import '../models/bookmark_category.dart';
 
 class BookmarkEditScreen extends StatefulWidget {
@@ -38,7 +39,13 @@ class _BookmarkEditScreenState extends State<BookmarkEditScreen> {
   }
 
   void handleBottomNavTap(int index) {
-    print('Navigated to index: $index');
+    if (index == 0) {
+      // Navigate back to Homepage
+      Navigator.popUntil(context, (route) => route.isFirst);
+    } else if (index == 1) {
+      // Navigate to main bookmark screen
+      Navigator.pop(context);
+    }
   }
 
   Future<void> saveChanges() async {
@@ -287,8 +294,14 @@ class _BookmarkEditScreenState extends State<BookmarkEditScreen> {
       bottomNavigationBar: BottomNavBar(
         currentIndex: 1,
         onTap: handleBottomNavTap,
-        onFabPressed: () {
-          print('FAB pressed on BookmarkEditScreen');
+        onFabPressed: () async {
+          final result = await Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const CreateRecipeScreen()),
+          );
+          if (result == true) {
+            // Refresh if needed
+          }
         },
       ),
     );

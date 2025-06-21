@@ -7,6 +7,7 @@ import 'package:image_picker/image_picker.dart';
 import '../../bottomnavbar/bottom-navbar.dart';
 import '../../services/bookmark_service.dart';
 import '../../services/image_upload_service.dart';
+import '../../recipe/create_recipe_screen.dart';
 import '../models/recipe_item.dart';
 import '../widgets/recipe_card.dart';
 
@@ -81,15 +82,12 @@ class _BookmarkCreateScreenState extends State<BookmarkCreateScreen> {
   }
 
   void handleBottomNavTap(int index) {
-    print('Navigated to index: $index');
     if (index == 0) {
-      if (Navigator.canPop(context)) {
-        Navigator.popUntil(context, (route) => route.isFirst);
-      }
+      // Navigate back to Homepage
+      Navigator.popUntil(context, (route) => route.isFirst);
     } else if (index == 1) {
-      if (Navigator.canPop(context)) {
-        Navigator.popUntil(context, ModalRoute.withName('/bookmark'));
-      }
+      // Navigate to main bookmark screen
+      Navigator.pop(context);
     }
   }
 
@@ -393,8 +391,14 @@ class _BookmarkCreateScreenState extends State<BookmarkCreateScreen> {
       bottomNavigationBar: BottomNavBar(
         currentIndex: 1,
         onTap: handleBottomNavTap,
-        onFabPressed: () {
-          print('FAB pressed on BookmarkCreateScreen');
+        onFabPressed: () async {
+          final result = await Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const CreateRecipeScreen()),
+          );
+          if (result == true) {
+            // Refresh if needed
+          }
         },
       ),
     );
@@ -482,8 +486,14 @@ class _BookmarkCreateScreenState extends State<BookmarkCreateScreen> {
       bottomNavigationBar: BottomNavBar(
         currentIndex: 1,
         onTap: handleBottomNavTap,
-        onFabPressed: () {
-          print('FAB pressed on CoverSelectionScreen');
+        onFabPressed: () async {
+          final result = await Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const CreateRecipeScreen()),
+          );
+          if (result == true) {
+            // Refresh if needed
+          }
         },
       ),
     );
@@ -643,8 +653,14 @@ class _BookmarkCreateScreenState extends State<BookmarkCreateScreen> {
       bottomNavigationBar: BottomNavBar(
         currentIndex: 1,
         onTap: handleBottomNavTap,
-        onFabPressed: () {
-          print('FAB pressed on RecipeSelectionScreen');
+        onFabPressed: () async {
+          final result = await Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const CreateRecipeScreen()),
+          );
+          if (result == true) {
+            // Refresh if needed
+          }
         },
       ),
     );
