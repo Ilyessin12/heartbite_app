@@ -3,8 +3,7 @@
 class RecipeIngredientModel {
   int? id;
   int? recipe_id; // Nullable because it's set after recipe is created
-  int ingredient_id; // This ID refers to the 'ingredients' table
-  String name; // Name of the ingredient, e.g., "Flour", "Sugar"
+  String ingredient_text; // Maps to 'ingredients' text column in DB, e.g., "Flour", "2 large eggs"
   double quantity;
   String? unit;
   String? notes;
@@ -13,8 +12,7 @@ class RecipeIngredientModel {
   RecipeIngredientModel({
     this.id,
     this.recipe_id,
-    required this.ingredient_id,
-    required this.name,
+    required this.ingredient_text, // Changed from 'name' and removed 'ingredient_id'
     required this.quantity,
     this.unit,
     this.notes,
@@ -25,8 +23,8 @@ class RecipeIngredientModel {
     return RecipeIngredientModel(
       id: json['id'] as int?,
       recipe_id: json['recipe_id'] as int?,
-      ingredient_id: json['ingredient_id'] as int,
-      name: json['ingredients'] != null ? json['ingredients']['name'] as String : json['name'] as String, // Handle joined or direct name
+      // The 'ingredients' column from DB is the text of the ingredient
+      ingredient_text: json['ingredients'] as String,
       quantity: (json['quantity'] as num).toDouble(),
       unit: json['unit'] as String?,
       notes: json['notes'] as String?,
@@ -37,14 +35,12 @@ class RecipeIngredientModel {
   Map<String, dynamic> toJson() {
     final Map<String, dynamic> data = {
       'recipe_id': recipe_id,
-      'ingredient_id': ingredient_id,
-      // 'name' is not part of recipe_ingredients table, it's from 'ingredients' table
+      'ingredients': ingredient_text, // Maps to the 'ingredients' text column
       'quantity': quantity,
       'unit': unit,
       'notes': notes,
       'order_index': order_index,
     };
-    // Remove nulls, except for 'notes' and 'unit' which are explicitly nullable in DB
     data.removeWhere((key, value) => value == null && key != 'notes' && key != 'unit');
     if (id != null) {
       data['id'] = id;

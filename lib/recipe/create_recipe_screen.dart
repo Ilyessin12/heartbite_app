@@ -150,8 +150,7 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
       } // else: name remains `line`, quantity 1.0, unit null
 
       ingredients.add(RecipeIngredientModel(
-        ingredient_id: 0, // Placeholder, resolved by service
-        name: name,
+        ingredient_text: name, // name variable here holds the full ingredient text
         quantity: quantity,
         unit: unit,
         order_index: i,
@@ -163,10 +162,28 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
   List<RecipeInstructionModel> _parseInstructions(String text) {
     final List<RecipeInstructionModel> instructions = [];
     final lines = text.split('\n').where((line) => line.trim().isNotEmpty).toList();
+    // Regex to find "[img:URL]" at the end of the line.
+    // It captures the main instruction text in group 1, and the URL in group 3 (group 2 is the non-capturing ?:).
+    final RegExp imgRegex = RegExp(r'^(.*?)(?:\s*\[img:(.+?)\])?\s*$');
+
     for (int i = 0; i < lines.length; i++) {
+      String instructionTextFull = lines[i].trim();
+      String instructionTextFinal = instructionTextFull;
+      String? imageUrl;
+
+      final match = imgRegex.firstMatch(instructionTextFull);
+      if (match != null) {
+        instructionTextFinal = match.group(1)?.trim() ?? ''; // The instruction part
+        imageUrl = match.group(2)?.trim(); // The URL part, if it exists
+        if (imageUrl != null && imageUrl.isEmpty) {
+          imageUrl = null; // Treat empty [img:] or [img: ] as null
+        }
+      }
+
       instructions.add(RecipeInstructionModel(
         step_number: i + 1,
-        instruction: lines[i].trim(),
+        instruction: instructionTextFinal,
+        image_url: imageUrl,
       ));
     }
     return instructions;
@@ -422,7 +439,7 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
                   decoration: InputDecoration(
                     labelText: 'Directions (one step per line)',
                     labelStyle: labelStyle,
-                    hintText: 'Mix flour and eggs.\nBake at 350°F for 30 minutes.\n...',
+                    hintText: 'Mix flour and eggs.\nBake for 30 mins [img:http://example.com/bake.png]\n...',
                   ),
                   maxLines: null, 
                   keyboardType: TextInputType.multiline,

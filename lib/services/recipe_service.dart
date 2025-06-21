@@ -44,10 +44,7 @@ class RecipeService {
           users(id, username, profile_picture),
           recipe_categories(category_id, categories(name)),
           recipe_gallery_images(id, image_url, caption, order_index),
-          recipe_ingredients(
-            id, recipe_id, ingredient_id, quantity, unit, notes, order_index,
-            ingredients(id, name, unit)
-          ),
+          recipe_ingredients(id, recipe_id, ingredients, quantity, unit, notes, order_index),
           recipe_instructions(id, recipe_id, step_number, instruction, image_url, estimated_time_minutes)
         ''')
         .eq('id', recipeId)
@@ -55,28 +52,7 @@ class RecipeService {
     return response;
   }
 
-  Future<int> _getOrCreateIngredientId(String name, String? unit) async {
-    // Normalize ingredient name for lookup (e.g., lowercase, singular - though singularization is complex)
-    final normalizedName = name.trim().toLowerCase();
-
-    var existingIngredient = await _supabase
-        .from('ingredients')
-        .select('id')
-        .eq('name', normalizedName) // Case-insensitive search might be better with .ilike if supported/needed
-        .maybeSingle();
-
-    if (existingIngredient != null) {
-      return existingIngredient['id'] as int;
-    } else {
-      // Create new ingredient
-      final newIngredient = await _supabase
-          .from('ingredients')
-          .insert({'name': normalizedName, 'unit': unit}) // unit here is a suggestion/default unit from first encounter
-          .select('id')
-          .single();
-      return newIngredient['id'] as int;
-    }
-  }
+  // _getOrCreateIngredientId is no longer needed as ingredient name is stored directly.
 
   Future<RecipeModel> createRecipe(RecipeModel recipeModel, List<String> galleryImageUrls) async {
     if (recipeModel.user_id.isEmpty) {
@@ -84,17 +60,14 @@ class RecipeService {
     }
 
     final Map<String, dynamic> recipeData = recipeModel.toJson();
-    // These fields are not part of 'recipes' table or are auto-generated
     recipeData.remove('id');
     recipeData.remove('created_at');
     recipeData.remove('updated_at');
-    // These are handled separately
     recipeData.remove('gallery_image_urls');
     recipeData.remove('ingredients');
     recipeData.remove('instructions');
     recipeData.remove('ingredients_text');
     recipeData.remove('directions_text');
-
 
     final insertedRecipeData = await _supabase
         .from('recipes')
@@ -104,7 +77,6 @@ class RecipeService {
 
     final newRecipeId = insertedRecipeData['id'] as int;
 
-    // Save gallery images
     if (galleryImageUrls.isNotEmpty) {
       final List<Map<String, dynamic>> galleryImagesData = galleryImageUrls
           .asMap()
@@ -117,37 +89,30 @@ class RecipeService {
           .toList();
       await _supabase.from('recipe_gallery_images').insert(galleryImagesData);
     }
-    insertedRecipeData['gallery_image_urls'] = galleryImageUrls; // For returning the full model
+    insertedRecipeData['gallery_image_urls'] = galleryImageUrls;
 
-    // Save ingredients
     if (recipeModel.ingredients != null && recipeModel.ingredients!.isNotEmpty) {
-      List<Map<String, dynamic>> recipeIngredientsData = [];
-      for (var ingModel in recipeModel.ingredients!) {
-        // Get or create ingredient_id from 'ingredients' table
-        // The name used here should be the parsed name of the ingredient
-        final ingredientId = await _getOrCreateIngredientId(ingModel.name, ingModel.unit);
+      final List<Map<String, dynamic>> recipeIngredientsData = recipeModel.ingredients!
+          .map((ingModel) {
+            Map<String, dynamic> ingData = ingModel.toJson();
+            ingData['recipe_id'] = newRecipeId;
+            // 'ingredients' key in toJson now correctly holds the ingredient_text
+            return ingData;
+          })
+          .toList();
 
-        Map<String, dynamic> ingData = ingModel.toJson();
-        ingData['recipe_id'] = newRecipeId;
-        ingData['ingredient_id'] = ingredientId; // Use the resolved ID
-        ingData.remove('name'); // 'name' is not a column in 'recipe_ingredients'
-        recipeIngredientsData.add(ingData);
-      }
       if (recipeIngredientsData.isNotEmpty) {
         await _supabase.from('recipe_ingredients').insert(recipeIngredientsData);
       }
-      // For returning the full model, we might want to populate this from the input
-      // or re-fetch, but for now, let's assume the input model's ingredients are sufficient
       insertedRecipeData['recipe_ingredients'] = recipeModel.ingredients!.map((e) => e.toJson()).toList();
     }
 
-
-    // Save instructions
     if (recipeModel.instructions != null && recipeModel.instructions!.isNotEmpty) {
       final List<Map<String, dynamic>> recipeInstructionsData = recipeModel.instructions!
           .map((instrModel) {
             Map<String, dynamic> instrData = instrModel.toJson();
             instrData['recipe_id'] = newRecipeId;
+            // image_url is handled by instrModel.toJson()
             return instrData;
           })
           .toList();
@@ -167,7 +132,6 @@ class RecipeService {
 
     final Map<String, dynamic> recipeData = recipeModel.toJson();
     recipeData['updated_at'] = DateTime.now().toIso8601String();
-    // Fields not to update directly or handled separately
     recipeData.remove('id');
     recipeData.remove('user_id');
     recipeData.remove('created_at');
@@ -177,7 +141,6 @@ class RecipeService {
     recipeData.remove('ingredients_text');
     recipeData.remove('directions_text');
 
-
     final updatedRecipeData = await _supabase
         .from('recipes')
         .update(recipeData)
@@ -185,7 +148,6 @@ class RecipeService {
         .select()
         .single();
 
-    // Update gallery images: Delete old, insert new
     await _supabase.from('recipe_gallery_images').delete().eq('recipe_id', recipeModel.id!);
     if (newGalleryImageUrls.isNotEmpty) {
       final List<Map<String, dynamic>> galleryImagesData = newGalleryImageUrls
@@ -201,25 +163,21 @@ class RecipeService {
     }
     updatedRecipeData['gallery_image_urls'] = newGalleryImageUrls;
 
-    // Update ingredients: Delete old, insert new
     await _supabase.from('recipe_ingredients').delete().eq('recipe_id', recipeModel.id!);
     if (recipeModel.ingredients != null && recipeModel.ingredients!.isNotEmpty) {
-      List<Map<String, dynamic>> recipeIngredientsData = [];
-      for (var ingModel in recipeModel.ingredients!) {
-        final ingredientId = await _getOrCreateIngredientId(ingModel.name, ingModel.unit);
-        Map<String, dynamic> ingData = ingModel.toJson();
-        ingData['recipe_id'] = recipeModel.id!;
-        ingData['ingredient_id'] = ingredientId;
-        ingData.remove('name');
-        recipeIngredientsData.add(ingData);
-      }
+      final List<Map<String, dynamic>> recipeIngredientsData = recipeModel.ingredients!
+          .map((ingModel) {
+            Map<String, dynamic> ingData = ingModel.toJson();
+            ingData['recipe_id'] = recipeModel.id!;
+            return ingData;
+          })
+          .toList();
       if(recipeIngredientsData.isNotEmpty) {
         await _supabase.from('recipe_ingredients').insert(recipeIngredientsData);
       }
       updatedRecipeData['recipe_ingredients'] = recipeModel.ingredients!.map((e) => e.toJson()).toList();
     }
 
-    // Update instructions: Delete old, insert new
     await _supabase.from('recipe_instructions').delete().eq('recipe_id', recipeModel.id!);
     if (recipeModel.instructions != null && recipeModel.instructions!.isNotEmpty) {
       final List<Map<String, dynamic>> recipeInstructionsData = recipeModel.instructions!
