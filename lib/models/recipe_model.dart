@@ -138,9 +138,75 @@ class RecipeModel {
   });
 
   factory RecipeModel.fromJson(Map<String, dynamic> json) {
+    print("Parsing RecipeModel.fromJson. Input JSON keys: ${json.keys.toList()}");
+
+    // Helper function for robust list parsing
+    List<T>? _parseList<T>(dynamic listData, String fieldName, T Function(Map<String, dynamic>) fromJsonCreator) {
+      print("Attempting to parse list '$fieldName'. Type: ${listData?.runtimeType}, Value: $listData");
+      if (listData == null) return null;
+      if (listData is List) {
+        if (listData.isEmpty) return []; // Return empty list if input is empty list
+        return listData.map((item) {
+          print("Processing item for '$fieldName': Type: ${item?.runtimeType}, Value: $item");
+          if (item is Map<String, dynamic>) {
+            try {
+              return fromJsonCreator(item);
+            } catch (e, s) {
+              print('Error parsing item for $fieldName: $item, error: $e, stack: $s');
+              return null;
+            }
+          } else {
+            print('Skipping non-map item in $fieldName: $item of type ${item.runtimeType}');
+            return null;
+          }
+        }).whereType<T>().toList();
+      } else {
+        print("ERROR: '$fieldName' is not a List, but type ${listData.runtimeType}. Value: $listData");
+        return null;
+      }
+    }
+
+    // Helper function for robust gallery image URL list parsing
+    List<String>? _parseGalleryImageUrls(dynamic listData) {
+      print("Attempting to parse list 'recipe_gallery_images'. Type: ${listData?.runtimeType}, Value: $listData");
+      if (listData == null) return null;
+      if (listData is List) {
+        if (listData.isEmpty) return [];
+        return listData.map((item) {
+          print("Processing item for 'recipe_gallery_images': Type: ${item?.runtimeType}, Value: $item");
+          if (item is Map<String, dynamic>) {
+            if (item['image_url'] is String) {
+              return item['image_url'] as String;
+            } else {
+              print("Skipping gallery item due to missing or invalid 'image_url': $item");
+              return null;
+            }
+          } else {
+            print('Skipping non-map item in recipe_gallery_images: $item of type ${item.runtimeType}');
+            return null;
+          }
+        }).whereType<String>().toList();
+      } else {
+        print("ERROR: 'recipe_gallery_images' is not a List, but type ${listData.runtimeType}. Value: $listData");
+        return null;
+      }
+    }
+
+    // User parsing - assuming 'users' is a single map or null
+    // For now, we are not creating a UserModel, just checking structure.
+    // If 'users' field is critical and has its own model, it should be parsed similarly.
+    final usersData = json['users'];
+    print("Attempting to parse 'users'. Type: ${usersData?.runtimeType}, Value: $usersData");
+    if (usersData != null && !(usersData is Map<String, dynamic>)) {
+      print("ERROR: 'users' field is not a Map<String, dynamic>, but type ${usersData.runtimeType}. Value: $usersData");
+      // Decide how to handle this - throw error, or make user_id parsing more defensive if users is not a map.
+      // For now, the user_id parsing below might fail if users is not a map.
+    }
+
+
     return RecipeModel(
       id: json['id'] as int?,
-      user_id: json['user_id'] as String,
+      user_id: json['user_id'] as String, // This assumes user_id is always top-level
       title: json['title'] as String,
       description: json['description'] as String?,
       image_url: json['image_url'] as String?,
@@ -149,49 +215,12 @@ class RecipeModel {
       cooking_time_minutes: json['cooking_time_minutes'] as int,
       difficulty_level: json['difficulty_level'] as String? ?? 'medium',
       is_published: json['is_published'] as bool? ?? true,
-      created_at: json['created_at'] != null
-          ? DateTime.tryParse(json['created_at'] as String)
-          : null,
-      updated_at: json['updated_at'] != null
-          ? DateTime.tryParse(json['updated_at'] as String)
-          : null,
-      ingredients: json['recipe_ingredients'] != null && json['recipe_ingredients'] is List
-          ? (json['recipe_ingredients'] as List).map((item) {
-              if (item is Map<String, dynamic>) {
-                try {
-                  return RecipeIngredientModel.fromJson(item);
-                } catch (e) {
-                  print('Error parsing RecipeIngredientModel from item: $item, error: $e');
-                  return null;
-                }
-              } else {
-                print('Skipping non-map item in recipe_ingredients: $item of type ${item.runtimeType}');
-                return null;
-              }
-            }).whereType<RecipeIngredientModel>().toList()
-          : null,
-      instructions: json['recipe_instructions'] != null && json['recipe_instructions'] is List
-          ? (json['recipe_instructions'] as List).map((item) {
-              if (item is Map<String, dynamic>) {
-                try {
-                  return RecipeInstructionModel.fromJson(item);
-                } catch (e) {
-                  print('Error parsing RecipeInstructionModel from item: $item, error: $e');
-                  return null;
-                }
-              } else {
-                print('Skipping non-map item in recipe_instructions: $item of type ${item.runtimeType}');
-                return null;
-              }
-            }).whereType<RecipeInstructionModel>().toList()
-          : null,
-      gallery_image_urls: json['recipe_gallery_images'] != null // Assuming gallery images are fetched like this
-          ? (json['recipe_gallery_images'] as List)
-              .map((g) => g['image_url'] as String)
-              .toList()
-          : (json['gallery_image_urls'] != null ? List<String>.from(json['gallery_image_urls'] as List) : null),
-      // ingredients_text and directions_text are not typically part of fromJson from DB
-      // They are more for UI -> Model data flow.
+      created_at: json['created_at'] != null ? DateTime.tryParse(json['created_at'] as String) : null,
+      updated_at: json['updated_at'] != null ? DateTime.tryParse(json['updated_at'] as String) : null,
+
+      ingredients: _parseList(json['recipe_ingredients'], 'recipe_ingredients', RecipeIngredientModel.fromJson),
+      instructions: _parseList(json['recipe_instructions'], 'recipe_instructions', RecipeInstructionModel.fromJson),
+      gallery_image_urls: _parseGalleryImageUrls(json['recipe_gallery_images']),
     );
   }
 
