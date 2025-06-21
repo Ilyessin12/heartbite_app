@@ -7,7 +7,6 @@ import 'package:image_picker/image_picker.dart';
 import '../../bottomnavbar/bottom-navbar.dart';
 import '../../services/bookmark_service.dart';
 import '../../services/image_upload_service.dart';
-import '../../services/recipe_service.dart';
 import '../models/recipe_item.dart';
 import '../widgets/recipe_card.dart';
 
@@ -21,7 +20,6 @@ class BookmarkCreateScreen extends StatefulWidget {
 class _BookmarkCreateScreenState extends State<BookmarkCreateScreen> {
   final BookmarkService _bookmarkService = BookmarkService();
   final ImageUploadService _imageUploadService = ImageUploadService();
-  final RecipeService _recipeService = RecipeService();
   final TextEditingController _titleController = TextEditingController();
   final ImagePicker _picker = ImagePicker();
   File? _selectedImage;
@@ -49,19 +47,30 @@ class _BookmarkCreateScreenState extends State<BookmarkCreateScreen> {
     });
 
     try {
-      final recipesData = await _recipeService.getPublicRecipesWithDetails(
-        limit: 50,
-      );
+      // Load from saved recipes instead of all public recipes
+      final recipesData = await _bookmarkService.getSavedRecipes();
       setState(() {
         _availableRecipes =
             recipesData.map((data) => RecipeItem.fromJson(data)).toList();
         _isLoadingRecipes = false;
       });
     } catch (e) {
-      print("Error loading recipes: $e");
+      print("Error loading saved recipes: $e");
       setState(() {
         _isLoadingRecipes = false;
       });
+
+      // Show user-friendly error message
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'No saved recipes found. Please save some recipes first.',
+            ),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      }
     }
   }
 

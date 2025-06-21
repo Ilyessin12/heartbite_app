@@ -20,23 +20,65 @@ class _BookmarkModalState extends State<BookmarkModal> {
   List<Map<String, dynamic>> folders = [];
   bool isLoading = true;
   String? errorMessage;
+  int? savedFolderId;
+  bool hasCustomFolders = false;
 
   @override
   void initState() {
     super.initState();
-    _loadBookmarkFolders();
+    _initializeBookmarkState();
   }
 
-  Future<void> _loadBookmarkFolders() async {
+  Future<void> _initializeBookmarkState() async {
     try {
       setState(() {
         isLoading = true;
         errorMessage = null;
       });
 
+      // Ensure "Saved" folder exists and get its ID
+      savedFolderId = await _bookmarkService.ensureSavedFolderExists();
+
+      // Check if user has custom folders
+      hasCustomFolders = await _bookmarkService.hasCustomBookmarkFolders();
+
+      if (hasCustomFolders) {
+        // Load all folders if user has custom ones
+        await _loadBookmarkFolders();
+      } else {
+        // Auto-save to "Saved" folder if no custom folders exist
+        setState(() {
+          isLoading = false;
+          selectedCookbookId = savedFolderId.toString();
+        });
+
+        // Automatically save and close modal
+        _autoSaveToSavedFolder();
+      }
+    } catch (e) {
+      print('Error initializing bookmark state: $e');
+      setState(() {
+        isLoading = false;
+        errorMessage = 'Failed to initialize bookmark: $e';
+      });
+    }
+  }
+
+  Future<void> _autoSaveToSavedFolder() async {
+    // Small delay for better UX
+    await Future.delayed(const Duration(milliseconds: 500));
+    if (mounted && selectedCookbookId != null) {
+      widget.onSave(selectedCookbookId!);
+    }
+  }
+
+  Future<void> _loadBookmarkFolders() async {
+    try {
       final folderData = await _bookmarkService.getBookmarkFolders();
       setState(() {
         folders = folderData;
+        // Auto-select "Saved" folder by default
+        selectedCookbookId = savedFolderId.toString();
         isLoading = false;
       });
     } catch (e) {
@@ -62,18 +104,31 @@ class _BookmarkModalState extends State<BookmarkModal> {
         children: [
           const Text("Tambahkan ke Buku Resep", style: AppTextStyles.heading),
           const SizedBox(height: 8),
-          const Text(
-            "tambahkan resep ini ke buku resep Anda",
+          Text(
+            hasCustomFolders
+                ? "Pilih buku resep untuk menyimpan resep ini"
+                : "Menyimpan ke 'Saved'...",
             style: AppTextStyles.caption,
           ),
           const SizedBox(height: 16),
 
           // Show loading, error, or folder list
           if (isLoading)
-            const Center(
+            Center(
               child: Padding(
-                padding: EdgeInsets.all(20),
-                child: CircularProgressIndicator(),
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  children: [
+                    const CircularProgressIndicator(),
+                    const SizedBox(height: 10),
+                    Text(
+                      hasCustomFolders
+                          ? "Loading folders..."
+                          : "Saving to Saved...",
+                      style: AppTextStyles.caption,
+                    ),
+                  ],
+                ),
               ),
             )
           else if (errorMessage != null)
@@ -89,8 +144,30 @@ class _BookmarkModalState extends State<BookmarkModal> {
                     ),
                     const SizedBox(height: 10),
                     ElevatedButton(
-                      onPressed: _loadBookmarkFolders,
+                      onPressed: _initializeBookmarkState,
                       child: const Text('Retry'),
+                    ),
+                  ],
+                ),
+              ),
+            )
+          else if (!hasCustomFolders)
+            // Show simple saved message for auto-save case
+            const Center(
+              child: Padding(
+                padding: EdgeInsets.all(20),
+                child: Column(
+                  children: [
+                    Icon(
+                      Icons.bookmark_added,
+                      size: 48,
+                      color: Color(0xFF8E1616),
+                    ),
+                    SizedBox(height: 10),
+                    Text(
+                      'Recipe saved to "Saved" folder!',
+                      style: AppTextStyles.subheading,
+                      textAlign: TextAlign.center,
                     ),
                   ],
                 ),
@@ -108,7 +185,7 @@ class _BookmarkModalState extends State<BookmarkModal> {
               ),
             )
           else
-            // Folder list
+            // Folder list (only shown when user has custom folders)
             ConstrainedBox(
               constraints: const BoxConstraints(maxHeight: 300),
               child: ListView.builder(
@@ -117,6 +194,7 @@ class _BookmarkModalState extends State<BookmarkModal> {
                 itemBuilder: (context, index) {
                   final folder = folders[index];
                   final folderId = folder['id'].toString();
+                  final isDefaultFolder = folder['is_default'] == true;
 
                   // Create Cookbook object from folder data for compatibility with CookbookItem
                   final cookbook = Cookbook(
@@ -128,81 +206,98 @@ class _BookmarkModalState extends State<BookmarkModal> {
                     recipeCount: 0, // We could fetch this separately if needed
                   );
 
-                  return CookbookItem(
-                    cookbook: cookbook,
-                    isSelected: selectedCookbookId == folderId,
-                    onTap: () {
-                      setState(() {
-                        selectedCookbookId = folderId;
-                      });
-                    },
+                  return Container(
+                    margin: const EdgeInsets.only(bottom: 8),
+                    decoration: BoxDecoration(
+                      border:
+                          isDefaultFolder
+                              ? Border.all(
+                                color: const Color(0xFF8E1616),
+                                width: 2,
+                              )
+                              : null,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: CookbookItem(
+                      cookbook: cookbook,
+                      isSelected: selectedCookbookId == folderId,
+                      onTap: () {
+                        setState(() {
+                          selectedCookbookId = folderId;
+                        });
+                      },
+                    ),
                   );
                 },
               ),
             ),
 
-          const SizedBox(height: 16),
+          if (hasCustomFolders) ...[
+            const SizedBox(height: 16),
 
-          // Action buttons
-          Row(
-            children: [
-              GestureDetector(
-                onTap: () {
-                  Navigator.pop(context);
-                  showModalBottomSheet(
-                    context: context,
-                    isScrollControlled: true,
-                    backgroundColor: Colors.transparent,
-                    builder:
-                        (context) => NewBookmarkModal(
-                          onSave: (name, imageUrl) async {
-                            try {
-                              final newFolder = await _bookmarkService
-                                  .createBookmarkFolder(
-                                    name: name,
-                                    imageUrl: imageUrl,
+            // Action buttons (only shown when user has custom folders)
+            Row(
+              children: [
+                GestureDetector(
+                  onTap: () {
+                    Navigator.pop(context);
+                    showModalBottomSheet(
+                      context: context,
+                      isScrollControlled: true,
+                      backgroundColor: Colors.transparent,
+                      builder:
+                          (context) => NewBookmarkModal(
+                            onSave: (name, imageUrl) async {
+                              try {
+                                final newFolder = await _bookmarkService
+                                    .createBookmarkFolder(
+                                      name: name,
+                                      imageUrl: imageUrl,
+                                    );
+                                final folderId = newFolder['id'].toString();
+                                widget.onSave(folderId);
+                              } catch (e) {
+                                print('Error creating bookmark folder: $e');
+                                if (context.mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text(
+                                        'Error creating folder: $e',
+                                      ),
+                                    ),
                                   );
-                              final folderId = newFolder['id'].toString();
-                              widget.onSave(folderId);
-                            } catch (e) {
-                              print('Error creating bookmark folder: $e');
-                              if (context.mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text('Error creating folder: $e'),
-                                  ),
-                                );
+                                }
                               }
-                            }
-                          },
-                        ),
-                  );
-                },
-                child: Container(
-                  width: 60,
-                  height: 60,
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade200,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: const Icon(Icons.add, color: Colors.grey),
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: SizedBox(
-                  height: 60,
-                  child: ElevatedButton(
-                    onPressed:
-                        selectedCookbookId != null
-                            ? () => widget.onSave(selectedCookbookId!)
-                            : null,
-                    child: const Text("Simpan"),
+                            },
+                          ),
+                    );
+                  },
+                  child: Container(
+                    width: 60,
+                    height: 60,
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade200,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Icon(Icons.add, color: Colors.grey),
                   ),
                 ),
-              ),
-            ],
-          ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: SizedBox(
+                    height: 60,
+                    child: ElevatedButton(
+                      onPressed:
+                          selectedCookbookId != null
+                              ? () => widget.onSave(selectedCookbookId!)
+                              : null,
+                      child: const Text("Simpan"),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
         ],
       ),
     );
