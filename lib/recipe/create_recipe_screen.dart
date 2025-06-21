@@ -2,17 +2,15 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
-// import 'package:supabase_flutter/supabase_flutter.dart'; // Supabase client not directly used here for user
 import '../services/image_upload_service.dart';
 import '../services/recipe_service.dart';
 import '../models/recipe_model.dart';
-// import '../services/supabase_client.dart'; // SupabaseClientWrapper for user ID - using hardcoded for now
 
 class InstructionStepData {
-  final UniqueKey id; // For list item identification if needed for animations/keys
+  final UniqueKey id;
   final TextEditingController textController;
   File? selectedImageFile;
-  String? existingImageUrl; // For future edit functionality
+  String? existingImageUrl;
 
   InstructionStepData({
     String initialText = '',
@@ -20,7 +18,6 @@ class InstructionStepData {
     this.existingImageUrl,
   }) : id = UniqueKey(), textController = TextEditingController(text: initialText);
 
-  // Call this when the InstructionStepData object is no longer needed to free resources
   void dispose() {
     textController.dispose();
   }
@@ -52,14 +49,14 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
   final _difficultyLevelController = TextEditingController(text: 'medium');
 
   final _ingredientsController = TextEditingController();
-  // final _directionsController = TextEditingController(); // Removed
   List<InstructionStepData> _instructionSteps = [];
 
   @override
   void initState() {
     super.initState();
-    // Start with one empty instruction step
-    _instructionSteps.add(InstructionStepData());
+    if (_instructionSteps.isEmpty) {
+      _instructionSteps.add(InstructionStepData());
+    }
   }
 
   @override
@@ -71,9 +68,8 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
     _cookingMinutesController.dispose();
     _difficultyLevelController.dispose();
     _ingredientsController.dispose();
-    // _directionsController.dispose(); // This line is removed as _directionsController is removed.
-    for (var stepData in _instructionSteps) {
-      stepData.dispose();
+    for (var step in _instructionSteps) {
+      step.dispose();
     }
     super.dispose();
   }
@@ -82,15 +78,10 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
     final List<RecipeIngredientModel> ingredients = [];
     final lines = text.split('\n').where((line) => line.trim().isNotEmpty).toList();
 
-    // Regex to capture:
-    // 1. (Optional) Quantity: numbers, decimals, fractions (e.g., "1", "0.5", "1/2", "1 1/2")
-    // 2. (Optional) Unit: common units or any non-numeric word following quantity
-    // 3. Name: the rest of the string
-    // This regex is more complex to handle mixed fractions like "1 1/2"
     final RegExp regex = RegExp(
-      r'^\s*(?:([\d\.\/]+(?:\s+[\d\.\/]+)?)\s+)?' // Optional quantity (group 1) with optional mixed fraction
-      r'(?:(\S+)\s+)?'                             // Optional unit (group 2)
-      r'(.+)$'                                      // Name (group 3)
+      r'^\s*(?:([\d\.\/]+(?:\s+[\d\.\/]+)?)\s+)?'
+      r'(?:(\S+)\s+)?'
+      r'(.+)$'
     );
 
     for (int i = 0; i < lines.length; i++) {
@@ -99,17 +90,16 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
 
       double quantity = 1.0;
       String? unit;
-      String name = line; // Default to whole line if no parse
+      String ingredientFullText = line;
 
       if (match != null) {
         String? qtyStr = match.group(1);
-        String? unitOrFirstNamePart = match.group(2); // This could be a unit or the first word of the name
+        String? unitOrFirstNamePart = match.group(2);
         String? nameRemainderStr = match.group(3);
 
         if (qtyStr != null) {
           qtyStr = qtyStr.trim();
-          // Parse quantity (handles "1", "0.5", "1/2", "1 1/2")
-          if (qtyStr.contains(' ')) { // Mixed fraction like "1 1/2"
+          if (qtyStr.contains(' ')) {
             final parts = qtyStr.split(' ');
             if (parts.length == 2) {
               double whole = double.tryParse(parts[0]) ?? 0;
@@ -120,66 +110,57 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
                   double den = double.tryParse(fracParts[1]) ?? 1;
                   quantity = whole + (den == 0 ? 0 : num / den);
                 } else {
-                   quantity = whole + (double.tryParse(parts[1]) ?? 0); // e.g. "1 0.5"
+                   quantity = whole + (double.tryParse(parts[1]) ?? 0);
                 }
-              } else { // e.g. "1 0.5"
+              } else {
                 quantity = whole + (double.tryParse(parts[1]) ?? 0);
               }
             }
-          } else if (qtyStr.contains('/')) { // Simple fraction "1/2"
+          } else if (qtyStr.contains('/')) {
             final parts = qtyStr.split('/');
             if (parts.length == 2) {
               double num = double.tryParse(parts[0]) ?? 0;
               double den = double.tryParse(parts[1]) ?? 1;
               quantity = den == 0 ? 0 : num / den;
             } else {
-               quantity = double.tryParse(qtyStr) ?? 1.0; // Fallback
+               quantity = double.tryParse(qtyStr) ?? 1.0;
             }
-          } else { // Decimal or whole number
+          } else {
             quantity = double.tryParse(qtyStr) ?? 1.0;
           }
         }
 
-        // Determine unit and name
         if (nameRemainderStr != null && nameRemainderStr.isNotEmpty) {
             if (unitOrFirstNamePart != null) {
-                 // Heuristic: common units. This list can be expanded.
                 const commonUnits = ['cup', 'cups', 'oz', 'g', 'kg', 'lb', 'lbs', 'ml', 'l', 'tsp', 'tbsp', 'tablespoon', 'teaspoon', 'pinch', 'slice', 'slices', 'clove', 'cloves'];
                 if (commonUnits.contains(unitOrFirstNamePart.toLowerCase())) {
                     unit = unitOrFirstNamePart;
-                    name = nameRemainderStr.trim();
+                    ingredientFullText = nameRemainderStr.trim();
                 } else {
-                    // unitOrFirstNamePart is likely part of the name
-                    name = (unitOrFirstNamePart + " " + nameRemainderStr).trim();
+                    ingredientFullText = (unitOrFirstNamePart + " " + nameRemainderStr).trim();
                 }
             } else {
-                 name = nameRemainderStr.trim();
+                 ingredientFullText = nameRemainderStr.trim();
             }
         } else if (unitOrFirstNamePart != null) {
-            // If nameRemainderStr is empty, unitOrFirstNamePart is the name
-            name = unitOrFirstNamePart.trim();
+            ingredientFullText = unitOrFirstNamePart.trim();
         }
-        // If qtyStr was null, name is already `line`
          if (qtyStr == null && unitOrFirstNamePart != null && nameRemainderStr != null) {
-             // This case handles "Unit Name", e.g. "Pinch salt"
              const commonUnits = ['cup', 'cups', 'oz', 'g', 'kg', 'lb', 'lbs', 'ml', 'l', 'tsp', 'tbsp', 'tablespoon', 'teaspoon', 'pinch', 'slice', 'slices', 'clove', 'cloves'];
              if(commonUnits.contains(unitOrFirstNamePart.toLowerCase())) {
                  unit = unitOrFirstNamePart;
-                 name = nameRemainderStr.trim();
-                 quantity = 1.0; // Default quantity if not specified but unit is
+                 ingredientFullText = nameRemainderStr.trim();
+                 quantity = 1.0;
              } else {
-                 name = line; // Treat as "Name"
+                 ingredientFullText = line;
              }
          } else if (qtyStr == null && unitOrFirstNamePart != null && nameRemainderStr == null) {
-            // Handles just "Name" or "Unit"
-            name = unitOrFirstNamePart.trim();
+            ingredientFullText = unitOrFirstNamePart.trim();
          }
-
-
-      } // else: name remains `line`, quantity 1.0, unit null
+      }
 
       ingredients.add(RecipeIngredientModel(
-        ingredient_text: name, // name variable here holds the full ingredient text
+        ingredient_text: ingredientFullText,
         quantity: quantity,
         unit: unit,
         order_index: i,
@@ -188,38 +169,21 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
     return ingredients;
   }
 
-  List<RecipeInstructionModel> _parseInstructions(String text) {
-    final List<RecipeInstructionModel> instructions = [];
-    final lines = text.split('\n').where((line) => line.trim().isNotEmpty).toList();
-    // Regex to find "[img:URL]" at the end of the line.
-    // It captures the main instruction text in group 1, and the URL in group 3 (group 2 is the non-capturing ?:).
-    final RegExp imgRegex = RegExp(r'^(.*?)(?:\s*\[img:(.+?)\])?\s*$');
-
-    for (int i = 0; i < lines.length; i++) {
-      String instructionTextFull = lines[i].trim();
-      String instructionTextFinal = instructionTextFull;
-      String? imageUrl;
-
-      final match = imgRegex.firstMatch(instructionTextFull);
-      if (match != null) {
-        instructionTextFinal = match.group(1)?.trim() ?? ''; // The instruction part
-        imageUrl = match.group(2)?.trim(); // The URL part, if it exists
-        if (imageUrl != null && imageUrl.isEmpty) {
-          imageUrl = null; // Treat empty [img:] or [img: ] as null
-        }
-      }
-
-      instructions.add(RecipeInstructionModel(
-        step_number: i + 1,
-        instruction: instructionTextFinal,
-        image_url: imageUrl,
-      ));
+  Future<void> _pickInstructionImage(int index) async {
+    if (_isUploadingOrSaving) return;
+    final XFile? pickedFile = await _picker.pickImage(source: ImageSource.gallery);
+    if (pickedFile != null && mounted) {
+      setState(() {
+        _instructionSteps[index].selectedImageFile = File(pickedFile.path);
+      });
     }
-    return instructions;
   }
 
   Future<void> _saveRecipe() async {
     if (!_formKey.currentState!.validate()) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please correct errors in the form before saving.')),
+      );
       return;
     }
     _formKey.currentState!.save();
@@ -252,28 +216,30 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
           galleryImageUrls.add(url);
         } else {
           print('A gallery image failed to upload and will be skipped.');
+           if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('A gallery image failed to upload and was skipped.')),
+            );
+          }
         }
       }
     }
 
-    const String hardcodedUserId = '325c40cc-d255-4f93-bf5f-40bc196ca093'; // Per instructions
+    const String hardcodedUserId = '325c40cc-d255-4f93-bf5f-40bc196ca093';
 
     final List<RecipeIngredientModel> ingredients = _parseIngredients(_ingredientsController.text);
 
-    // New logic for instructions
     List<RecipeInstructionModel> finalInstructions = [];
     for (int i = 0; i < _instructionSteps.length; i++) {
       InstructionStepData stepData = _instructionSteps[i];
       String instructionText = stepData.textController.text.trim();
-      String? imageUrl = stepData.existingImageUrl; // Will be null for new recipes
+      String? imageUrl = stepData.existingImageUrl;
 
       if (stepData.selectedImageFile != null) {
-        // Upload new image
         final String? uploadedUrl = await _imageUploadService.uploadImage(stepData.selectedImageFile!);
         if (uploadedUrl != null) {
           imageUrl = uploadedUrl;
         } else {
-          // Handle image upload failure for this step - e.g., log it or notify user
           print('Failed to upload image for instruction step ${i + 1}');
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
@@ -283,14 +249,33 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
         }
       }
 
-      if (instructionText.isNotEmpty) {
+      if (instructionText.isNotEmpty) { // Only add instruction if text is not empty
         finalInstructions.add(RecipeInstructionModel(
           step_number: i + 1,
           instruction: instructionText,
           image_url: imageUrl,
         ));
+      } else if (imageUrl != null) {
+        // If text is empty but there's an image, maybe still add it or warn user?
+        // For now, only adding if text is present. This can be adjusted.
+         print('Instruction step ${i + 1} has an image but no text. It will be skipped.');
+         if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Instruction step ${i + 1} has an image but no text. It was skipped.')),
+            );
+          }
       }
     }
+
+    // Check if there's at least one instruction step with text
+    if (finalInstructions.isEmpty && _instructionSteps.any((s) => s.textController.text.trim().isNotEmpty)) {
+        // This case should ideally be caught by form validation on instruction text fields
+    } else if (finalInstructions.isEmpty && _instructionSteps.isNotEmpty && _instructionSteps.every((s) => s.textController.text.trim().isEmpty)) {
+        // All instruction steps are empty, maybe don't save any?
+        // Or allow saving recipe without instructions if desired.
+        // For now, if all text fields are empty, finalInstructions will be empty.
+    }
+
 
     RecipeModel recipeToCreate = RecipeModel(
       user_id: hardcodedUserId,
@@ -299,13 +284,13 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
       image_url: mainImageUrl,
       calories: int.tryParse(_caloriesController.text),
       servings: int.tryParse(_servingsController.text) ?? 1,
-      cooking_time_minutes: int.parse(_cookingMinutesController.text),
+      cooking_time_minutes: int.parse(_cookingMinutesController.text), // Assuming this is validated by form
       difficulty_level: _difficultyLevelController.text.isEmpty ? 'medium' : _difficultyLevelController.text,
       is_published: true,
       ingredients_text: _ingredientsController.text.isEmpty ? null : _ingredientsController.text,
-      directions_text: null, // No longer a single text block
+      directions_text: null,
       ingredients: ingredients,
-      instructions: finalInstructions, // Use the processed list
+      instructions: finalInstructions.isNotEmpty ? finalInstructions : null, // Send null if no valid instructions
       gallery_image_urls: galleryImageUrls,
     );
 
@@ -330,26 +315,6 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
           _isUploadingOrSaving = false;
         });
       }
-    }
-  }
-
-  Future<void> _pickImage() async {
-    if (_isUploadingOrSaving) return;
-    final XFile? pickedFile = await _picker.pickImage(source: ImageSource.gallery);
-    if (pickedFile != null) {
-      setState(() {
-        _selectedImageFile = File(pickedFile.path);
-      });
-    }
-  }
-
-  Future<void> _pickGalleryImages() async {
-    if (_isUploadingOrSaving) return;
-    final List<XFile> pickedFiles = await _picker.pickMultiImage();
-    if (pickedFiles.isNotEmpty) {
-      setState(() {
-        _selectedGalleryImageFiles.addAll(pickedFiles.map((xf) => File(xf.path)).toList());
-      });
     }
   }
 
@@ -488,19 +453,124 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
                   ),
                   maxLines: null, 
                   keyboardType: TextInputType.multiline,
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Please enter at least one ingredient.';
+                    }
+                    return null;
+                  },
                 ),
                 const SizedBox(height: 16),
-                TextFormField(
-                  key: const Key('directions_field'),
-                  controller: _directionsController,
-                  style: textStyle,
-                  decoration: InputDecoration(
-                    labelText: 'Directions (one step per line)',
-                    labelStyle: labelStyle,
-                    hintText: 'Mix flour and eggs.\nBake for 30 mins [img:http://example.com/bake.png]\n...',
+                // Dynamic Instructions List
+                Text("Instructions", style: GoogleFonts.dmSans(fontSize: 16, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 8),
+                if (_instructionSteps.isEmpty) // Should not happen due to initState, but good for robustness
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 8.0),
+                    child: Text("No instruction steps added yet.", style: labelStyle),
                   ),
-                  maxLines: null, 
-                  keyboardType: TextInputType.multiline,
+                Column(
+                  children: _instructionSteps.asMap().entries.map((entry) {
+                    int idx = entry.key;
+                    InstructionStepData stepData = entry.value;
+                    return Card(
+                      key: stepData.id, // Use UniqueKey for list items
+                      margin: const EdgeInsets.symmetric(vertical: 4.0),
+                      child: Padding(
+                        padding: const EdgeInsets.all(8.0),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Expanded(
+                                  child: TextFormField(
+                                    controller: stepData.textController,
+                                    decoration: InputDecoration(
+                                      labelText: 'Step ${idx + 1}',
+                                      hintText: 'Enter instruction details...',
+                                      border: const OutlineInputBorder(),
+                                    ),
+                                    keyboardType: TextInputType.multiline,
+                                    maxLines: null,
+                                    validator: (value) {
+                                      // Only validate if it's not the only step and it's empty.
+                                      // Or, always require if it's not the last, empty step being added.
+                                      // For simplicity: if it's not the only step, it must have text.
+                                      // The form validation will catch if all are empty.
+                                      if (_instructionSteps.length > 1 && (value == null || value.isEmpty) && stepData.selectedImageFile == null) {
+                                        // return 'Instruction cannot be empty if it\'s not the only step, or remove it.';
+                                      }
+                                      // A single empty step is allowed if user wants to save without instructions
+                                      // But _saveRecipe will skip it if text is empty.
+                                      return null;
+                                    },
+                                  ),
+                                ),
+                                if (_instructionSteps.length > 1)
+                                  IconButton(
+                                    icon: const Icon(Icons.remove_circle_outline, color: Colors.red),
+                                    onPressed: () {
+                                      setState(() {
+                                        stepData.dispose();
+                                        _instructionSteps.removeAt(idx);
+                                      });
+                                    },
+                                  ),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            Row(
+                              children: [
+                                ElevatedButton.icon(
+                                  onPressed: () => _pickInstructionImage(idx),
+                                  icon: const Icon(Icons.image_search),
+                                  label: Text(stepData.selectedImageFile == null ? 'Add Image' : 'Change Image'),
+                                  style: ElevatedButton.styleFrom(backgroundColor: Colors.grey[300], foregroundColor: Colors.black87),
+                                ),
+                                const SizedBox(width: 10),
+                                if (stepData.selectedImageFile != null)
+                                  Expanded(
+                                    child: Stack(
+                                      alignment: Alignment.topRight,
+                                      children: [
+                                        Image.file(
+                                          stepData.selectedImageFile!,
+                                          height: 60,
+                                          fit: BoxFit.contain,
+                                        ),
+                                        IconButton(
+                                          icon: const Icon(Icons.clear, color: Colors.red, size: 18),
+                                          padding: EdgeInsets.zero,
+                                          constraints: const BoxConstraints(),
+                                          onPressed: () {
+                                            setState(() {
+                                              stepData.selectedImageFile = null;
+                                            });
+                                          },
+                                        )
+                                      ],
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  }).toList(),
+                ),
+                const SizedBox(height: 8),
+                ElevatedButton.icon(
+                  onPressed: () {
+                    setState(() {
+                      _instructionSteps.add(InstructionStepData());
+                    });
+                  },
+                  icon: const Icon(Icons.add_circle_outline),
+                  label: const Text('Add Instruction Step'),
+                  style: ElevatedButton.styleFrom(backgroundColor: Colors.teal[100], foregroundColor: Colors.teal[900]),
                 ),
                 const SizedBox(height: 16),
                 Padding(
