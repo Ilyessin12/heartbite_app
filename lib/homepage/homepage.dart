@@ -5,9 +5,9 @@ import 'package:iconoir_flutter/iconoir_flutter.dart' hide Key, Text, Navigator,
 import 'dart:ui';
 
 import '../bottomnavbar/bottom-navbar.dart';
-import 'homepage-detail.dart'; // Still used for "View All" grouped lists
-import '../services/recipe_service.dart'; // Import RecipeService
-import '../models/recipe_model.dart';   // Import RecipeModel (Supabase)
+import 'homepage-detail.dart';
+import '../services/recipe_service.dart';
+import '../models/recipe_model.dart';
 import '../recipe/create_recipe_screen.dart'; // Import CreateRecipeScreen
 import '../recipe_detail/screens/recipe_detail_screen.dart'; // Import RecipeDetailScreen
 import '../recipe_detail/models/recipe.dart' as DetailRecipeModel; // Alias for detail model
@@ -15,32 +15,62 @@ import '../recipe_detail/models/ingredient.dart' as DetailIngredientModel;
 import '../recipe_detail/models/direction.dart' as DetailDirectionModel;
 import '../recipe_detail/models/comment.dart' as DetailCommentModel;
 
+// This class definition was moved to homepage_detail.dart to resolve circular dependency
+// // Original RecipeItem model (used by HomePageDetailScreen)
+// class RecipeItem {
+//   final String id;
+//   final String name;
+//   final double rating;
+//   final int reviewCount;
+//   final int calories;
+//   final String prepTime; // Represents servings
+//   final int cookTime; // Represents cookingTimeMinutes
+//   final String imagePath; // Can be local asset or network URL
+//   bool isBookmarked;
+//   final List<String> allergens;
+//   final List<String> dietTypes;
+//   final int cookingDurationMinutes;
+//   final List<String> requiredAppliances;
+
+//   RecipeItem({
+//     required this.id,
+//     required this.name,
+//     required this.rating,
+//     required this.reviewCount,
+//     required this.calories,
+//     required this.prepTime,
+//     required this.cookTime,
+//     required this.imagePath,
+//     this.isBookmarked = false,
+//     this.allergens = const [],
+//     this.dietTypes = const [],
+//     this.cookingDurationMinutes = 0,
+//     this.requiredAppliances = const [],
+//   });
+// }
+
 
 // Modified RecipeItem to better align with Supabase data or act as a display model
 class DisplayRecipeItem {
-  final int id; // Changed from String to int
+  final int id;
   final String name;
   final double rating;
   final int reviewCount;
-  final int? calories; // Made nullable
-  final String servings; // Changed from prepTime (String) to servings (String for display)
-  final int cookingTimeMinutes; // Changed from cookTime (int)
-  final String? imageUrl; // Changed from imagePath (local) to imageUrl (network), nullable
+  final int? calories;
+  final String servings;
+  final int cookingTimeMinutes;
+  final String? imageUrl;
   bool isBookmarked;
 
-  // Fields for filtering - these might need to be derived or simplified
-  // if not directly available from the Supabase 'recipes' table main query.
-  // For now, keeping them for structure, but they might not be populated from initial fetch.
   final List<String> allergens;
   final List<String> dietTypes;
-  // final int cookingDurationMinutes; // Already have cookingTimeMinutes
   final List<String> requiredAppliances;
 
   DisplayRecipeItem({
     required this.id,
     required this.name,
-    this.rating = 0.0, // Default value
-    this.reviewCount = 0, // Default value
+    this.rating = 0.0,
+    this.reviewCount = 0,
     this.calories,
     required this.servings,
     required this.cookingTimeMinutes,
@@ -51,25 +81,16 @@ class DisplayRecipeItem {
     this.requiredAppliances = const [],
   });
 
-  // Factory constructor to create DisplayRecipeItem from Supabase Map data
   factory DisplayRecipeItem.fromSupabase(Map<String, dynamic> data) {
-    // Basic mapping, assumes 'users' and 'recipe_gallery_images' might be present if joined
-    // final List<Map<String,dynamic>> gallery = data['recipe_gallery_images'] ?? [];
-    // final String? firstImage = gallery.isNotEmpty ? gallery.first['image_url'] : null;
-
     return DisplayRecipeItem(
       id: data['id'] as int,
       name: data['title'] as String? ?? 'No Title',
       rating: (data['rating'] as num?)?.toDouble() ?? 0.0,
       reviewCount: data['review_count'] as int? ?? 0,
       calories: data['calories'] as int?,
-      servings: "${data['servings'] as int? ?? 1} Porsi", // Format servings for display
+      servings: "${data['servings'] as int? ?? 1} Porsi",
       cookingTimeMinutes: data['cooking_time_minutes'] as int? ?? 0,
-      imageUrl: data['image_url'] as String?, // Use main image_url from recipe
-      // isBookmarked: false, // This would need separate logic to determine
-      // allergens, dietTypes, requiredAppliances would need to be fetched from related tables
-      // or parsed if stored in a specific way in the 'recipes' table.
-      // For now, they will be empty.
+      imageUrl: data['image_url'] as String?,
     );
   }
 }
@@ -89,8 +110,8 @@ class _HomePageState extends State<HomePage> {
   final TextEditingController _searchController = TextEditingController();
 
   final RecipeService _recipeService = RecipeService();
-  List<DisplayRecipeItem> _allFetchedRecipes = []; // Stores all recipes fetched from Supabase
-  List<DisplayRecipeItem> _searchResults = [];    // For displaying search/filter results
+  List<DisplayRecipeItem> _allFetchedRecipes = [];
+  List<DisplayRecipeItem> _searchResults = [];
   bool _isLoading = true;
   String _loadingError = '';
 
@@ -117,13 +138,9 @@ class _HomePageState extends State<HomePage> {
     {"label": "> 60 Menit", "min": 61, "max": 999},
   ];
 
-  // Dummy data (to be replaced by Supabase data)
-  // final List<DisplayRecipeItem> _allRecipes_dummy = [ ... ]; // Keep for reference if needed
-
-  // Filtered lists for different sections - will be populated from _allFetchedRecipes
   List<DisplayRecipeItem> get _latestRecipes => _allFetchedRecipes.take(3).toList();
-  List<DisplayRecipeItem> get _popularRecipes => _allFetchedRecipes.skip(3).take(4).toList(); // Example logic
-  List<DisplayRecipeItem> get _breakfastRecipes => _allFetchedRecipes.skip(7).take(4).toList(); // Example logic
+  List<DisplayRecipeItem> get _popularRecipes => _allFetchedRecipes.skip(3).take(4).toList();
+  List<DisplayRecipeItem> get _breakfastRecipes => _allFetchedRecipes.skip(7).take(4).toList();
 
 
   @override
@@ -152,11 +169,10 @@ class _HomePageState extends State<HomePage> {
       setState(() {
         _allFetchedRecipes = recipesData.map((data) => DisplayRecipeItem.fromSupabase(data)).toList();
         _isLoading = false;
-        // If it's a search query, update search results, otherwise, it's initial load.
         if (searchQuery != null && searchQuery.isNotEmpty) {
-            _searchResults = List.from(_allFetchedRecipes); // Directly assign search results
+            _searchResults = List.from(_allFetchedRecipes);
         } else {
-            _searchResults = []; // Clear search results if it was a general fetch
+            _searchResults = [];
         }
       });
     } catch (e) {
@@ -182,23 +198,20 @@ class _HomePageState extends State<HomePage> {
     if(index == 1){
       print('Navigate to Bookmark');
     }
-    // Add navigation for other tabs if necessary
   }
 
   void _onFabPressed() async {
-    // Navigate to CreateRecipeScreen
     final result = await Navigator.push(
       context,
       MaterialPageRoute(builder: (context) => const CreateRecipeScreen()),
     );
-    // If a recipe was created (result == true), refresh the list
     if (result == true) {
-      _fetchRecipes(); // Refresh the recipe list
+      _fetchRecipes();
     }
   }
 
 
-  void _toggleBookmark(int recipeId){ // Changed recipeId to int
+  void _toggleBookmark(int recipeId){
     setState((){
       final index = _allFetchedRecipes.indexWhere((recipe) => recipe.id == recipeId);
       if(index != -1){
@@ -207,31 +220,25 @@ class _HomePageState extends State<HomePage> {
         if(searchIndex != -1){
           _searchResults[searchIndex].isBookmarked = _allFetchedRecipes[index].isBookmarked;
         }
-        // TODO: Implement actual bookmarking logic with Supabase if needed
       }
     });
   }
 
-  // Navigate to a grouped list view (e.g., "Popular Recipes")
   void _navigateToGroupDetail(String title, List<DisplayRecipeItem> recipes){
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => HomePageDetailScreen( // This screen still expects original RecipeItem
+        builder: (context) => HomePageDetailScreen(
           title: title,
-          // This needs adjustment: HomePageDetailScreen expects List<RecipeItem> (original model)
-          // For now, we'll pass an empty list or adapt HomePageDetailScreen later.
-          // This part is complex due to model differences.
-          // recipes: [], // Placeholder
-          recipes: recipes.map((dr) => RecipeItem( // Attempt to convert back for compatibility
-                id: dr.id.toString(), // Convert int id to String for original RecipeItem
+          recipes: recipes.map((dr) => RecipeItem(
+                id: dr.id.toString(),
                 name: dr.name,
                 rating: dr.rating,
                 reviewCount: dr.reviewCount,
                 calories: dr.calories ?? 0,
-                prepTime: dr.servings, // Using servings as prepTime for display
+                prepTime: dr.servings,
                 cookTime: dr.cookingTimeMinutes,
-                imagePath: dr.imageUrl ?? 'assets/images/cookbooks/placeholder_image.jpg', // Use placeholder if no URL
+                imagePath: dr.imageUrl ?? 'assets/images/cookbooks/placeholder_image.jpg',
                 isBookmarked: dr.isBookmarked,
                 allergens: dr.allergens,
                 dietTypes: dr.dietTypes,
@@ -243,16 +250,14 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  // Navigate to the actual Recipe Detail Screen for a single recipe
   void _navigateToRecipeDetail(DisplayRecipeItem recipeItem) async {
-    // RecipeDetailScreen now expects recipeId (int)
     final result = await Navigator.push(
       context,
       MaterialPageRoute(
         builder: (context) => RecipeDetailScreen(recipeId: recipeItem.id),
       ),
     );
-    if (result == true) { // e.g. if recipe was updated or deleted
+    if (result == true) {
         _fetchRecipes();
     }
   }
@@ -267,8 +272,7 @@ class _HomePageState extends State<HomePage> {
         }
       });
     }
-    // _updateSearchResults(); // This will be called by listener or explicitly
-    _fetchRecipes(searchQuery: query); // Fetch with search query
+    _fetchRecipes(searchQuery: query);
     setState((){
       _showSearchResults = true;
       _showFilters = false;
@@ -302,7 +306,6 @@ class _HomePageState extends State<HomePage> {
       _selectedDietTypes = [];
       _selectedAppliances = [];
       _selectedCookingTimeOption = null;
-      // _searchController.clear(); // Optionally clear search
     });
     _updateSearchResults();
   }
@@ -310,8 +313,6 @@ class _HomePageState extends State<HomePage> {
   void _updateSearchResults(){
     final String query = _searchController.text.toLowerCase();
 
-    // Start with all fetched recipes if no specific search query was used for fetching
-    // Otherwise, _allFetchedRecipes already contains the searched items from _fetchRecipes
     List<DisplayRecipeItem> recipesToFilter = List.from(_allFetchedRecipes);
 
     final filtered = recipesToFilter.where((recipe){
@@ -341,11 +342,6 @@ class _HomePageState extends State<HomePage> {
 
   @override
   Widget build(BuildContext context){
-    // Define a local RecipeItem for compatibility with existing _navigateToDetail
-    // This is a workaround. Ideally, HomePageDetailScreen should also use DisplayRecipeItem or a common model.
-    // For now, we convert DisplayRecipeItem to the old RecipeItem for this specific navigation.
-    // This is the original RecipeItem structure for HomePageDetailScreen
-    // typedef OriginalRecipeItem = RecipeItem; // Assuming RecipeItem is the original class name
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -359,7 +355,7 @@ class _HomePageState extends State<HomePage> {
             backgroundImage: AssetImage("assets/images/homepage/placeholder_profile.jpg"),
           ),
         ),
-        title: Container( // Removed GestureDetector, handled by TextField onTap
+        title: Container(
           height: 40,
           decoration: BoxDecoration(
             color: Colors.grey[200],
@@ -373,14 +369,14 @@ class _HomePageState extends State<HomePage> {
               prefixIcon: Icon(Icons.search, color: Colors.grey[600]),
               suffixIcon: IconButton(
                 icon: Icon(SolarIconsOutline.tuningSquare, color: Colors.grey[600]),
-                onPressed: _toggleFilters, // Keep toggle filter button
+                onPressed: _toggleFilters,
               ),
               border: InputBorder.none,
-              contentPadding: EdgeInsets.symmetric(vertical: 10.0, horizontal: 0), // Adjust padding
+              contentPadding: EdgeInsets.symmetric(vertical: 10.0, horizontal: 0),
             ),
             style: GoogleFonts.dmSans(color: Colors.black),
-            onSubmitted: _performSearch, // Use onSubmitted for explicit search action
-            onTap: (){ // Show search/history view on tap
+            onSubmitted: _performSearch,
+            onTap: (){
               setState((){
                 _showSearchResults = true;
                 _showFilters = false;

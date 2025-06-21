@@ -58,15 +58,15 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
     }
     _formKey.currentState!.save();
 
-    final currentUser = SupabaseClientWrapper().auth.currentUser;
-    if (currentUser == null) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('You must be logged in to create a recipe.')),
-        );
-      }
-      return;
-    }
+    // final currentUser = SupabaseClientWrapper().auth.currentUser; // Commented out user check
+    // if (currentUser == null) {
+    //   if (mounted) {
+    //     ScaffoldMessenger.of(context).showSnackBar(
+    //       const SnackBar(content: Text('You must be logged in to create a recipe.')),
+    //     );
+    //   }
+    //   return;
+    // }
 
     if (_isUploadingOrSaving) return;
 
@@ -101,21 +101,20 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
       }
     }
 
+    const String hardcodedUserId = '325c40cc-d255-4f93-bf5f-40bc196ca093';
+
     RecipeModel recipeToCreate = RecipeModel(
-      user_id: currentUser.id, // Set the current user's ID
+      user_id: hardcodedUserId, // Use hardcoded user_id
       title: _titleController.text,
       description: _descriptionController.text.isEmpty ? null : _descriptionController.text,
       image_url: mainImageUrl,
       calories: int.tryParse(_caloriesController.text),
       servings: int.tryParse(_servingsController.text) ?? 1,
-      cooking_time_minutes: int.parse(_cookingMinutesController.text), // Already validated
+      cooking_time_minutes: int.parse(_cookingMinutesController.text),
       difficulty_level: _difficultyLevelController.text.isEmpty ? 'medium' : _difficultyLevelController.text,
-      is_published: true, // Default to published, or add a switch in UI
-      // ingredients_text and directions_text are part of the model but not directly saved by createRecipe to columns
-      // They can be used if createRecipe is extended or for other purposes.
+      is_published: true,
       ingredients_text: _ingredientsController.text.isEmpty ? null : _ingredientsController.text,
       directions_text: _directionsController.text.isEmpty ? null : _directionsController.text,
-      // gallery_image_urls in RecipeModel is for reading; for creation, we pass the list separately
     );
 
     try {
@@ -143,7 +142,7 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
   }
 
   Future<void> _pickImage() async {
-    if (_isUploadingOrSaving) return;
+    if (_isUploadingOrSaving) return; // Use the corrected variable name
     final XFile? pickedFile = await _picker.pickImage(source: ImageSource.gallery);
     if (pickedFile != null) {
       setState(() {

@@ -55,15 +55,18 @@ class RecipeService {
   /// Create new recipe using RecipeModel and handle gallery images.
   /// ingredients_text and directions_text from RecipeModel are currently not saved to separate tables in this version.
   Future<RecipeModel> createRecipe(RecipeModel recipeModel, List<String> galleryImageUrls) async {
-    final userId = _supabase.auth.currentUser?.id;
-    if (userId == null) throw Exception('User not authenticated');
+    // user_id is now expected to be pre-set in recipeModel (hardcoded from CreateRecipeScreen)
+    // final userId = _supabase.auth.currentUser?.id;
+    // if (userId == null) throw Exception('User not authenticated');
+    // recipeModel.user_id = userId; // No longer setting it from currentUser
 
-    // Ensure user_id is set on the model
-    recipeModel.user_id = userId;
+    if (recipeModel.user_id.isEmpty) {
+      throw Exception('User ID is missing in the recipe model.');
+    }
 
     // Prepare data for 'recipes' table insertion
     final Map<String, dynamic> recipeData = recipeModel.toJson();
-    
+
     // Remove fields not directly in 'recipes' table or handled separately
     recipeData.remove('id'); // id is auto-generated
     recipeData.remove('created_at'); // auto-generated
