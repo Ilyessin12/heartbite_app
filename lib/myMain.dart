@@ -47,8 +47,8 @@ import 'recipe_detail/screens/gallery_screen.dart';
 import 'recipe_detail/screens/discussion_screen.dart';
 
 // Import new Recipe screens
-import 'package:recipe_app/recipe/create_recipe_screen.dart';
-import 'package:recipe_app/recipe/edit_recipe_screen.dart';
+import 'recipe/create_recipe_screen.dart';
+import 'recipe/edit_recipe_screen.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart'; // Added import
 
 Future<void> main() async { // Modified main
