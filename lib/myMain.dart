@@ -50,6 +50,7 @@ import 'recipe_detail/screens/discussion_screen.dart';
 import 'recipe/create_recipe_screen.dart';
 import 'recipe/edit_recipe_screen.dart';
 import 'models/recipe_model.dart'; // Import RecipeModel for sample data
+import 'screens/recipe_crud_test_page.dart'; // Import the new test page
 import 'package:flutter_dotenv/flutter_dotenv.dart'; // Added import
 
 Future<void> main() async { // Modified main
@@ -416,6 +417,13 @@ class NavigationPage extends StatelessWidget {
           'Diskusi dan komentar resep',
         ),
       ],
+      'Supabase Test Pages': [ // Added new category for the test page
+        PageItem(
+          'Recipe CRUD Test Page',
+          const RecipeCrudTestPage(),
+          'Test page for Recipe CRUD operations via Supabase.',
+        ),
+      ]
     };
 
     return Scaffold(
