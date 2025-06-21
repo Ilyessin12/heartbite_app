@@ -31,12 +31,12 @@ DROP TABLE IF EXISTS users CASCADE;
 
 -- users table (UUID primary key)
 CREATE TABLE users(
-    id UUID PRIMARY KEY,  -- Changed from SERIAL to UUID
+    id UUID PRIMARY KEY,
     full_name TEXT NOT NULL,
     username TEXT UNIQUE NOT NULL,
     email TEXT UNIQUE NOT NULL,
     phone TEXT,
-    password_hash TEXT,  -- Removed NOT NULL - handled by Auth
+    password_hash TEXT,
     profile_picture TEXT,
     cover_picture TEXT,
     bio TEXT,
@@ -48,13 +48,13 @@ CREATE TABLE users(
 -- user_follows table (UUID foreign keys)
 CREATE TABLE user_follows(
     id SERIAL PRIMARY KEY,
-    follower_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,  -- Changed to UUID
-    following_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,  -- Changed to UUID
+    follower_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    following_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     UNIQUE(follower_id, following_id)
 );
 
--- diet_programs table (unchanged)
+-- diet_programs table
 CREATE TABLE diet_programs(
     id SERIAL PRIMARY KEY,
     name TEXT UNIQUE NOT NULL,
@@ -98,7 +98,7 @@ CREATE TABLE ingredients(
 -- user_allergens table
 CREATE TABLE user_allergens(
     id SERIAL PRIMARY KEY,
-    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,  -- Changed to UUID
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     allergen_id INTEGER NOT NULL REFERENCES allergens(id) ON DELETE CASCADE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     UNIQUE(user_id, allergen_id)
@@ -107,7 +107,7 @@ CREATE TABLE user_allergens(
 -- user_diet_programs table
 CREATE TABLE user_diet_programs(
     id SERIAL PRIMARY KEY,
-    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,  -- Changed to UUID
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     diet_program_id INTEGER NOT NULL REFERENCES diet_programs(id) ON DELETE CASCADE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     UNIQUE(user_id, diet_program_id)
@@ -116,7 +116,7 @@ CREATE TABLE user_diet_programs(
 -- user_missing_equipment table
 CREATE TABLE user_missing_equipment(
     id SERIAL PRIMARY KEY,
-    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,  -- Changed to UUID
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     equipment_id INTEGER NOT NULL REFERENCES equipment(id) ON DELETE CASCADE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     UNIQUE(user_id, equipment_id)
@@ -133,7 +133,7 @@ CREATE TABLE ingredient_allergens(
 -- recipes table
 CREATE TABLE recipes(
     id SERIAL PRIMARY KEY,
-    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,  -- Changed to UUID
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     title TEXT NOT NULL,
     description TEXT,
     image_url TEXT,
@@ -169,7 +169,7 @@ CREATE TABLE recipe_diet_programs(
 CREATE TABLE recipe_ingredients(
     id SERIAL PRIMARY KEY,
     recipe_id INTEGER NOT NULL REFERENCES recipes(id) ON DELETE CASCADE,
-    ingredient_id INTEGER NOT NULL REFERENCES ingredients(id) ON DELETE RESTRICT,
+    ingredients TEXT NOT NULL,
     quantity REAL NOT NULL,
     unit TEXT,
     notes TEXT,
@@ -212,7 +212,7 @@ CREATE TABLE recipe_gallery_images(
 CREATE TABLE recipe_likes(
     id SERIAL PRIMARY KEY,
     recipe_id INTEGER NOT NULL REFERENCES recipes(id) ON DELETE CASCADE,
-    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE, -- Diubah ke UUID
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     UNIQUE(recipe_id, user_id)
 );
@@ -220,7 +220,7 @@ CREATE TABLE recipe_likes(
 -- bookmark_folders table
 CREATE TABLE bookmark_folders(
     id SERIAL PRIMARY KEY,
-    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE, -- Diubah ke UUID
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     name TEXT NOT NULL,
     description TEXT,
     is_default BOOLEAN DEFAULT FALSE,
@@ -233,7 +233,7 @@ CREATE TABLE bookmark_folders(
 CREATE TABLE recipe_bookmarks(
     id SERIAL PRIMARY KEY,
     recipe_id INTEGER NOT NULL REFERENCES recipes(id) ON DELETE CASCADE,
-    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE, -- Diubah ke UUID
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     folder_id INTEGER NOT NULL REFERENCES bookmark_folders(id) ON DELETE CASCADE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     UNIQUE(recipe_id, user_id, folder_id)
@@ -243,7 +243,7 @@ CREATE TABLE recipe_bookmarks(
 CREATE TABLE recipe_comments(
     id SERIAL PRIMARY KEY,
     recipe_id INTEGER NOT NULL REFERENCES recipes(id) ON DELETE CASCADE,
-    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE, -- Diubah ke UUID
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     parent_comment_id INTEGER REFERENCES recipe_comments(id) ON DELETE CASCADE,
     comment TEXT NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
@@ -254,7 +254,7 @@ CREATE TABLE recipe_comments(
 CREATE TABLE comment_likes(
     id SERIAL PRIMARY KEY,
     comment_id INTEGER NOT NULL REFERENCES recipe_comments(id) ON DELETE CASCADE,
-    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE, -- Diubah ke UUID
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     UNIQUE(comment_id, user_id)
 );
@@ -263,7 +263,7 @@ CREATE TABLE comment_likes(
 CREATE TABLE recipe_ratings(
     id SERIAL PRIMARY KEY,
     recipe_id INTEGER NOT NULL REFERENCES recipes(id) ON DELETE CASCADE,
-    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE, -- Diubah ke UUID
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     rating_value INTEGER NOT NULL,
     review_text TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
@@ -275,8 +275,8 @@ CREATE TABLE recipe_ratings(
 -- notifications table
 CREATE TABLE notifications(
     id SERIAL PRIMARY KEY,
-    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE, -- Diubah ke UUID
-    actor_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE, -- Diubah ke UUID
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    actor_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     type TEXT NOT NULL,
     target_id INTEGER,
     target_type TEXT,

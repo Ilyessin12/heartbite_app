@@ -1,3 +1,9 @@
+//
+//
+// NOTE THAT THIS ONE IS DEPRECATED BECASUE WE'RE USING SUPABASE FOR THE SCHEMA NOW, THAT ALSO APPLIES TO CRUD
+//
+//
+
 class SchemaStatements {
   static const String pragmaForeignKeysOn = 'PRAGMA foreign_keys = ON;';
 

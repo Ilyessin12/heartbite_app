@@ -1,3 +1,9 @@
+//
+//
+// NOTE THAT THIS ONE IS DEPRECATED BECASUE WE'RE USING SUPABASE FOR THE SCHEMA NOW, THAT ALSO APPLIES TO CRUD
+//
+//
+
 import 'dart:async';
 import 'package:path/path.dart';
 import 'package:sqflite/sqflite.dart';
