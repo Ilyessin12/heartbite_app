@@ -101,9 +101,7 @@ class BookmarkService {
             .eq('user_id', userId);
       }
     }
-  }
-
-  /// Get user's bookmark folders with recipe counts
+  }  /// Get user's bookmark folders with recipe counts
   Future<List<Map<String, dynamic>>> getBookmarkFolders() async {
     final userId = _supabase.auth.currentUser?.id;
     if (userId == null) throw Exception('User not authenticated');
@@ -111,29 +109,32 @@ class BookmarkService {
     // Ensure "Saved" folder exists
     await ensureSavedFolderExists();
 
-    // Get folders with recipe counts in a single query
+    // Get folders first
     final folders = await _supabase
         .from('bookmark_folders')
-        .select('''
-          *,
-          recipe_bookmarks(count)
-        ''')
+        .select('*')
         .eq('user_id', userId)
         .order('created_at', ascending: false);
 
-    // Process the results to extract recipe counts
-    final processedFolders =
-        folders.map((folder) {
-          final recipeBookmarks = folder['recipe_bookmarks'] as List?;
-          final recipeCount = recipeBookmarks?.length ?? 0;
-
-          // Remove the nested recipe_bookmarks and add recipe_count
-          final processedFolder = Map<String, dynamic>.from(folder);
-          processedFolder.remove('recipe_bookmarks');
-          processedFolder['recipe_count'] = recipeCount;
-
-          return processedFolder;
-        }).toList();
+    // Then get recipe counts for each folder
+    final processedFolders = <Map<String, dynamic>>[];
+    
+    for (final folder in folders) {
+      final folderId = folder['id'];
+      
+      // Count recipes in this folder
+      final countResult = await _supabase
+          .from('recipe_bookmarks')
+          .select('id')
+          .match({'folder_id': folderId, 'user_id': userId});
+      
+      final recipeCount = countResult.length;
+      
+      // Add recipe count to folder data
+      final processedFolder = Map<String, dynamic>.from(folder);
+      processedFolder['recipe_count'] = recipeCount;
+      processedFolders.add(processedFolder);
+    }
 
     // Sort folders: "Saved" first, then others
     processedFolders.sort((a, b) {
