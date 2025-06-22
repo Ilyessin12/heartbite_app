@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../services/user_service.dart';
+import '../services/auth_service.dart';
 import '../homepage/homepage.dart';
 
 class TestLoginScreen extends StatefulWidget {
@@ -16,10 +17,37 @@ class _TestLoginScreenState extends State<TestLoginScreen> {
   final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _usernameController = TextEditingController();
   final TextEditingController _fullNameController = TextEditingController();
-  
   bool _isLogin = true;
   bool _isLoading = false;
+  bool _isRedirecting = false;
   String _errorMessage = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _checkIfUserLoggedIn();
+  }
+
+  void _checkIfUserLoggedIn() {
+    // Check if user is already logged in
+    if (AuthService.isUserLoggedIn()) {
+      setState(() {
+        _isRedirecting = true;
+      });
+
+      // User is already logged in, navigate to HomePage after a short delay
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        Future.delayed(const Duration(milliseconds: 1500), () {
+          if (mounted) {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (context) => const HomePage()),
+            );
+          }
+        });
+      });
+    }
+  }
 
   @override
   void dispose() {
@@ -68,7 +96,7 @@ class _TestLoginScreenState extends State<TestLoginScreen> {
   }
 
   Future<void> _handleRegister() async {
-    if (_emailController.text.isEmpty || 
+    if (_emailController.text.isEmpty ||
         _passwordController.text.isEmpty ||
         _usernameController.text.isEmpty ||
         _fullNameController.text.isEmpty) {
@@ -118,6 +146,60 @@ class _TestLoginScreenState extends State<TestLoginScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Show redirecting screen if user is already logged in
+    if (_isRedirecting) {
+      return Scaffold(
+        backgroundColor: Colors.white,
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const CircularProgressIndicator(color: Color(0xFF8E1616)),
+              const SizedBox(height: 24),
+              Text(
+                'Already logged in!',
+                style: GoogleFonts.dmSans(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  color: const Color(0xFF8E1616),
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Redirecting to HomePage...',
+                style: GoogleFonts.dmSans(
+                  fontSize: 16,
+                  color: Colors.grey[600],
+                ),
+              ),
+              const SizedBox(height: 32),
+              TextButton(
+                onPressed: () async {
+                  setState(() {
+                    _isRedirecting = false;
+                  });
+                  await AuthService.signOut();
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Logged out successfully!'),
+                      backgroundColor: Colors.green,
+                    ),
+                  );
+                },
+                child: Text(
+                  'Login with different account',
+                  style: GoogleFonts.dmSans(
+                    color: const Color(0xFF8E1616),
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
@@ -155,7 +237,7 @@ class _TestLoginScreenState extends State<TestLoginScreen> {
               ),
               const SizedBox(height: 8),
               Text(
-                _isLogin 
+                _isLogin
                     ? 'Sign in to test HeartBite features'
                     : 'Register to test HeartBite features',
                 style: GoogleFonts.dmSans(
@@ -197,7 +279,7 @@ class _TestLoginScreenState extends State<TestLoginScreen> {
                 ),
                 const SizedBox(height: 16),
               ],
-              
+
               _buildTextField(
                 controller: _emailController,
                 label: 'Email',
@@ -205,7 +287,7 @@ class _TestLoginScreenState extends State<TestLoginScreen> {
                 keyboardType: TextInputType.emailAddress,
               ),
               const SizedBox(height: 16),
-              
+
               _buildTextField(
                 controller: _passwordController,
                 label: 'Password',
@@ -218,23 +300,27 @@ class _TestLoginScreenState extends State<TestLoginScreen> {
               SizedBox(
                 height: 50,
                 child: ElevatedButton(
-                  onPressed: _isLoading ? null : (_isLogin ? _handleLogin : _handleRegister),
+                  onPressed:
+                      _isLoading
+                          ? null
+                          : (_isLogin ? _handleLogin : _handleRegister),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF8E1616),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
                   ),
-                  child: _isLoading
-                      ? const CircularProgressIndicator(color: Colors.white)
-                      : Text(
-                          _isLogin ? 'Login' : 'Register',
-                          style: GoogleFonts.dmSans(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
+                  child:
+                      _isLoading
+                          ? const CircularProgressIndicator(color: Colors.white)
+                          : Text(
+                            _isLogin ? 'Login' : 'Register',
+                            style: GoogleFonts.dmSans(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
                           ),
-                        ),
                 ),
               ),
               const SizedBox(height: 16),
@@ -244,7 +330,9 @@ class _TestLoginScreenState extends State<TestLoginScreen> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Text(
-                    _isLogin ? "Don't have an account? " : "Already have an account? ",
+                    _isLogin
+                        ? "Don't have an account? "
+                        : "Already have an account? ",
                     style: GoogleFonts.dmSans(color: Colors.grey[600]),
                   ),
                   TextButton(
@@ -264,9 +352,9 @@ class _TestLoginScreenState extends State<TestLoginScreen> {
                   ),
                 ],
               ),
-              
+
               const Spacer(),
-              
+
               // Quick test credentials (for development)
               Container(
                 padding: const EdgeInsets.all(16),
