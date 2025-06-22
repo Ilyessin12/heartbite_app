@@ -574,7 +574,7 @@ class _HomePageState extends State<HomePage> {
   void _navigateToGroupDetail(String title, List<DisplayRecipeItem> recipes) {
     List<DisplayRecipeItem> recipesToShow;
 
-    if (title == "Popular Recipes") {
+    if (title == "Resep Populer") {
       // Show all recipes sorted by popularity (rating + review count)
       recipesToShow = _getPopularRecipes();
     } else if (title == "Menu Sarapan Mudah") {
@@ -648,14 +648,11 @@ class _HomePageState extends State<HomePage> {
     final filtered =
         recipesToFilter.where((recipe) {
           final queryMatch =
-              query.isEmpty || recipe.name.toLowerCase().contains(query);
-
-          final cookingTimeMatches =
-              _selectedCookingTimeOption == null ||
-              (recipe.cookingTimeMinutes >=
-                      (_selectedCookingTimeOption!['min'] as int) &&
-                  recipe.cookingTimeMinutes <=
-                      (_selectedCookingTimeOption!['max'] as int));
+              query.isEmpty || recipe.name.toLowerCase().contains(query);          // Safe way to check cooking time with null handling
+          Map<String, Object>? option = _selectedCookingTimeOption;
+          final cookingTimeMatches = option == null || 
+              (recipe.cookingTimeMinutes >= (option['min'] as int) &&
+               recipe.cookingTimeMinutes <= (option['max'] as int));
 
           final allergensMatch =
               _selectedAllergens.isEmpty ||
@@ -1037,11 +1034,11 @@ class _HomePageState extends State<HomePage> {
           _buildHorizontalRecipeList(_latestRecipes),
 
           _buildSectionTitle(
-            "Popular Recipes",
+            "Resep Populer",
             showViewAll: true,
             onViewAllTap:
                 () =>
-                    _navigateToGroupDetail("Popular Recipes", _popularRecipes),
+                    _navigateToGroupDetail("Resep Populer", _popularRecipes),
           ),
           _buildRecipeGrid(_popularRecipes),
 
@@ -1416,7 +1413,7 @@ class _HomePageState extends State<HomePage> {
             GestureDetector(
               onTap: onViewAllTap,
               child: Text(
-                'view all',
+                'Lihat Semua',
                 style: GoogleFonts.dmSans(
                   fontSize: 14,
                   color: const Color(0xFF8E1616),

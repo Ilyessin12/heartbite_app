@@ -32,35 +32,41 @@ class _BookmarkDetailScreenState extends State<BookmarkDetailScreen> {
     super.initState();
     _loadBookmarks();
   }
-
   Future<void> _loadBookmarks() async {
+    if (!mounted) return;
+    
     try {
-      setState(() {
-        isLoading = true;
-      });
+      if (mounted) {
+        setState(() {
+          isLoading = true;
+        });
+      }
 
       if (widget.category.id != null) {
         final bookmarkData = await _bookmarkService.getBookmarksFromFolder(
           widget.category.id!,
         );
-        setState(() {
-          bookmarks = bookmarkData;
-          isLoading = false;
-        });
+        if (mounted) {
+          setState(() {
+            bookmarks = bookmarkData;
+            isLoading = false;
+          });
+        }
       }
     } catch (e) {
-      setState(() {
-        isLoading = false;
-      });
       if (mounted) {
+        setState(() {
+          isLoading = false;
+        });
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(SnackBar(content: Text('Error loading bookmarks: $e')));
       }
     }
   }
-
   void _toggleSelectionMode() {
+    if (!mounted) return;
+    
     setState(() {
       isSelectionMode = !isSelectionMode;
       selectedRecipeIds.clear();
@@ -68,6 +74,8 @@ class _BookmarkDetailScreenState extends State<BookmarkDetailScreen> {
   }
 
   void _toggleRecipeSelection(int recipeId) {
+    if (!mounted) return;
+    
     setState(() {
       if (selectedRecipeIds.contains(recipeId)) {
         selectedRecipeIds.remove(recipeId);
@@ -104,9 +112,7 @@ class _BookmarkDetailScreenState extends State<BookmarkDetailScreen> {
                 ),
               ],
             ),
-      );
-
-      if (confirmed == true) {
+      );      if (confirmed == true) {
         // Use bulk removal for better performance
         await _bookmarkService.removeMultipleBookmarksFromFolder(
           recipeIds: selectedRecipeIds.toList(),
@@ -115,12 +121,14 @@ class _BookmarkDetailScreenState extends State<BookmarkDetailScreen> {
 
         final removedCount = selectedRecipeIds.length;
 
-        setState(() {
-          isSelectionMode = false;
-          selectedRecipeIds.clear();
-        });
-
-        await _loadBookmarks(); // Refresh the list
+        if (mounted) {
+          setState(() {
+            isSelectionMode = false;
+            selectedRecipeIds.clear();
+          });
+          
+          await _loadBookmarks(); // Refresh the list
+        }
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -169,17 +177,15 @@ class _BookmarkDetailScreenState extends State<BookmarkDetailScreen> {
                 ),
               ],
             ),
-      );
-
-      if (confirmed == true) {
+      );      if (confirmed == true) {
         await _bookmarkService.removeBookmarkFromFolder(
           recipeId: recipeId,
           folderId: widget.category.id!,
         );
 
-        await _loadBookmarks(); // Refresh the list
-
         if (mounted) {
+          await _loadBookmarks(); // Refresh the list
+
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text('Recipe removed successfully'),

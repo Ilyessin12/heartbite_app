@@ -28,8 +28,8 @@ class _FollowingScreenWithBackendState extends State<FollowingScreen> {
     _isCurrentUser = widget.userId == null || widget.userId == SupabaseService.currentUserId;
     _loadFollowing();
   }
-
   Future<void> _loadFollowing() async {
+    if (!mounted) return;
     setState(() => _isLoading = true);
 
     try {
@@ -38,23 +38,29 @@ class _FollowingScreenWithBackendState extends State<FollowingScreen> {
 
       final following = await FollowService.getFollowing(userId);
       
+      if (!mounted) return;
       setState(() {
         _following = following;
       });
     } catch (e) {
-      _showErrorSnackBar('Gagal memuat data following');
+      if (mounted) {
+        _showErrorSnackBar('Gagal memuat data following');
+      }
     } finally {
-      setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
-
   Future<void> _unfollowUser(FollowUserModel user) async {
     // Show confirmation dialog
     final shouldUnfollow = await _showUnfollowConfirmationDialog(user.fullName);
-    if (!shouldUnfollow) return;
+    if (!shouldUnfollow || !mounted) return;
 
     try {
       final success = await FollowService.unfollowUser(user.id);
+      
+      if (!mounted) return;
       
       if (success) {
         setState(() {
@@ -65,7 +71,9 @@ class _FollowingScreenWithBackendState extends State<FollowingScreen> {
         _showErrorSnackBar('Gagal berhenti mengikuti');
       }
     } catch (e) {
-      _showErrorSnackBar('Terjadi kesalahan');
+      if (mounted) {
+        _showErrorSnackBar('Terjadi kesalahan');
+      }
     }
   }
 
@@ -84,15 +92,15 @@ class _FollowingScreenWithBackendState extends State<FollowingScreen> {
             TextButton(
               onPressed: () => Navigator.of(context).pop(true),
               style: TextButton.styleFrom(foregroundColor: Colors.red),
-              child: const Text('Unfollow'),
+              child: const Text('Batal Ikuti'),
             ),
           ],
         );
       },
     ) ?? false;
   }
-
   void _showSuccessSnackBar(String message) {
+    if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
@@ -103,6 +111,7 @@ class _FollowingScreenWithBackendState extends State<FollowingScreen> {
   }
 
   void _showErrorSnackBar(String message) {
+    if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
@@ -139,7 +148,7 @@ class _FollowingScreenWithBackendState extends State<FollowingScreen> {
           Expanded(
             child: Center(
               child: Text(
-                'Following (${_following.length})',
+                'Mengikuti (${_following.length})',
                 style: const TextStyle(
                   fontWeight: FontWeight.bold,
                   fontSize: 18,

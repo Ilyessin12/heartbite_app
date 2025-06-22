@@ -1,0 +1,549 @@
+import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
+// Sesuaikan path import sesuai dengan struktur folder Anda
+import '../bottomnavbar/bottom-navbar.dart';
+
+class NotificationPage extends StatefulWidget {
+  const NotificationPage({Key? key}) : super(key: key);
+
+  @override
+  State<NotificationPage> createState() => _NotificationPageState();
+}
+
+class _NotificationPageState extends State<NotificationPage> {
+  int _selectedIndex = 3; // Karena ini halaman notifikasi, index 3 dipilih
+  bool _hasNotifications = true; // Flag untuk mengontrol tampilan (kosong atau isi)
+  
+  void _onItemTapped(int index) {
+    setState(() {
+      _selectedIndex = index;
+    });
+    
+    if (index != 3) { // Jika bukan halaman notifikasi
+      // Kembali ke halaman sebelumnya jika menekan tombol lain
+      Navigator.pop(context);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final Color primaryRed = const Color(0xFF8E1616);
+    
+    // Data notifikasi yang belum dibaca
+    final List<Map<String, dynamic>> notifikasiBelumDibaca = [
+      {
+        'tipe': 'like_resep',
+        'nama': 'Fernandez',
+        'aksi': 'menyukai resep Anda',
+        'waktu': '23 menit yang lalu',
+        'adaGambar': true,
+        'gambarProfil': 'assets/images/avatars/avatar1.jpg',
+        'gambarKonten': 'assets/images/cookbooks/cake.jpg',
+        'adaBanyakGambar': false,
+        'adaTombolIkuti': false,
+        'dibaca': false,
+        'targetId': 123, // ID resep
+        'targetNama': 'Kue Coklat Lava'
+      },
+      {
+        'tipe': 'like_komentar',
+        'nama': 'Jessica',
+        'aksi': 'menyukai komentar Anda',
+        'waktu': '1 jam yang lalu',
+        'adaGambar': false,
+        'gambarProfil': 'assets/images/avatars/avatar5.jpg',
+        'adaBanyakGambar': false,
+        'adaTombolIkuti': false,
+        'dibaca': false,
+        'targetId': 456, // ID komentar
+        'targetNama': 'Resep ini sangat mudah diikuti!',
+        'subteks': 'pada resep Ayam Bakar Madu'
+      },      {
+        'tipe': 'follow',
+        'nama': 'Amanda',
+        'aksi': 'telah mengikuti Anda',
+        'waktu': '2 jam yang lalu',
+        'adaGambar': false,
+        'gambarProfil': 'assets/images/avatars/avatar2.jpg',
+        'adaBanyakGambar': false,
+        'adaTombolIkuti': true,
+        'dibaca': false,
+        'targetId': 789, // ID user
+        'isFollowingYou': false, // Kita belum follow balik
+      },
+      {
+        'tipe': 'follow',
+        'nama': 'Robert',
+        'aksi': 'telah mengikuti Anda kembali',
+        'waktu': '3 jam yang lalu',
+        'adaGambar': false,
+        'gambarProfil': 'assets/images/avatars/avatar6.jpg',
+        'adaBanyakGambar': false,
+        'adaTombolIkuti': false, // Tidak perlu tombol ikuti karena sudah mutual
+        'dibaca': false,
+        'targetId': 567, // ID user
+        'isFollowingYou': true, // Mutual follow
+      },
+    ];
+    
+    // Data notifikasi yang sudah dibaca
+    final List<Map<String, dynamic>> notifikasiSudahDibaca = [
+      {
+        'tipe': 'komentar_resep',
+        'nama': 'Michael',
+        'aksi': 'mengomentari resep Anda:',
+        'subteks': 'Saya sudah mencoba resepnya dan rasanya lezat!',
+        'waktu': '4 jam yang lalu',
+        'adaGambar': true,
+        'gambarProfil': 'assets/images/avatars/avatar3.jpg',
+        'gambarKonten': 'assets/images/cookbooks/chicken.jpg',
+        'adaBanyakGambar': false,
+        'adaTombolIkuti': false,
+        'dibaca': true,
+        'targetId': 321, // ID resep
+        'targetNama': 'Ayam Goreng Krispy'
+      },
+      {
+        'tipe': 'komentar_komentar',
+        'nama': 'Patricia',
+        'aksi': 'membalas komentar Anda:',
+        'subteks': 'Saya setuju, teknik memasak yang bagus!',
+        'waktu': '1 hari yang lalu',
+        'adaGambar': false,
+        'gambarProfil': 'assets/images/avatars/avatar4.jpg',
+        'adaBanyakGambar': false,
+        'adaTombolIkuti': false,
+        'dibaca': true,
+        'targetId': 654, // ID komentar
+        'targetNama': 'pada resep Sayur Lodeh',
+        'komentarAsli': 'Cara memotongnya harus serong ya...'
+      },
+    ];
+    
+    return Scaffold(
+      backgroundColor: Colors.white,
+      body: SafeArea(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // App bar dengan tombol kembali dan judul
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
+              child: Row(
+                children: [                  
+                  // Tombol kembali dalam lingkaran merah
+                  GestureDetector(
+                    onTap: () {
+                      Navigator.pop(context); // Kembali ke halaman sebelumnya
+                    },
+                    child: Container(
+                      width: 32,
+                      height: 32,
+                      decoration: BoxDecoration(
+                        color: primaryRed,
+                        shape: BoxShape.circle,
+                      ),
+                      alignment: Alignment.center,
+                      child: const Icon(
+                        Icons.arrow_back,
+                        size: 18,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                  
+                  const SizedBox(width: 24),
+                  
+                  // Judul
+                  Text(
+                    'Notifikasi',
+                    style: GoogleFonts.dmSans(
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  
+                  // Tombol toggle untuk keperluan demo (bisa dihapus pada implementasi sebenarnya)
+                  const Spacer(),
+                  TextButton(
+                    onPressed: () {
+                      setState(() {
+                        _hasNotifications = !_hasNotifications;
+                      });
+                    },
+                    child: Text(
+                      _hasNotifications ? 'Lihat Kosong' : 'Lihat Notifikasi',
+                      style: GoogleFonts.dmSans(
+                        color: primaryRed,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            
+            // Konten: Tampilkan notifikasi atau tampilan kosong
+            Expanded(
+              child: _hasNotifications && 
+                    (notifikasiBelumDibaca.isNotEmpty || notifikasiSudahDibaca.isNotEmpty) ? 
+                // Tampilan dengan notifikasi
+                _buildNotificationListView(notifikasiBelumDibaca, notifikasiSudahDibaca) : 
+                // Tampilan kosong
+                _buildEmptyNotificationView(),
+            ),
+          ],
+        ),
+      ),
+      bottomNavigationBar: BottomNavBar(
+        currentIndex: _selectedIndex,
+        onTap: _onItemTapped,
+        onFabPressed: () {
+          // Handle the FAB button press (create recipe)
+          // If needed, navigate to create recipe page
+          Navigator.pop(context); // First go back to homepage
+          // Then the homepage can handle the navigation to create recipe
+        },
+      ),
+    );
+  }
+
+  // Widget untuk menampilkan daftar notifikasi
+  Widget _buildNotificationListView(
+      List<Map<String, dynamic>> notifikasiBelumDibaca, 
+      List<Map<String, dynamic>> notifikasiSudahDibaca) {
+    return ListView(
+      padding: const EdgeInsets.symmetric(horizontal: 20.0), // Diperkecil dari 24.0 untuk margin yang lebih efisien
+      children: [
+        // Bagian belum dibaca
+        if (notifikasiBelumDibaca.isNotEmpty) ...[
+          const SizedBox(height: 20), // Diperkecil dari 24
+          Row(
+            children: [
+              Text(
+                'Belum Dibaca',
+                style: GoogleFonts.dmSans(
+                  fontSize: 16, // Diperkecil dari 18
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF8E1616),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  '${notifikasiBelumDibaca.length}',
+                  style: GoogleFonts.dmSans(
+                    fontSize: 12, // Diperkecil dari 14
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12), // Diperkecil dari 16
+          
+          // Notifikasi belum dibaca
+          ...notifikasiBelumDibaca.map((notifikasi) => 
+            _buildNotificationItem(notifikasi, false)
+          ).toList(),
+        ],
+        
+        // Bagian sudah dibaca
+        if (notifikasiSudahDibaca.isNotEmpty) ...[
+          const SizedBox(height: 24), // Tetap 24 untuk jarak antar section
+          Text(
+            'Sudah Dibaca',
+            style: GoogleFonts.dmSans(
+              fontSize: 16, // Diperkecil dari 18
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 12), // Diperkecil dari 16
+          
+          // Notifikasi sudah dibaca
+          ...notifikasiSudahDibaca.map((notifikasi) => 
+            _buildNotificationItem(notifikasi, true)
+          ).toList(),
+        ],
+        
+        // Padding bawah
+        const SizedBox(height: 20), // Diperkecil dari 24
+      ],
+    );
+  }
+
+  // Widget untuk menampilkan tampilan kosong
+  Widget _buildEmptyNotificationView() {
+    return Column(
+      children: [
+        // Empty space
+        const Spacer(flex: 1),
+        
+        // Empty notification illustration
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 40.0),
+          child: Image.asset(
+            'assets/images/empty_notif_illustration.png',
+            height: 300,
+            fit: BoxFit.contain,
+          ),
+        ),
+        
+        const SizedBox(height: 24),
+        
+        // "No notifications yet" text
+        Text(
+          'Belum ada Notifikasi',
+          style: GoogleFonts.dmSans(
+            fontSize: 24,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        
+        // Empty space
+        const Spacer(flex: 2),
+      ],
+    );
+  }
+  
+  Widget _buildNotificationItem(Map<String, dynamic> notifikasi, bool dibaca) {
+    // Warna latar belakang untuk notifikasi yang belum dibaca
+    final Color bgColor = dibaca ? Colors.white : const Color(0xFFFFF2F2);
+    
+    // Mendapatkan icon berdasarkan tipe notifikasi
+    IconData? iconTipe;
+    switch (notifikasi['tipe']) {
+      case 'like_resep':
+      case 'like_komentar':
+        iconTipe = Icons.favorite;
+        break;
+      case 'follow':
+        iconTipe = Icons.person_add;
+        break;
+      case 'komentar_resep':
+      case 'komentar_komentar':
+        iconTipe = Icons.comment;
+        break;
+    }
+    
+    // Menentukan apakah ini kasus mutual follow
+    final bool isMutualFollow = notifikasi['tipe'] == 'follow' && 
+                                notifikasi.containsKey('isFollowingYou') && 
+                                notifikasi['isFollowingYou'] == true;
+    
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12.0),
+      padding: const EdgeInsets.all(10.0),
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          if (!dibaca)
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 4,
+              offset: const Offset(0, 2),
+            ),
+        ],
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Foto profil dengan badge ikon tipe notifikasi
+          Stack(
+            children: [
+              CircleAvatar(
+                radius: 22,
+                backgroundColor: Colors.grey[200],
+                backgroundImage: AssetImage(notifikasi['gambarProfil']),
+              ),
+              Positioned(
+                bottom: 0,
+                right: 0,
+                child: Container(
+                  height: 18,
+                  width: 18,
+                  decoration: BoxDecoration(
+                    color: notifikasi['tipe'].startsWith('like') 
+                      ? const Color(0xFFFF4848)
+                      : notifikasi['tipe'].startsWith('komentar')
+                        ? const Color(0xFF4285F4)
+                        : const Color(0xFF34A853), // Warna untuk follow
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.white, width: 1.5),
+                  ),
+                  child: Center(
+                    child: Icon(
+                      iconTipe,
+                      size: 10,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          
+          const SizedBox(width: 10),
+          
+          // Konten notifikasi
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Nama dan aksi
+                RichText(
+                  text: TextSpan(
+                    style: GoogleFonts.dmSans(
+                      fontSize: 14,
+                      color: Colors.black,
+                      fontWeight: dibaca ? FontWeight.normal : FontWeight.bold,
+                    ),
+                    children: [
+                      TextSpan(
+                        text: notifikasi['nama'],
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: dibaca ? Colors.black : const Color(0xFF8E1616),
+                        ),
+                      ),
+                      TextSpan(
+                        text: ' ${notifikasi['aksi']}',
+                      ),
+                    ],
+                  ),
+                ),
+                
+                // Berbagai subteks berdasarkan tipe notifikasi
+                if (notifikasi['tipe'] == 'like_resep')
+                  Padding(
+                    padding: const EdgeInsets.only(top: 3.0),
+                    child: Text(
+                      notifikasi['targetNama'],
+                      style: GoogleFonts.dmSans(
+                        fontSize: 13,
+                        color: Colors.black87,
+                      ),
+                    ),
+                  ),
+                  
+                if (notifikasi['tipe'] == 'like_komentar')
+                  Padding(
+                    padding: const EdgeInsets.only(top: 3.0),
+                    child: Text(
+                      '"${notifikasi['targetNama']}" ${notifikasi['subteks']}',
+                      style: GoogleFonts.dmSans(
+                        fontSize: 13,
+                        color: Colors.black87,
+                      ),
+                    ),
+                  ),
+                
+                if (notifikasi.containsKey('subteks') && 
+                   (notifikasi['tipe'] == 'komentar_resep' || 
+                    notifikasi['tipe'] == 'komentar_komentar'))
+                  Padding(
+                    padding: const EdgeInsets.only(top: 3.0),
+                    child: Text(
+                      notifikasi['subteks'],
+                      style: GoogleFonts.dmSans(
+                        fontSize: 13,
+                        fontStyle: FontStyle.italic,
+                        color: Colors.black87,
+                      ),
+                    ),
+                  ),
+                
+                if (notifikasi['tipe'] == 'komentar_komentar')
+                  Padding(
+                    padding: const EdgeInsets.only(top: 3.0),
+                    child: Text(
+                      notifikasi['targetNama'],
+                      style: GoogleFonts.dmSans(
+                        fontSize: 12,
+                        color: Colors.grey[600],
+                      ),
+                    ),
+                  ),
+                  // Label mutual follow sudah dihapus
+                
+                // Waktu
+                Padding(
+                  padding: const EdgeInsets.only(top: 3.0),
+                  child: Text(
+                    notifikasi['waktu'],
+                    style: GoogleFonts.dmSans(
+                      fontSize: 11,
+                      color: Colors.grey,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          
+          const SizedBox(width: 10),
+          
+          // Konten sisi kanan berdasarkan tipe notifikasi
+          if (notifikasi['adaGambar'])
+            ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: Image.asset(
+                notifikasi['gambarKonten'],
+                width: 65,
+                height: 65,
+                fit: BoxFit.cover,
+              ),
+            )
+          else if (notifikasi['tipe'] == 'follow' && !isMutualFollow)
+            GestureDetector(
+              onTap: () {
+                // Logika untuk follow back
+              },
+              child: Container(
+                height: 36,
+                width: 80,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF8E1616),
+                  borderRadius: BorderRadius.circular(18),
+                ),
+                alignment: Alignment.center,
+                child: Text(
+                  'Ikuti',
+                  style: GoogleFonts.dmSans(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 12,
+                  ),
+                ),
+              ),
+            )
+          else if (isMutualFollow)
+            Container(
+              height: 36,
+              width: 80,
+              decoration: BoxDecoration(
+                color: Colors.transparent,
+                border: Border.all(color: Colors.grey[300]!),
+                borderRadius: BorderRadius.circular(18),
+              ),
+              alignment: Alignment.center,
+              child: Text(
+                'Mengikuti',
+                style: GoogleFonts.dmSans(
+                  color: Colors.black87,
+                  fontWeight: FontWeight.normal,
+                  fontSize: 12,
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}

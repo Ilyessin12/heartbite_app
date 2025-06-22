@@ -41,7 +41,7 @@ class _FollowersScreenState extends State<FollowersScreen> {
         _followers = followers;
       });
     } catch (e) {
-      _showErrorSnackBar('Gagal memuat data followers');
+      _showErrorSnackBar('Gagal memuat data Pengikut');
     } finally {
       setState(() => _isLoading = false);
     }
@@ -59,9 +59,9 @@ class _FollowersScreenState extends State<FollowersScreen> {
         setState(() {
           _followers.removeWhere((f) => f.id == follower.id);
         });
-        _showSuccessSnackBar('${follower.fullName} dihapus dari followers');
+        _showSuccessSnackBar('${follower.fullName} dihapus dari pengikut');
       } else {
-        _showErrorSnackBar('Gagal menghapus follower');
+        _showErrorSnackBar('Gagal menghapus pengikut');
       }
     } catch (e) {
       _showErrorSnackBar('Terjadi kesalahan');
@@ -73,8 +73,8 @@ class _FollowersScreenState extends State<FollowersScreen> {
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: const Text('Hapus Follower'),
-          content: Text('Apakah Anda yakin ingin menghapus $userName dari followers?'),
+          title: const Text('Hapus Pengikut'),
+          content: Text('Apakah Anda yakin ingin menghapus $userName dari Pengikut?'),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(false),
@@ -138,7 +138,7 @@ class _FollowersScreenState extends State<FollowersScreen> {
           Expanded(
             child: Center(
               child: Text(
-                'Followers (${_followers.length})',
+                'Pengikut (${_followers.length})',
                 style: const TextStyle(
                   fontWeight: FontWeight.bold,
                   fontSize: 18,
@@ -171,7 +171,7 @@ class _FollowersScreenState extends State<FollowersScreen> {
             ),
             const SizedBox(height: 16),
             Text(
-              _isCurrentUser ? 'Belum ada yang mengikuti Anda' : 'Belum ada followers',
+              _isCurrentUser ? 'Belum ada yang mengikuti Anda' : 'Belum ada pengikut',
               style: TextStyle(
                 fontSize: 16,
                 color: Colors.grey[600],
@@ -180,8 +180,8 @@ class _FollowersScreenState extends State<FollowersScreen> {
             const SizedBox(height: 8),
             Text(
               _isCurrentUser 
-                  ? 'Bagikan Resep Anda untuk mendapatkan followers'
-                  : 'User ini belum memiliki followers',
+                  ? 'Bagikan Resep Anda untuk mendapatkan Pengikut'
+                  : 'User ini belum memiliki Pengikut',
               style: TextStyle(
                 fontSize: 14,
                 color: Colors.grey[500],

@@ -105,7 +105,7 @@ class UserListItem extends StatelessWidget {
         backgroundColor = AppColors.primary;
         break;
       case UserActionType.unfollow:
-        text = 'Unfollow';
+        text = 'Batal Ikuti';
         color = AppColors.primary;
         backgroundColor = Colors.white;
         break;
