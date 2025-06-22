@@ -33,8 +33,8 @@ CREATE TABLE public.comment_likes (
   user_id uuid NOT NULL,
   created_at timestamp with time zone DEFAULT now(),
   CONSTRAINT comment_likes_pkey PRIMARY KEY (id),
-  CONSTRAINT comment_likes_comment_id_fkey FOREIGN KEY (comment_id) REFERENCES public.recipe_comments(id),
-  CONSTRAINT comment_likes_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id)
+  CONSTRAINT comment_likes_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id),
+  CONSTRAINT comment_likes_comment_id_fkey FOREIGN KEY (comment_id) REFERENCES public.recipe_comments(id)
 );
 CREATE TABLE public.diet_programs (
   id integer NOT NULL DEFAULT nextval('diet_programs_id_seq'::regclass),
@@ -49,12 +49,6 @@ CREATE TABLE public.equipment (
   description text,
   created_at timestamp with time zone DEFAULT now(),
   CONSTRAINT equipment_pkey PRIMARY KEY (id)
-);
-CREATE TABLE public.ingredient_allergens (
-  id integer NOT NULL DEFAULT nextval('ingredient_allergens_id_seq'::regclass),
-  allergen_id integer NOT NULL,
-  CONSTRAINT ingredient_allergens_pkey PRIMARY KEY (id),
-  CONSTRAINT ingredient_allergens_allergen_id_fkey FOREIGN KEY (allergen_id) REFERENCES public.allergens(id)
 );
 CREATE TABLE public.ingredients (
   id integer NOT NULL DEFAULT nextval('ingredients_id_seq'::regclass),
@@ -77,6 +71,14 @@ CREATE TABLE public.notifications (
   CONSTRAINT notifications_pkey PRIMARY KEY (id),
   CONSTRAINT notifications_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id),
   CONSTRAINT notifications_actor_id_fkey FOREIGN KEY (actor_id) REFERENCES public.users(id)
+);
+CREATE TABLE public.recipe_allergens (
+  id integer NOT NULL DEFAULT nextval('ingredient_allergens_id_seq'::regclass),
+  allergen_id integer NOT NULL,
+  recipe_id integer,
+  CONSTRAINT recipe_allergens_pkey PRIMARY KEY (id),
+  CONSTRAINT fk_recipe_allergens_recipe_id FOREIGN KEY (recipe_id) REFERENCES public.recipes(id),
+  CONSTRAINT ingredient_allergens_allergen_id_fkey FOREIGN KEY (allergen_id) REFERENCES public.allergens(id)
 );
 CREATE TABLE public.recipe_bookmarks (
   id integer NOT NULL DEFAULT nextval('recipe_bookmarks_id_seq'::regclass),
@@ -106,9 +108,9 @@ CREATE TABLE public.recipe_comments (
   created_at timestamp with time zone DEFAULT now(),
   updated_at timestamp with time zone DEFAULT now(),
   CONSTRAINT recipe_comments_pkey PRIMARY KEY (id),
-  CONSTRAINT recipe_comments_recipe_id_fkey FOREIGN KEY (recipe_id) REFERENCES public.recipes(id),
+  CONSTRAINT recipe_comments_parent_comment_id_fkey FOREIGN KEY (parent_comment_id) REFERENCES public.recipe_comments(id),
   CONSTRAINT recipe_comments_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id),
-  CONSTRAINT recipe_comments_parent_comment_id_fkey FOREIGN KEY (parent_comment_id) REFERENCES public.recipe_comments(id)
+  CONSTRAINT recipe_comments_recipe_id_fkey FOREIGN KEY (recipe_id) REFERENCES public.recipes(id)
 );
 CREATE TABLE public.recipe_diet_programs (
   id integer NOT NULL DEFAULT nextval('recipe_diet_programs_id_seq'::regclass),
@@ -178,8 +180,8 @@ CREATE TABLE public.recipe_ratings (
   created_at timestamp with time zone DEFAULT now(),
   updated_at timestamp with time zone DEFAULT now(),
   CONSTRAINT recipe_ratings_pkey PRIMARY KEY (id),
-  CONSTRAINT recipe_ratings_recipe_id_fkey FOREIGN KEY (recipe_id) REFERENCES public.recipes(id),
-  CONSTRAINT recipe_ratings_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id)
+  CONSTRAINT recipe_ratings_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id),
+  CONSTRAINT recipe_ratings_recipe_id_fkey FOREIGN KEY (recipe_id) REFERENCES public.recipes(id)
 );
 CREATE TABLE public.recipes (
   id integer NOT NULL DEFAULT nextval('recipes_id_seq'::regclass),
@@ -214,8 +216,8 @@ CREATE TABLE public.user_diet_programs (
   diet_program_id integer NOT NULL,
   created_at timestamp with time zone DEFAULT now(),
   CONSTRAINT user_diet_programs_pkey PRIMARY KEY (id),
-  CONSTRAINT user_diet_programs_diet_program_id_fkey FOREIGN KEY (diet_program_id) REFERENCES public.diet_programs(id),
-  CONSTRAINT user_diet_programs_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id)
+  CONSTRAINT user_diet_programs_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id),
+  CONSTRAINT user_diet_programs_diet_program_id_fkey FOREIGN KEY (diet_program_id) REFERENCES public.diet_programs(id)
 );
 CREATE TABLE public.user_follows (
   id integer NOT NULL DEFAULT nextval('user_follows_id_seq'::regclass),
@@ -223,8 +225,8 @@ CREATE TABLE public.user_follows (
   following_id uuid NOT NULL,
   created_at timestamp with time zone DEFAULT now(),
   CONSTRAINT user_follows_pkey PRIMARY KEY (id),
-  CONSTRAINT user_follows_follower_id_fkey FOREIGN KEY (follower_id) REFERENCES public.users(id),
-  CONSTRAINT user_follows_following_id_fkey FOREIGN KEY (following_id) REFERENCES public.users(id)
+  CONSTRAINT user_follows_following_id_fkey FOREIGN KEY (following_id) REFERENCES public.users(id),
+  CONSTRAINT user_follows_follower_id_fkey FOREIGN KEY (follower_id) REFERENCES public.users(id)
 );
 CREATE TABLE public.user_missing_equipment (
   id integer NOT NULL DEFAULT nextval('user_missing_equipment_id_seq'::regclass),
