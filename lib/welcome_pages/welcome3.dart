@@ -16,7 +16,7 @@ class Welcome3Screen extends StatelessWidget {
     void navigateToAuth() {
       Navigator.of(context).push(
         PageRouteBuilder(
-          pageBuilder: (context, animation, secondaryAnimation) => const SetupAllergiesPage(),
+          pageBuilder: (context, animation, secondaryAnimation) => const Auth(),
           // pageBuilder: (context, animation, secondaryAnimation) => const Auth(),
           transitionsBuilder: (context, animation, secondaryAnimation, child) {
             const begin = Offset(1.0, 0.0);
