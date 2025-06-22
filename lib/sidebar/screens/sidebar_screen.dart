@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import '../theme/app_theme.dart';
 import '../screens/profile_screen.dart';
 import '../../bookmark/screens/bookmark_screen.dart';
 import '../screens/settings_screen.dart';
@@ -87,24 +86,13 @@ class _SidebarScreenState extends State<SidebarScreen> {
                             image: NetworkImage(_userProfilePictureUrl!),
                             fit: BoxFit.cover,
                           )
-                        : null,
-                      color: _userProfilePictureUrl == null || _userProfilePictureUrl!.isEmpty 
-                          ? AppColors.primary 
-                          : null,
-                    ),
-                    child: _userProfilePictureUrl == null || _userProfilePictureUrl!.isEmpty
-                      ? Center(
-                          child: Text(
-                            _userName.isNotEmpty ? _userName[0].toUpperCase() : 'G',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 18,
-                            ),
+                        : DecorationImage(
+                            image: AssetImage("assets/images/default_profile.png"),
+                            fit: BoxFit.cover,
                           ),
-                        )
-                      : null,
-                  ),                  const SizedBox(width: 12),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
                   Expanded(
                     child: Text(
                       _userName,
