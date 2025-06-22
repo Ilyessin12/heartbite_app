@@ -188,6 +188,20 @@ class _LoginPageState extends State<LoginPage> {
                         Column(
                           mainAxisAlignment: MainAxisAlignment.end,
                           children: [
+                            if (_statusMessage.isNotEmpty)
+                              Padding(
+                                padding: const EdgeInsets.only(bottom: 8.0),
+                                child: Text(
+                                  _statusMessage,
+                                  style: TextStyle(
+                                    color:
+                                        _statusMessage.contains('berhasil')
+                                            ? Colors.green
+                                            : Colors.red,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                              ),
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                               children: [
@@ -250,20 +264,6 @@ class _LoginPageState extends State<LoginPage> {
                               ],
                             ),
                             SizedBox(height: 6),
-                            if (_statusMessage.isNotEmpty)
-                              Padding(
-                                padding: const EdgeInsets.only(bottom: 8.0),
-                                child: Text(
-                                  _statusMessage,
-                                  style: TextStyle(
-                                    color:
-                                        _statusMessage.contains('berhasil')
-                                            ? Colors.green
-                                            : Colors.red,
-                                    fontSize: 14,
-                                  ),
-                                ),
-                              ),
                             SizedBox(
                               width: double.infinity,
                               height: 52,
@@ -294,22 +294,36 @@ class _LoginPageState extends State<LoginPage> {
                                         _statusMessage = 'Login berhasil!';
                                       });
                                       // Redirect ke HomePage
-                                      Navigator.pushReplacement(
+                                      Navigator.pushAndRemoveUntil(
                                         context,
-                                        MaterialPageRoute(
-                                          builder: (_) => const HomePage(),
-                                        ),
+                                        MaterialPageRoute(builder: (_) => const HomePage()),
+                                        (route) => false,
                                       );
                                     } else {
                                       setState(() {
                                         _statusMessage =
-                                            'Login gagal: User tidak ditemukan.';
+                                            'Email atau kata sandi salah';
                                       });
                                     }
                                   } catch (e) {
-                                    setState(() {
-                                      _statusMessage = 'Login gagal: $e';
-                                    });
+                                    final errorMsg = e.toString().toLowerCase();
+                                    if (errorMsg.contains(
+                                          'invalid login credentials',
+                                        ) ||
+                                        errorMsg.contains(
+                                          'invalid email or password',
+                                        ) ||
+                                        errorMsg.contains('email not found') ||
+                                        errorMsg.contains('invalid password')) {
+                                      setState(() {
+                                        _statusMessage =
+                                            'Email atau kata sandi salah';
+                                      });
+                                    } else {
+                                      setState(() {
+                                        _statusMessage = 'Login gagal';
+                                      });
+                                    }
                                   }
                                 },
                                 style: ElevatedButton.styleFrom(

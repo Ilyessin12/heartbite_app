@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../homepage/homepage.dart';
 import 'login.dart';
 import '../services/user_service.dart';
 import '../services/auth_service.dart';
@@ -97,7 +98,7 @@ class _RegisterPageState extends State<RegisterPage> {
         setState(() {
           _isCheckingUsername = false;
           _isUsernameAvailable = null;
-          _usernameMessage = 'Gagal memeriksa username: $e';
+          _usernameMessage = 'Gagal memeriksa username';
         });
       }
     });
@@ -224,7 +225,7 @@ class _RegisterPageState extends State<RegisterPage> {
       );
       
       if (signInRes.user != null) {
-        // Login berhasil, arahkan ke SetupAllergiesPage
+        // Login berhasil, arahkan ke HomePage
         if (!mounted) return;
         Navigator.pushAndRemoveUntil(
           context,
@@ -238,7 +239,8 @@ class _RegisterPageState extends State<RegisterPage> {
       }
     } catch (e) {
       setState(() {
-        _statusMessage = 'Error: $e';
+        _statusMessage = 'Login gagal';
+        _showEmailConfirmationDialog();
       });
     }
   }
@@ -543,21 +545,6 @@ class _RegisterPageState extends State<RegisterPage> {
                                     ),
                                   ),
                                 ),
-                                SizedBox(height: 12),
-                                // Status ketersediaan username
-                                if (_usernameMessage.isNotEmpty)
-                                  Padding(
-                                    padding: const EdgeInsets.only(top: 8.0),
-                                    child: Text(
-                                      _usernameMessage,
-                                      style: TextStyle(
-                                        color: _isUsernameAvailable == true
-                                            ? Colors.green
-                                            : Colors.red,
-                                        fontSize: 14,
-                                      ),
-                                    ),
-                                  ),
                               ],
                             ),
                           ),
@@ -566,20 +553,6 @@ class _RegisterPageState extends State<RegisterPage> {
                         Column(
                           mainAxisAlignment: MainAxisAlignment.end,
                           children: [
-                            Align(
-                              alignment: Alignment.center,
-                              child: SizedBox(
-                                width:
-                                    MediaQuery.of(context).size.width *
-                                    0.65, // Atur lebar sesuai kebutuhan
-                                child: Text(
-                                  'Dengan mendaftar Anda menyetujui Syarat dan Ketentuan kami',
-                                  textAlign: TextAlign.center,
-                                  style: GoogleFonts.dmSans(fontSize: 12),
-                                ),
-                              ),
-                            ),
-                            SizedBox(height: 12),
                             // ...existing code sebelum tombol daftar...
                             if (_statusMessage.isNotEmpty)
                               Padding(
@@ -596,6 +569,21 @@ class _RegisterPageState extends State<RegisterPage> {
                                 ),
                               ),
                             // ...existing code tombol daftar...
+                            SizedBox(height: 8),
+                            Align(
+                              alignment: Alignment.center,
+                              child: SizedBox(
+                                width:
+                                    MediaQuery.of(context).size.width *
+                                    0.65, // Atur lebar sesuai kebutuhan
+                                child: Text(
+                                  'Dengan mendaftar Anda menyetujui Syarat dan Ketentuan kami',
+                                  textAlign: TextAlign.center,
+                                  style: GoogleFonts.dmSans(fontSize: 12),
+                                ),
+                              ),
+                            ),
+                            SizedBox(height: 12),
                             SizedBox(
                               width: double.infinity,
                               height: 52,
@@ -629,54 +617,15 @@ class _RegisterPageState extends State<RegisterPage> {
                                       final emailExistsCheck = await userService.checkEmailExists(_emailController.text.trim());
                                       
                                       if (emailExistsCheck) {
-                                        // Email sudah terdaftar, coba login saja
                                         setState(() {
-                                          _statusMessage = 'Email sudah terdaftar. Mencoba login...';
+                                          _statusMessage = 'Email sudah terdaftar. Silakan login atau konfirmasi email Anda.';
+                                          _showEmailConfirmationDialog();
                                         });
-                                        
-                                        // Coba login
-                                        try {
-                                          final signInRes = await userService.signIn(
-                                            email: _emailController.text.trim(), 
-                                            password: _passwordController.text
-                                          );
-                                          
-                                          if (signInRes.user != null) {
-                                            // Login berhasil, arahkan ke SetupAllergiesPage
-                                            if (!mounted) return;
-                                            Navigator.pushAndRemoveUntil(
-                                              context,
-                                              MaterialPageRoute(builder: (_) => const SetupAllergiesPage()),
-                                              (route) => false,
-                                            );
-                                            return;
-                                          } else {
-                                            // Login gagal tapi email ada - mungkin password salah
-                                            setState(() {
-                                              _statusMessage = 'Password tidak sesuai dengan akun yang terdaftar';
-                                            });
-                                            return;
-                                          }
-                                        } catch (e) {
-                                          // Error saat login
-                                          if (e.toString().contains('Email not confirmed')) {
-                                            setState(() {
-                                              _statusMessage = 'Email belum dikonfirmasi. Silakan cek inbox email Anda untuk link konfirmasi';
-                                            });
-                                            
-                                            // Tambahkan tombol untuk cek konfirmasi lagi
-                                            _showEmailConfirmationDialog();
-                                          } else {
-                                            setState(() {
-                                              _statusMessage = 'Gagal login: $e';
-                                            });
-                                          }
-                                          return;
-                                        }
+                                        return;
                                       }
                                     } catch (e) {
                                       // Lanjutkan dengan pendaftaran jika gagal memeriksa email
-                                      print('Error checking email: $e');
+                                      print('Error checking email');
                                     }
                                     
                                     // Registrasi user baru jika email belum terdaftar
