@@ -5,6 +5,7 @@ import 'package:iconoir_flutter/iconoir_flutter.dart'
     hide Key, Text, Navigator, List, Map;
 import 'dart:ui';
 
+import '../sidebar/screens/profile_screen.dart';
 import '../bottomnavbar/bottom-navbar.dart';
 import 'homepage-detail.dart';
 import '../services/recipe_service.dart';
@@ -348,11 +349,26 @@ class _HomePageState extends State<HomePage> {
         backgroundColor: Colors.white,
         elevation: 0,
         leadingWidth: 60,
+        // leading: Padding(
+        //   padding: const EdgeInsets.only(left: 16.0),
+        //   child: CircleAvatar(
+        //     backgroundImage: AssetImage(
+        //       "assets/images/homepage/placeholder_profile.jpg",
+        //     ),
+        //   ),
+        // ),
         leading: Padding(
           padding: const EdgeInsets.only(left: 16.0),
-          child: CircleAvatar(
-            backgroundImage: AssetImage(
-              "assets/images/homepage/placeholder_profile.jpg",
+          child: GestureDetector(
+            onTap: () {
+              // Navigator.pushNamed(context, '/profile');
+              // Or, if you use MaterialPageRoute:
+              Navigator.push(context, MaterialPageRoute(builder: (context) => ProfileScreen()));
+            },
+            child: CircleAvatar(
+              backgroundImage: AssetImage(
+                "assets/images/homepage/placeholder_profile.jpg",
+              ),
             ),
           ),
         ),
