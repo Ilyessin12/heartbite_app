@@ -1,5 +1,7 @@
 // ignore_for_file: non_constant_identifier_names
 
+import 'tag_models.dart'; // Import the new tag models
+
 class RecipeIngredientModel {
   int? id;
   int? recipe_id; // Nullable because it's set after recipe is created
@@ -117,6 +119,16 @@ class RecipeModel {
   String? directions_text;
   List<String>? gallery_image_urls;
 
+  // Fields for selected tag IDs (for saving)
+  List<int>? selectedAllergenIds;
+  List<int>? selectedDietProgramIds;
+  List<int>? selectedEquipmentIds;
+
+  // Fields for full tag objects (for display/details)
+  List<Allergen>? allergensList;
+  List<DietProgram>? dietProgramsList;
+  List<Equipment>? equipmentList;
+
   RecipeModel({
     this.id,
     required this.user_id,
@@ -135,6 +147,12 @@ class RecipeModel {
     this.ingredients_text, // Keep for UI data transfer
     this.directions_text,  // Keep for UI data transfer
     this.gallery_image_urls,
+    this.selectedAllergenIds,
+    this.selectedDietProgramIds,
+    this.selectedEquipmentIds,
+    this.allergensList,
+    this.dietProgramsList,
+    this.equipmentList,
   });
 
   factory RecipeModel.fromJson(Map<String, dynamic> json) {
@@ -221,6 +239,18 @@ class RecipeModel {
       ingredients: _parseList(json['recipe_ingredients'], 'recipe_ingredients', RecipeIngredientModel.fromJson),
       instructions: _parseList(json['recipe_instructions'], 'recipe_instructions', RecipeInstructionModel.fromJson),
       gallery_image_urls: _parseGalleryImageUrls(json['recipe_gallery_images']),
+
+      // Parse tag data if available (typically when fetching details)
+      // These might come from joined tables or separate queries handled by the service
+      allergensList: _parseList(json['allergens'], 'allergens', Allergen.fromJson),
+      dietProgramsList: _parseList(json['diet_programs'], 'diet_programs', DietProgram.fromJson),
+      equipmentList: _parseList(json['equipment'], 'equipment', Equipment.fromJson),
+
+      // Selected IDs are usually populated by the UI and not directly from a full recipe JSON from DB
+      // unless the service explicitly adds them after fetching related tables.
+      selectedAllergenIds: (json['selected_allergen_ids'] as List<dynamic>?)?.map((id) => id as int).toList(),
+      selectedDietProgramIds: (json['selected_diet_program_ids'] as List<dynamic>?)?.map((id) => id as int).toList(),
+      selectedEquipmentIds: (json['selected_equipment_ids'] as List<dynamic>?)?.map((id) => id as int).toList(),
     );
   }
 
@@ -238,10 +268,10 @@ class RecipeModel {
       // id, created_at, updated_at are handled by DB
     };
 
-    // ingredients and instructions are not part of the main 'recipes' table JSON.
-    // They will be handled separately by the service.
-    // ingredients_text and directions_text are also not part of the 'recipes' table.
-    // gallery_image_urls are also handled separately.
+    // ingredients, instructions, gallery_image_urls, and tag IDs/lists
+    // are not part of the main 'recipes' table JSON.
+    // They will be handled separately by the service when creating/updating.
+    // The `selected...Ids` fields are primarily for passing data from UI to service.
 
     data.removeWhere((key, value) => value == null && key != 'description' && key != 'image_url' && key != 'calories');
     return data;

@@ -6,6 +6,7 @@ import 'package:image_picker/image_picker.dart';
 import '../services/image_upload_service.dart';
 import '../services/recipe_service.dart';
 import '../models/recipe_model.dart';
+import '../models/tag_models.dart'; // Added import for tag models
 import '../services/supabase_client.dart'; // Untuk SupabaseClientWrapper().auth.currentUser
 
 class EditRecipeScreen extends StatefulWidget {
@@ -39,7 +40,17 @@ class _EditRecipeScreenState extends State<EditRecipeScreen> {
   late TextEditingController _directionsController;
 
   List<String> _existingGalleryImageUrls = [];
-  List<File> _newSelectedGalleryImageFiles = []; 
+  List<File> _newSelectedGalleryImageFiles = [];
+
+  // State for tags
+  List<Allergen> _availableAllergens = [];
+  List<DietProgram> _availableDietPrograms = [];
+  List<Equipment> _availableEquipment = [];
+
+  Set<int> _selectedAllergenIds = {};
+  Set<int> _selectedDietProgramIds = {};
+  Set<int> _selectedEquipmentIds = {};
+  bool _isLoadingTags = true;
 
   @override
   void initState() {
@@ -54,6 +65,43 @@ class _EditRecipeScreenState extends State<EditRecipeScreen> {
     _ingredientsController = TextEditingController(text: widget.recipe.ingredients_text ?? '');
     _directionsController = TextEditingController(text: widget.recipe.directions_text ?? '');
     _existingGalleryImageUrls = List<String>.from(widget.recipe.gallery_image_urls ?? []);
+
+    _fetchTagsAndPopulateSelected();
+  }
+
+  Future<void> _fetchTagsAndPopulateSelected() async {
+    try {
+      // Fetch all available tags
+      final allergens = await _recipeService.getAllergens();
+      final dietPrograms = await _recipeService.getDietPrograms();
+      final equipment = await _recipeService.getEquipment();
+
+      if (mounted) {
+        setState(() {
+          _availableAllergens = allergens;
+          _availableDietPrograms = dietPrograms;
+          _availableEquipment = equipment;
+
+          // Populate selected tags based on the recipe being edited
+          // The recipe object passed to this screen should ideally have its tag lists populated
+          // by the getRecipeDetailsById service method.
+          _selectedAllergenIds = widget.recipe.allergensList?.map((a) => a.id).toSet() ?? {};
+          _selectedDietProgramIds = widget.recipe.dietProgramsList?.map((dp) => dp.id).toSet() ?? {};
+          _selectedEquipmentIds = widget.recipe.equipmentList?.map((e) => e.id).toSet() ?? {};
+          
+          _isLoadingTags = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to load tag information: $e')),
+        );
+        setState(() {
+          _isLoadingTags = false;
+        });
+      }
+    }
   }
 
   @override
@@ -141,6 +189,10 @@ class _EditRecipeScreenState extends State<EditRecipeScreen> {
       created_at: widget.recipe.created_at,
       ingredients_text: _ingredientsController.text.isEmpty ? null : _ingredientsController.text,
       directions_text: _directionsController.text.isEmpty ? null : _directionsController.text,
+      // Pass selected tag IDs
+      selectedAllergenIds: _selectedAllergenIds.toList(),
+      selectedDietProgramIds: _selectedDietProgramIds.toList(),
+      selectedEquipmentIds: _selectedEquipmentIds.toList(),
     );
 
     try {
@@ -228,7 +280,59 @@ class _EditRecipeScreenState extends State<EditRecipeScreen> {
                   maxLines: 3,
                   keyboardType: TextInputType.multiline,
                 ),
+                const SizedBox(height: 24),
+
+                // Tags Section
+                if (_isLoadingTags)
+                  const Center(child: CircularProgressIndicator())
+                else ...[
+                  _buildTagSelectionSection<Allergen>(
+                    title: 'Allergens (Select any that apply)',
+                    availableTags: _availableAllergens,
+                    selectedTagIds: _selectedAllergenIds,
+                    onSelected: (selected, tagId) {
+                      setState(() {
+                        if (selected) {
+                          _selectedAllergenIds.add(tagId);
+                        } else {
+                          _selectedAllergenIds.remove(tagId);
+                        }
+                      });
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                  _buildTagSelectionSection<DietProgram>(
+                    title: 'Dietary Programs (Select any that apply)',
+                    availableTags: _availableDietPrograms,
+                    selectedTagIds: _selectedDietProgramIds,
+                    onSelected: (selected, tagId) {
+                      setState(() {
+                        if (selected) {
+                          _selectedDietProgramIds.add(tagId);
+                        } else {
+                          _selectedDietProgramIds.remove(tagId);
+                        }
+                      });
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                  _buildTagSelectionSection<Equipment>(
+                    title: 'Equipment Needed (Select any that apply)',
+                    availableTags: _availableEquipment,
+                    selectedTagIds: _selectedEquipmentIds,
+                    onSelected: (selected, tagId) {
+                      setState(() {
+                        if (selected) {
+                          _selectedEquipmentIds.add(tagId);
+                        } else {
+                          _selectedEquipmentIds.remove(tagId);
+                        }
+                      });
+                    },
+                  ),
+                ],
                 const SizedBox(height: 16),
+                
                 Padding(
                   padding: const EdgeInsets.symmetric(vertical: 16.0),
                   child: Column(
@@ -450,6 +554,52 @@ class _EditRecipeScreenState extends State<EditRecipeScreen> {
           ),
         ),
       ),
+    );
+  }
+
+  // Helper widget to build a section for selecting tags (same as in CreateRecipeScreen)
+  Widget _buildTagSelectionSection<T>({
+    required String title,
+    required List<T> availableTags,
+    required Set<int> selectedTagIds,
+    required Function(bool, int) onSelected,
+  }) {
+    final labelStyle = GoogleFonts.dmSans(fontSize: 14, color: Colors.grey[700]);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(title, style: GoogleFonts.dmSans(fontSize: 16, fontWeight: FontWeight.bold)),
+        const SizedBox(height: 8),
+        if (availableTags.isEmpty && !_isLoadingTags)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8.0),
+            child: Text("No ${title.toLowerCase().split(' ')[0]} available to select.", style: labelStyle),
+          )
+        else
+          Wrap(
+            spacing: 8.0,
+            runSpacing: 4.0,
+            children: availableTags.map((tag) {
+              final tagId = (tag as dynamic).id as int;
+              final tagName = (tag as dynamic).name as String;
+              return ChoiceChip(
+                label: Text(tagName, style: GoogleFonts.dmSans(fontSize: 13)),
+                selected: selectedTagIds.contains(tagId),
+                onSelected: (selected) {
+                  onSelected(selected, tagId);
+                },
+                selectedColor: Colors.teal[100],
+                backgroundColor: Colors.grey[200],
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  side: BorderSide(
+                    color: selectedTagIds.contains(tagId) ? Colors.teal : Colors.grey[400]!,
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+      ],
     );
   }
 }

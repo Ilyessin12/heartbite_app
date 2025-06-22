@@ -17,6 +17,11 @@ class Recipe {
   final List<Direction> directions;
   final List<String> galleryImages;
   final List<Comment> comments;
+
+  // New fields for tags
+  final List<String> allergenTags;
+  final List<String> dietProgramTags;
+  final List<String> equipmentTags;
   
   Recipe({
     required this.id,
@@ -33,5 +38,8 @@ class Recipe {
     required this.directions,
     required this.galleryImages,
     required this.comments,
+    this.allergenTags = const [], // Default to empty list
+    this.dietProgramTags = const [], // Default to empty list
+    this.equipmentTags = const [], // Default to empty list
   });
 }
