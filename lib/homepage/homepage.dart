@@ -7,19 +7,15 @@ import 'package:iconoir_flutter/iconoir_flutter.dart'
 import 'dart:ui';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import '../sidebar/screens/profile_screen.dart';
 import '../bottomnavbar/bottom-navbar.dart';
 import 'homepage-detail.dart';
 import '../services/recipe_service.dart';
-import '../models/recipe_model.dart';
 import '../recipe/create_recipe_screen.dart';
 import '../recipe_detail/screens/recipe_detail_screen.dart';
-import '../recipe_detail/models/recipe.dart' as DetailRecipeModel;
-import '../recipe_detail/models/ingredient.dart' as DetailIngredientModel;
-import '../recipe_detail/models/direction.dart' as DetailDirectionModel;
-import '../recipe_detail/models/comment.dart' as DetailCommentModel;
 import '../services/auth_service.dart'; // Added import
 import '../sidebar/screens/sidebar_screen.dart';
+import '../services/bookmark_service.dart';
+import '../recipe_detail/screens/bookmark_modal.dart';
 
 // DisplayRecipeItem is the primary model for recipe cards in this file.
 class DisplayRecipeItem {
@@ -51,7 +47,6 @@ class DisplayRecipeItem {
     this.dietTypes = const [],
     this.requiredAppliances = const [],
   });
-
   factory DisplayRecipeItem.fromSupabase(Map<String, dynamic> data) {
     return DisplayRecipeItem(
       id: data['id'] as int,
@@ -62,6 +57,7 @@ class DisplayRecipeItem {
       servings: "${data['servings'] as int? ?? 1} Porsi",
       cookingTimeMinutes: data['cooking_time_minutes'] as int? ?? 0,
       imageUrl: data['image_url'] as String?,
+      isBookmarked: data['is_bookmarked'] as bool? ?? false,
     );
   }
 }
@@ -90,10 +86,11 @@ class _HomePageState extends State<HomePage> {
 
   // Subscription untuk perubahan autentikasi
   StreamSubscription<AuthState>? _authSubscription;
-
   final RecipeService _recipeService = RecipeService();
+  final BookmarkService _bookmarkService = BookmarkService();
   List<DisplayRecipeItem> _allFetchedRecipes = [];
   List<DisplayRecipeItem> _searchResults = [];
+  List<DisplayRecipeItem> _randomBreakfastRecipes = [];
   bool _isLoading = true;
   String _loadingError = '';
 
@@ -138,13 +135,21 @@ class _HomePageState extends State<HomePage> {
     {"label": "30 - 60 Menit", "min": 31, "max": 60},
     {"label": "> 60 Menit", "min": 61, "max": 999},
   ];
-
   List<DisplayRecipeItem> get _latestRecipes =>
       _allFetchedRecipes.take(3).toList();
   List<DisplayRecipeItem> get _popularRecipes =>
-      _allFetchedRecipes.skip(3).take(4).toList();
+      _getPopularRecipes().take(4).toList();
   List<DisplayRecipeItem> get _breakfastRecipes =>
-      _allFetchedRecipes.skip(7).take(4).toList();
+      _randomBreakfastRecipes.take(4).toList();
+
+  List<DisplayRecipeItem> _getPopularRecipes() {
+    final sortedRecipes = List<DisplayRecipeItem>.from(_allFetchedRecipes);
+    sortedRecipes.sort(
+      (a, b) => (b.rating + b.reviewCount).compareTo(a.rating + a.reviewCount),
+    );
+    return sortedRecipes;
+  }
+
   @override
   void initState() {
     super.initState();
@@ -180,11 +185,33 @@ class _HomePageState extends State<HomePage> {
       final recipesData = await _recipeService.getPublicRecipesWithDetails(
         searchQuery: searchQuery,
       );
+
+      // Convert to DisplayRecipeItem
+      final recipes =
+          recipesData
+              .map((data) => DisplayRecipeItem.fromSupabase(data))
+              .toList();
+
+      // Check bookmark status for each recipe if user is logged in
+      if (AuthService.isUserLoggedIn()) {
+        for (final recipe in recipes) {
+          try {
+            recipe.isBookmarked = await _bookmarkService.isRecipeBookmarked(
+              recipe.id,
+            );
+          } catch (e) {
+            print('Error checking bookmark status for recipe ${recipe.id}: $e');
+          }
+        }
+      }
+
+      // Generate random breakfast recipes
+      final shuffledRecipes = List<DisplayRecipeItem>.from(recipes);
+      shuffledRecipes.shuffle();
+
       setState(() {
-        _allFetchedRecipes =
-            recipesData
-                .map((data) => DisplayRecipeItem.fromSupabase(data))
-                .toList();
+        _allFetchedRecipes = recipes;
+        _randomBreakfastRecipes = shuffledRecipes.take(10).toList();
         _isLoading = false;
         if (searchQuery != null && searchQuery.isNotEmpty) {
           _searchResults = List.from(_allFetchedRecipes);
@@ -267,30 +294,212 @@ class _HomePageState extends State<HomePage> {
   }
 
   void _toggleBookmark(int recipeId) {
-    setState(() {
-      final index = _allFetchedRecipes.indexWhere(
-        (recipe) => recipe.id == recipeId,
+    if (!AuthService.isUserLoggedIn()) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Please log in to bookmark recipes.")),
       );
-      if (index != -1) {
-        _allFetchedRecipes[index].isBookmarked =
-            !_allFetchedRecipes[index].isBookmarked;
-        final searchIndex = _searchResults.indexWhere(
-          (recipe) => recipe.id == recipeId,
-        );
-        if (searchIndex != -1) {
-          _searchResults[searchIndex].isBookmarked =
-              _allFetchedRecipes[index].isBookmarked;
-        }
+      return;
+    }
+
+    // Find the recipe
+    final recipe = _allFetchedRecipes.firstWhere(
+      (r) => r.id == recipeId,
+      orElse: () => _searchResults.firstWhere((r) => r.id == recipeId),
+    );
+
+    if (recipe.isBookmarked) {
+      // Show remove bookmark dialog
+      _showRemoveBookmarkDialog(recipeId);
+    } else {
+      // Show bookmark modal
+      _showBookmarkModal(recipeId);
+    }
+  }
+
+  void _showBookmarkModal(int recipeId) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder:
+          (context) => BookmarkModal(
+            onSave: (folderId) async {
+              try {
+                await _bookmarkService.addBookmarkToFolder(
+                  recipeId: recipeId,
+                  folderId: int.parse(folderId),
+                );
+
+                // Update UI
+                setState(() {
+                  _updateRecipeBookmarkStatus(recipeId, true);
+                });
+
+                Navigator.pop(context);
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Recipe bookmarked successfully!'),
+                      backgroundColor: Colors.green,
+                    ),
+                  );
+                }
+              } catch (e) {
+                print('Error bookmarking recipe: $e');
+                Navigator.pop(context);
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Error bookmarking recipe: $e'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
+              }
+            },
+          ),
+    );
+  }
+
+  Future<void> _showRemoveBookmarkDialog(int recipeId) async {
+    try {
+      // Get folders where this recipe is bookmarked
+      final folders = await _bookmarkService.getRecipeBookmarkFolders(recipeId);
+
+      if (folders.isEmpty) {
+        setState(() {
+          _updateRecipeBookmarkStatus(recipeId, false);
+        });
+        return;
       }
-    });
+
+      // Show dialog to remove from specific folders
+      if (mounted) {
+        showDialog(
+          context: context,
+          builder:
+              (context) => AlertDialog(
+                title: const Text('Remove Bookmark'),
+                content: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('This recipe is bookmarked in:'),
+                    const SizedBox(height: 8),
+                    ...folders.map(
+                      (folder) => ListTile(
+                        title: Text(folder['bookmark_folders']['name']),
+                        trailing: IconButton(
+                          icon: const Icon(
+                            Icons.remove_circle,
+                            color: Colors.red,
+                          ),
+                          onPressed: () async {
+                            try {
+                              await _bookmarkService.removeBookmarkFromFolder(
+                                recipeId: recipeId,
+                                folderId: folder['folder_id'],
+                              );
+                              Navigator.pop(context);
+
+                              // Check if recipe is still bookmarked in any folder
+                              final stillBookmarked = await _bookmarkService
+                                  .isRecipeBookmarked(recipeId);
+                              setState(() {
+                                _updateRecipeBookmarkStatus(
+                                  recipeId,
+                                  stillBookmarked,
+                                );
+                              });
+
+                              if (mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text(
+                                      'Bookmark removed successfully!',
+                                    ),
+                                    backgroundColor: Colors.orange,
+                                  ),
+                                );
+                              }
+                            } catch (e) {
+                              print('Error removing bookmark: $e');
+                              if (mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(
+                                      'Error removing bookmark: $e',
+                                    ),
+                                    backgroundColor: Colors.red,
+                                  ),
+                                );
+                              }
+                            }
+                          },
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text('Close'),
+                  ),
+                ],
+              ),
+        );
+      }
+    } catch (e) {
+      print('Error getting bookmark folders: $e');
+    }
+  }
+
+  void _updateRecipeBookmarkStatus(int recipeId, bool isBookmarked) {
+    // Update in main list
+    final mainIndex = _allFetchedRecipes.indexWhere(
+      (recipe) => recipe.id == recipeId,
+    );
+    if (mainIndex != -1) {
+      _allFetchedRecipes[mainIndex].isBookmarked = isBookmarked;
+    }
+
+    // Update in search results
+    final searchIndex = _searchResults.indexWhere(
+      (recipe) => recipe.id == recipeId,
+    );
+    if (searchIndex != -1) {
+      _searchResults[searchIndex].isBookmarked = isBookmarked;
+    }
+
+    // Update in breakfast recipes
+    final breakfastIndex = _randomBreakfastRecipes.indexWhere(
+      (recipe) => recipe.id == recipeId,
+    );
+    if (breakfastIndex != -1) {
+      _randomBreakfastRecipes[breakfastIndex].isBookmarked = isBookmarked;
+    }
   }
 
   void _navigateToGroupDetail(String title, List<DisplayRecipeItem> recipes) {
+    List<DisplayRecipeItem> recipesToShow;
+
+    if (title == "Popular Recipes") {
+      // Show all recipes sorted by popularity (rating + review count)
+      recipesToShow = _getPopularRecipes();
+    } else if (title == "Menu Sarapan Mudah") {
+      // Show up to 10 random recipes including the ones shown on homepage
+      recipesToShow = _randomBreakfastRecipes;
+    } else {
+      recipesToShow = recipes;
+    }
+
     Navigator.push(
       context,
       MaterialPageRoute(
         builder:
-            (context) => HomePageDetailScreen(title: title, recipes: recipes),
+            (context) =>
+                HomePageDetailScreen(title: title, recipes: recipesToShow),
       ),
     );
   }
