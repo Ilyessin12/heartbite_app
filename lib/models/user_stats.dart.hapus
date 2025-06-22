@@ -1,0 +1,56 @@
+// Model untuk User Stats
+class UserStats {
+  final int recipesCount;
+  final int followersCount;
+  final int followingCount;
+  
+  UserStats({
+    required this.recipesCount,
+    required this.followersCount,
+    required this.followingCount,
+  });
+  
+  factory UserStats.fromJson(Map<String, dynamic> json) {
+    return UserStats(
+      recipesCount: json['recipes_count'],
+      followersCount: json['followers_count'],
+      followingCount: json['following_count'],
+    );
+  }
+}
+
+// Update RecipeItem model agar compatible dengan database
+class RecipeItem {
+  final int id;
+  final String name;
+  final String? imageUrl;
+  final double rating;
+  final int reviewCount;
+  final int? calories;
+  final int cookTime; // cooking_time_minutes dari database
+  final DateTime createdAt;
+  
+  RecipeItem({
+    required this.id,
+    required this.name,
+    this.imageUrl,
+    required this.rating,
+    required this.reviewCount,
+    this.calories,
+    required this.cookTime,
+    required this.createdAt,
+  });
+  
+  factory RecipeItem.fromJson(Map<String, dynamic> json) {
+    return RecipeItem(
+      id: json['id'],
+      name: json['title'],
+      imageUrl: json['image_url'],
+      rating: (json['rating'] ?? 0.0).toDouble(),
+      reviewCount: json['review_count'] ?? 0,
+      calories: json['calories'],
+      cookTime: json['cooking_time_minutes'] ?? 0,
+      createdAt: DateTime.parse(json['created_at']),
+    );
+  }
+}

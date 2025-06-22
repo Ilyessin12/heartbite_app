@@ -4,24 +4,38 @@ import '../theme/app_theme.dart';
 import '../widgets/custom_back_button.dart';
 import '../widgets/profile_stats.dart';
 import '../widgets/recipe_card.dart';
+import '../models/user_model.dart';
+import '../models/user_stats_model.dart';
+import '../models/recipe_model.dart';
+import '../services/profile_service.dart';
+import '../services/supabase_service.dart';
+import '../../recipe/create_recipe_screen.dart';
 import '../screens/edit_profile_screen.dart';
 import '../screens/following_screen.dart';
 import '../screens/followers_screen.dart';
-import '../../bookmark/models/recipe_item.dart';
-import '../../recipe/create_recipe_screen.dart';
 
 
-class ProfileScreen extends StatefulWidget {
-  const ProfileScreen({super.key});
+class ProfileScreenWithBackend extends StatefulWidget {
+  final String? userId; // null = current user, otherwise specific user
+  
+  const ProfileScreenWithBackend({super.key, this.userId});
 
   @override
-  State<ProfileScreen> createState() => _ProfileScreenState();
+  State<ProfileScreenWithBackend> createState() => _ProfileScreenWithBackendState();
 }
 
-class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProviderStateMixin {
+class _ProfileScreenWithBackendState extends State<ProfileScreenWithBackend> 
+    with SingleTickerProviderStateMixin {
   late TabController _tabController;
   final List<String> _tabs = ['Terbaru', 'Terpopuler', 'Waktu Memasak'];
   int _selectedTabIndex = 0;
+
+  // Data states
+  UserModel? _user;
+  UserStatsModel? _userStats;
+  List<RecipeModel> _recipes = [];
+  bool _isLoading = true;
+  bool _isCurrentUser = false;
 
   @override
   void initState() {
@@ -32,10 +46,13 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
         setState(() {
           _selectedTabIndex = _tabController.index;
         });
+        _loadRecipes(); // Reload recipes when tab changes
       }
     });
 
-    // Set status bar to transparent
+    _isCurrentUser = widget.userId == null || widget.userId == SupabaseService.currentUserId;
+    _loadProfileData();
+
     SystemChrome.setSystemUIOverlayStyle(
       const SystemUiOverlayStyle(
         statusBarColor: Colors.transparent,
@@ -50,50 +67,85 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
     super.dispose();
   }
 
-  // @override
-  // Widget build(BuildContext context) {
-  //   return Scaffold(
-  //     body: Stack(
-  //       children: [
-  //         // Background with dark header
-  //         Column(
-  //           children: [
-  //             Container(
-  //               height: 150,
-  //               color: AppColors.darkHeader,
-  //             ),
-  //             Expanded(
-  //               child: Container(
-  //                 color: Colors.white,
-  //               ),
-  //             ),
-  //           ],
-  //         ),
+  Future<void> _loadProfileData() async {
+    setState(() => _isLoading = true);
 
-  //         // Scrollable Content
-  //         SafeArea(
-  //           child: SingleChildScrollView(
-  //             child: Column(
-  //               crossAxisAlignment: CrossAxisAlignment.start,
-  //               children: [
-  //                 _buildHeader(),
-  //                 _buildProfileInfo(),
-  //                 const SizedBox(height: 24),
-  //                 _buildRecipeSection(),
-  //                 _buildTabBar(),
-  //                 const SizedBox(height: 16),
-  //                 _buildRecipeGridList(),
-  //               ],
-  //             ),
-  //           ),
-  //         ),
-  //       ],
-  //     ),
-  //   );
-  // }
+    try {
+      final userId = widget.userId ?? SupabaseService.currentUserId;
+      if (userId == null) return;
+
+      // Load user profile and stats in parallel
+      final results = await Future.wait([
+        ProfileService.getUserProfile(userId),
+        ProfileService.getUserStats(userId),
+      ]);
+
+      _user = results[0] as UserModel?;
+      _userStats = results[1] as UserStatsModel;
+
+      // Load initial recipes
+      await _loadRecipes();
+    } catch (e) {
+      print('Error loading profile data: $e');
+    } finally {
+      setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _loadRecipes() async {
+    final userId = widget.userId ?? SupabaseService.currentUserId;
+    if (userId == null) return;
+
+    String sortBy;
+    bool ascending;
+
+    switch (_selectedTabIndex) {
+      case 0: // Terbaru
+        sortBy = 'created_at';
+        ascending = false;
+        break;
+      case 1: // Terpopuler
+        sortBy = 'rating';
+        ascending = false;
+        break;
+      case 2: // Waktu Memasak
+        sortBy = 'cooking_time_minutes';
+        ascending = true;
+        break;
+      default:
+        sortBy = 'created_at';
+        ascending = false;
+    }
+
+    final recipes = await ProfileService.getUserRecipes(
+      userId,
+      sortBy: sortBy,
+      ascending: ascending,
+    );
+
+    setState(() {
+      _recipes = recipes;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
+    if (_isLoading) {
+      return const Scaffold(
+        body: Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
+
+    if (_user == null) {
+      return const Scaffold(
+        body: Center(
+          child: Text('User not found'),
+        ),
+      );
+    }
+
     return Scaffold(
       body: SafeArea(
         child: SingleChildScrollView(
@@ -105,18 +157,14 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
                   Container(
                     height: 180,
                     width: double.infinity,
-                    decoration: BoxDecoration(
-                      image: const DecorationImage(
-                        image: NetworkImage(
-                          'https://images.unsplash.com/photo-1503264116251-35a269479413?auto=format&fit=crop&w=800&q=80',
-                        ),
+                    decoration: const BoxDecoration(
+                      image: DecorationImage(
+                        image: AssetImage('assets/images/bg_welcome.png'),
                         fit: BoxFit.cover,
                       ),
-                      borderRadius: BorderRadius.circular(0),
                     ),
                   ),
-                  // Spacer so the image doesn't overlap with white background
-                  const SizedBox(height: 60), // cukup menampung profile pic overlap
+                  const SizedBox(height: 60),
                   _buildProfileInfo(),
                   const SizedBox(height: 24),
                   _buildRecipeSection(),
@@ -127,8 +175,8 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
               ),
               // Floating profile picture
               Positioned(
-                top: 110, // sedikit di bawah header
-                left: MediaQuery.of(context).size.width / 2 - 50, // center (100 lebar foto)
+                top: 110,
+                left: MediaQuery.of(context).size.width / 2 - 50,
                 child: Container(
                   width: 100,
                   height: 100,
@@ -144,15 +192,30 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
                   ),
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(16),
-                    child: Image.asset(
-                      'assets/images/avatars/avatar3.jpg',
-                      fit: BoxFit.cover,
-                    ),
+                    child: _user!.profilePicture != null
+                        ? Image.network(
+                            _user!.profilePicture!,
+                            fit: BoxFit.cover,
+                          )
+                        : Container(
+                            color: AppColors.primary,
+                            child: Center(
+                              child: Text(
+                                _user!.fullName.isNotEmpty 
+                                    ? _user!.fullName[0].toUpperCase()
+                                    : 'U',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 36,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ),
                   ),
                 ),
               ),
-              // Header action (back + edit)
-              _buildHeader(), // Tetap di atas
+              _buildHeader(),
             ],
           ),
         ),
@@ -169,18 +232,21 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
           CustomBackButton(
             onPressed: () => Navigator.pop(context),
           ),
-          Row(
-            children: [
-              // EDIT BUTTON
-              GestureDetector(
-                onTap: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const EditProfileScreen()),
+          if (_isCurrentUser)
+            Row(
+              children: [
+                GestureDetector(
+                  onTap: () {
+                    // Navigate to edit profile
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const EditProfileScreen()),
+                    );
+                  },
+                  child: _buildIconButton(Icons.edit),
                 ),
-                child: _buildIconButton(Icons.edit),
-              ),
-            ],
-          ),
+              ],
+            ),
         ],
       ),
     );
@@ -203,19 +269,19 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
       padding: const EdgeInsets.symmetric(horizontal: 16.0),
       child: Column(
         children: [
-          const SizedBox(height: 30), // Spacer pengganti gambar
-          const Text(
-            'Ichsan Simalakama',
-            style: TextStyle(
+          const SizedBox(height: 30),
+          Text(
+            _user!.fullName,
+            style: const TextStyle(
               fontWeight: FontWeight.bold,
               fontSize: 20,
               color: Colors.black,
             ),
           ),
           const SizedBox(height: 4),
-          const Text(
-            '@361329',
-            style: TextStyle(
+          Text(
+            '@${_user!.username}',
+            style: const TextStyle(
               fontSize: 14,
               color: Colors.grey,
             ),
@@ -229,9 +295,9 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
               borderRadius: BorderRadius.circular(16),
             ),
             child: ProfileStats(
-              recipes: 24,
-              following: 432,
-              followers: 643,
+              recipes: _userStats?.recipesCount ?? 0,
+              following: _userStats?.followingCount ?? 0,
+              followers: _userStats?.followersCount ?? 0,
               // FOLLOWING
               onFollowingTap: () => Navigator.push(
                 context,
@@ -262,29 +328,30 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
               fontSize: 18,
             ),
           ),
-        GestureDetector(
-          onTap: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => const CreateRecipeScreen(),
+          if (_isCurrentUser)
+            GestureDetector(
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const CreateRecipeScreen(),
+                  ),
+                );
+              },
+              child: Container(
+                width: 32,
+                height: 32,
+                decoration: const BoxDecoration(
+                  color: AppColors.primary,
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.add,
+                  color: Colors.white,
+                  size: 20,
+                ),
               ),
-            );
-          },
-          child: Container(
-            width: 32,
-            height: 32,
-            decoration: const BoxDecoration(
-              color: AppColors.primary,
-              shape: BoxShape.circle,
             ),
-            child: const Icon(
-              Icons.add,
-              color: Colors.white,
-              size: 20,
-              ),
-            ),
-          ),
         ],
       ),
     );
@@ -332,70 +399,184 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
   }
 
   Widget _buildRecipeGridList() {
-    final List<RecipeItem> recipes = [
-    RecipeItem(
-      name: 'Sandwich with boiled egg',
-      imageUrl: 'https://images.unsplash.com/photo-1525351484163-7529414344d8',
-      rating: 4.5,
-      reviewCount: 120,
-      calories: 350,
-      prepTime: 1,
-      cookTime: 29,
-    ),
-    RecipeItem(
-      name: 'Fruity blueberry toast',
-      imageUrl: 'https://images.unsplash.com/photo-1484723091739-30a097e8f929',
-      rating: 4.2,
-      reviewCount: 98,
-      calories: 280,
-      prepTime: 1,
-      cookTime: 8,
-    ),
-    RecipeItem(
-      name: 'Avocado Toast',
-      imageUrl: 'https://images.unsplash.com/photo-1588137378633-dea1336ce1e2',
-      rating: 4.8,
-      reviewCount: 210,
-      calories: 310,
-      prepTime: 1,
-      cookTime: 15,
-    ),
-    RecipeItem(
-      name: 'Pancakes with Berries',
-      imageUrl: 'https://images.unsplash.com/photo-1506084868230-bb9d95c24759',
-      rating: 4.7,
-      reviewCount: 180,
-      calories: 420,
-      prepTime: 2,
-      cookTime: 20,
-    ),
-  ];
+    if (_recipes.isEmpty) {
+      return const SizedBox(
+        height: 200,
+        child: Center(
+          child: Text(
+            'Belum ada resep',
+            style: TextStyle(
+              color: Colors.grey,
+              fontSize: 16,
+            ),
+          ),
+        ),
+      );
+    }
 
     return SizedBox(
       height: 600,
-      child: TabBarView(
-        controller: _tabController,
-        children: _tabs.map((_) {
-          return Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0),
-            child: GridView.builder(
-              physics: const NeverScrollableScrollPhysics(),
-              shrinkWrap: true,
-              itemCount: recipes.length,
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 2,
-                childAspectRatio: 0.7,
-                crossAxisSpacing: 16,
-                mainAxisSpacing: 16,
-              ),
-              itemBuilder: (context, index) {
-                return RecipeCard(
-                  recipe: recipes[index],
-                );
-              },
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16.0),
+        child: GridView.builder(
+          physics: const NeverScrollableScrollPhysics(),
+          shrinkWrap: true,
+          itemCount: _recipes.length,
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 2,
+            childAspectRatio: 0.7,
+            crossAxisSpacing: 16,
+            mainAxisSpacing: 16,
+          ),
+          itemBuilder: (context, index) {
+            final recipe = _recipes[index];
+            return _buildRecipeCard(recipe);
+          },
+        ),
+      ),
+    );
+  }
+
+  Widget _buildRecipeCard(RecipeModel recipe) {
+    return GestureDetector(
+      onTap: () {
+        // Navigate to recipe detail
+        Navigator.pushNamed(context, '/recipe-detail', arguments: recipe.id);
+      },
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.2),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
             ),
-          );
-        }).toList(),
+          ],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(16),
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              // Recipe image
+              recipe.imageUrl != null
+                  ? Image.network(
+                      recipe.imageUrl!,
+                      fit: BoxFit.cover,
+                      loadingBuilder: (context, child, loadingProgress) {
+                        if (loadingProgress == null) return child;
+                        return Container(
+                          color: Colors.grey[300],
+                          child: const Center(
+                            child: CircularProgressIndicator(),
+                          ),
+                        );
+                      },
+                      errorBuilder: (context, error, stackTrace) {
+                        return Container(
+                          color: Colors.grey[300],
+                          child: const Icon(Icons.image_not_supported),
+                        );
+                      },
+                    )
+                  : Container(
+                      color: Colors.grey[300],
+                      child: const Icon(Icons.image_not_supported),
+                    ),
+              
+              // Dark gradient overlay
+              Positioned.fill(
+                child: Container(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        Colors.transparent,
+                        Colors.black.withOpacity(0.3),
+                        Colors.black.withOpacity(0.7),
+                      ],
+                      stops: const [0.6, 0.8, 1.0],
+                    ),
+                  ),
+                ),
+              ),
+              
+              // Cook time
+              Positioned(
+                top: 12,
+                left: 12,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withOpacity(0.5),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Text(
+                    '${recipe.cookingTimeMinutes} min',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+              ),
+              
+              // Recipe title
+              Positioned(
+                bottom: 16,
+                left: 16,
+                right: 16,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      recipe.title,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        height: 1.2,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    if (recipe.rating > 0) ...[
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          const Icon(
+                            Icons.star,
+                            color: Colors.amber,
+                            size: 12,
+                          ),
+                          const SizedBox(width: 2),
+                          Text(
+                            recipe.rating.toStringAsFixed(1),
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 10,
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            '(${recipe.reviewCount})',
+                            style: const TextStyle(
+                              color: Colors.white70,
+                              fontSize: 10,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

@@ -123,7 +123,7 @@ class _SidebarScreenState extends State<SidebarScreen> {
               context,
               icon: Icons.person,
               title: 'Profil',
-              destination: const ProfileScreen(),
+              destination: const ProfileScreenWithBackend(),
             ),
             _buildMenuItem(
               context,

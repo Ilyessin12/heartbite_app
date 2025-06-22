@@ -1,0 +1,26 @@
+// Model untuk User Profile
+class UserProfile {
+  final String id;
+  final String fullName;
+  final String username;
+  final String? profilePicture;
+  final String? coverPicture;
+  
+  UserProfile({
+    required this.id,
+    required this.fullName,
+    required this.username,
+    this.profilePicture,
+    this.coverPicture,
+  });
+  
+  factory UserProfile.fromJson(Map<String, dynamic> json) {
+    return UserProfile(
+      id: json['id'],
+      fullName: json['full_name'],
+      username: json['username'],
+      profilePicture: json['profile_picture'],
+      coverPicture: json['cover_picture'],
+    );
+  }
+}

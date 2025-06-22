@@ -1,0 +1,330 @@
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'supabase_client.dart';
+
+/// Service class untuk mengelola operasi yang terkait dengan user profile
+class UserProfileService {
+  final SupabaseClient _client = SupabaseClientWrapper().client;
+
+  /// Mengambil data profil user berdasarkan user ID
+  /// Returns: Map berisi data user atau null jika tidak ditemukan
+  Future<Map<String, dynamic>?> getUserProfile(String userId) async {
+    try {
+      final response = await _client
+          .from('users')
+          .select('id, full_name, username, email, profile_picture, cover_picture, created_at')
+          .eq('id', userId)
+          .single();
+      
+      return response;
+    } on PostgrestException catch (e) {
+      throw Exception('Failed to get user profile: ${e.message}');
+    } catch (e) {
+      throw Exception('Network error: $e');
+    }
+  }
+
+  /// Mengambil statistik user (jumlah resep, followers, following)
+  /// Returns: Map berisi count untuk recipes, followers, dan following
+  Future<Map<String, dynamic>> getUserStats(String userId) async {
+    try {
+      // Query parallel untuk performa lebih baik
+      final results = await Future.wait([
+        // Count recipes yang published
+        _client
+            .from('recipes')
+            .select('id', const FetchOptions(count: CountOption.exact))
+            .eq('user_id', userId)
+            .eq('is_published', true),
+        
+        // Count followers (yang follow user ini)
+        _client
+            .from('user_follows')
+            .select('id', const FetchOptions(count: CountOption.exact))
+            .eq('following_id', userId),
+        
+        // Count following (yang difollow user ini)
+        _client
+            .from('user_follows')
+            .select('id', const FetchOptions(count: CountOption.exact))
+            .eq('follower_id', userId),
+      ]);
+
+      return {
+        'recipes_count': results[0].count ?? 0,
+        'followers_count': results[1].count ?? 0,
+        'following_count': results[2].count ?? 0,
+      };
+    } on PostgrestException catch (e) {
+      throw Exception('Failed to get user stats: ${e.message}');
+    } catch (e) {
+      throw Exception('Network error: $e');
+    }
+  }
+
+  /// Mengambil daftar resep user dengan sorting dan pagination
+  /// [userId] - ID user yang resepnya ingin diambil
+  /// [sortBy] - jenis sorting: 'Terbaru', 'Terpopuler', 'Waktu Memasak'
+  /// [limit] - jumlah resep per page (default: 20)
+  /// [offset] - offset untuk pagination (default: 0)
+  Future<List<Map<String, dynamic>>> getUserRecipes(
+    String userId, 
+    String sortBy, 
+    {int limit = 20, int offset = 0}
+  ) async {
+    try {
+      var query = _client
+          .from('recipes')
+          .select('''
+            id, 
+            title, 
+            image_url, 
+            calories, 
+            cooking_time_minutes, 
+            rating, 
+            review_count, 
+            created_at,
+            servings,
+            difficulty_level
+          ''')
+          .eq('user_id', userId)
+          .eq('is_published', true)
+          .range(offset, offset + limit - 1);
+
+      // Apply sorting berdasarkan parameter
+      switch (sortBy) {
+        case 'Terbaru':
+          query = query.order('created_at', ascending: false);
+          break;
+        case 'Terpopuler':
+          // Sort by rating dulu, kemudian review_count untuk tie-breaking
+          query = query.order('rating', ascending: false)
+                      .order('review_count', ascending: false);
+          break;
+        case 'Waktu Memasak':
+          query = query.order('cooking_time_minutes', ascending: true);
+          break;
+        default:
+          query = query.order('created_at', ascending: false);
+      }
+
+      final response = await query;
+      return List<Map<String, dynamic>>.from(response);
+    } on PostgrestException catch (e) {
+      throw Exception('Failed to get user recipes: ${e.message}');
+    } catch (e) {
+      throw Exception('Network error: $e');
+    }
+  }
+
+  /// Mengambil daftar user yang difollow oleh user tertentu
+  /// [userId] - ID user yang ingin dilihat followingnya
+  /// [limit] - jumlah user per page (default: 50)
+  /// [offset] - offset untuk pagination (default: 0)
+  Future<List<Map<String, dynamic>>> getUserFollowing(
+    String userId, 
+    {int limit = 50, int offset = 0}
+  ) async {
+    try {
+      final response = await _client
+          .from('user_follows')
+          .select('''
+            following_id,
+            created_at,
+            users!user_follows_following_id_fkey(
+              id,
+              full_name,
+              username,
+              profile_picture
+            )
+          ''')
+          .eq('follower_id', userId)
+          .order('created_at', ascending: false)
+          .range(offset, offset + limit - 1);
+
+      return List<Map<String, dynamic>>.from(response);
+    } on PostgrestException catch (e) {
+      throw Exception('Failed to get following list: ${e.message}');
+    } catch (e) {
+      throw Exception('Network error: $e');
+    }
+  }
+
+  /// Mengambil daftar followers dari user tertentu
+  /// [userId] - ID user yang ingin dilihat followersnya
+  /// [limit] - jumlah user per page (default: 50)
+  /// [offset] - offset untuk pagination (default: 0)
+  Future<List<Map<String, dynamic>>> getUserFollowers(
+    String userId, 
+    {int limit = 50, int offset = 0}
+  ) async {
+    try {
+      final response = await _client
+          .from('user_follows')
+          .select('''
+            follower_id,
+            created_at,
+            users!user_follows_follower_id_fkey(
+              id,
+              full_name,
+              username,
+              profile_picture
+            )
+          ''')
+          .eq('following_id', userId)
+          .order('created_at', ascending: false)
+          .range(offset, offset + limit - 1);
+
+      return List<Map<String, dynamic>>.from(response);
+    } on PostgrestException catch (e) {
+      throw Exception('Failed to get followers list: ${e.message}');
+    } catch (e) {
+      throw Exception('Network error: $e');
+    }
+  }
+
+  /// Update profile user
+  /// [userId] - ID user yang akan diupdate
+  /// [profileData] - data yang akan diupdate
+  Future<bool> updateUserProfile(String userId, Map<String, dynamic> profileData) async {
+    try {
+      // Tambahkan updated_at timestamp
+      profileData['updated_at'] = DateTime.now().toIso8601String();
+
+      await _client
+          .from('users')
+          .update(profileData)
+          .eq('id', userId);
+
+      return true;
+    } on PostgrestException catch (e) {
+      throw Exception('Failed to update profile: ${e.message}');
+    } catch (e) {
+      throw Exception('Network error: $e');
+    }
+  }
+
+  /// Check apakah current user sudah follow target user
+  /// [currentUserId] - ID user yang sedang login
+  /// [targetUserId] - ID user yang ingin dicek
+  Future<bool> isFollowing(String currentUserId, String targetUserId) async {
+    try {
+      final response = await _client
+          .from('user_follows')
+          .select('id')
+          .eq('follower_id', currentUserId)
+          .eq('following_id', targetUserId)
+          .maybeSingle();
+
+      return response != null;
+    } on PostgrestException catch (e) {
+      throw Exception('Failed to check follow status: ${e.message}');
+    } catch (e) {
+      throw Exception('Network error: $e');
+    }
+  }
+
+  /// Follow user
+  /// [currentUserId] - ID user yang sedang login
+  /// [targetUserId] - ID user yang akan difollow
+  Future<bool> followUser(String currentUserId, String targetUserId) async {
+    try {
+      await _client
+          .from('user_follows')
+          .insert({
+            'follower_id': currentUserId,
+            'following_id': targetUserId,
+            'created_at': DateTime.now().toIso8601String(),
+          });
+
+      return true;
+    } on PostgrestException catch (e) {
+      if (e.code == '23505') { // Unique constraint violation
+        throw Exception('Already following this user');
+      }
+      throw Exception('Failed to follow user: ${e.message}');
+    } catch (e) {
+      throw Exception('Network error: $e');
+    }
+  }
+
+  /// Unfollow user
+  /// [currentUserId] - ID user yang sedang login
+  /// [targetUserId] - ID user yang akan di-unfollow
+  Future<bool> unfollowUser(String currentUserId, String targetUserId) async {
+    try {
+      await _client
+          .from('user_follows')
+          .delete()
+          .eq('follower_id', currentUserId)
+          .eq('following_id', targetUserId);
+
+      return true;
+    } on PostgrestException catch (e) {
+      throw Exception('Failed to unfollow user: ${e.message}');
+    } catch (e) {
+      throw Exception('Network error: $e');
+    }
+  }
+
+  /// Upload gambar profil ke Supabase Storage
+  /// [userId] - ID user
+  /// [imageBytes] - bytes dari gambar
+  /// [fileName] - nama file
+  /// Returns: URL gambar yang sudah diupload
+  Future<String> uploadProfileImage(String userId, List<int> imageBytes, String fileName) async {
+    try {
+      final String path = 'profiles/$userId/$fileName';
+      
+      await _client.storage
+          .from('avatars')
+          .uploadBinary(path, imageBytes);
+
+      final String imageUrl = _client.storage
+          .from('avatars')
+          .getPublicUrl(path);
+
+      return imageUrl;
+    } on StorageException catch (e) {
+      throw Exception('Failed to upload image: ${e.message}');
+    } catch (e) {
+      throw Exception('Network error: $e');
+    }
+  }
+
+  /// Upload cover picture ke Supabase Storage
+  /// [userId] - ID user
+  /// [imageBytes] - bytes dari gambar
+  /// [fileName] - nama file
+  /// Returns: URL gambar yang sudah diupload
+  Future<String> uploadCoverImage(String userId, List<int> imageBytes, String fileName) async {
+    try {
+      final String path = 'covers/$userId/$fileName';
+      
+      await _client.storage
+          .from('covers')
+          .uploadBinary(path, imageBytes);
+
+      final String imageUrl = _client.storage
+          .from('covers')
+          .getPublicUrl(path);
+
+      return imageUrl;
+    } on StorageException catch (e) {
+      throw Exception('Failed to upload cover image: ${e.message}');
+    } catch (e) {
+      throw Exception('Network error: $e');
+    }
+  }
+
+  /// Mendapatkan current user ID dari auth
+  /// Returns: User ID atau null jika tidak login
+  String? getCurrentUserId() {
+    return _client.auth.currentUser?.id;
+  }
+
+  /// Check apakah user sudah login
+  /// Returns: true jika sudah login
+  bool isUserLoggedIn() {
+    return _client.auth.currentUser != null;
+  }
+}

@@ -66,7 +66,7 @@ class MyApp extends StatelessWidget {
         '/': (context) => const HomeScreenWrapper(),
         '/home': (context) => const HomePage(),
         '/bookmark': (context) => const BookmarkScreen(),
-        '/profile': (context) => const ProfileScreen(),
+        '/profile': (context) => const ProfileScreenWithBackend(),
       },
     );
   }
