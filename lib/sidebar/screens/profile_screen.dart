@@ -103,9 +103,17 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
                 children: [
                   // Header background
                   Container(
-                    height: 150,
+                    height: 180,
                     width: double.infinity,
-                    color: AppColors.darkHeader,
+                    decoration: BoxDecoration(
+                      image: const DecorationImage(
+                        image: NetworkImage(
+                          'https://images.unsplash.com/photo-1503264116251-35a269479413?auto=format&fit=crop&w=800&q=80',
+                        ),
+                        fit: BoxFit.cover,
+                      ),
+                      borderRadius: BorderRadius.circular(0),
+                    ),
                   ),
                   // Spacer so the image doesn't overlap with white background
                   const SizedBox(height: 60), // cukup menampung profile pic overlap
