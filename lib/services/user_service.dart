@@ -94,4 +94,40 @@ class UserService {
 
     await _supabase.from('users').update(updates).eq('id', userId);
   }
+
+  /// Check if username is available
+  Future<bool> isUsernameAvailable(String username) async {
+    if (username.isEmpty) return false;
+
+    // Hapus karakter @ jika ada di awal username
+    if (username.startsWith('@')) {
+      username = username.substring(1);
+    }
+
+    final result = await _supabase
+        .from('users')
+        .select('username')
+        .eq('username', username)
+        .limit(1);
+
+    // Jika result kosong, username tersedia
+    return result.isEmpty;
+  }
+
+  /// Check if email exists in the database
+  Future<bool> checkEmailExists(String email) async {
+    try {
+      final response = await _supabase
+          .from('users')
+          .select('email')
+          .eq('email', email)
+          .limit(1);
+      
+      return response.length > 0;
+    } catch (e) {
+      print('Error checking email: $e');
+      // Jika error, anggap email tidak ada untuk aman
+      return false;
+    }
+  }
 }

@@ -114,17 +114,21 @@ class _HomeScreenWrapperState extends State<HomeScreenWrapper> {
   
   Future<void> _fetchUserInfo() async {
     if (!AuthService.isUserLoggedIn()) {
-      setState(() {
-        _userEmail = null;
-        _userFullName = null;
-        _username = null;
-      });
+      if (mounted) { // Add this check
+        setState(() {
+          _userEmail = null;
+          _userFullName = null;
+          _username = null;
+        });
+      }
       return;
     }
     
-    setState(() {
-      _isLoading = true;
-    });
+    if (mounted) { // Add this check
+      setState(() {
+        _isLoading = true;
+      });
+    }
     
     try {
       final userId = AuthService.getCurrentUserId();
@@ -136,18 +140,22 @@ class _HomeScreenWrapperState extends State<HomeScreenWrapper> {
           .eq('id', userId)
           .single();
         
-        setState(() {
-          _userEmail = Supabase.instance.client.auth.currentUser?.email;
-          _userFullName = userData['full_name'];
-          _username = userData['username'];
-          _isLoading = false;
-        });
+        if (mounted) { // Add this check
+          setState(() {
+            _userEmail = Supabase.instance.client.auth.currentUser?.email;
+            _userFullName = userData['full_name'];
+            _username = userData['username'];
+            _isLoading = false;
+          });
+        }
       }
     } catch (e) {
       print('Error saat fetch user info: $e');
-      setState(() {
-        _isLoading = false;
-      });
+      if (mounted) { // Add this check
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
   

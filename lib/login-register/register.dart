@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'login.dart';
@@ -18,6 +19,14 @@ class _RegisterPageState extends State<RegisterPage> {
 
   // Status message for registration feedback
   String _statusMessage = '';
+  
+  // Username availability status
+  bool _isCheckingUsername = false;
+  bool? _isUsernameAvailable;
+  String _usernameMessage = '';
+  
+  // Timer untuk debounce
+  Timer? _debounceTimer;
 
   // Tambahkan controller di sini
   final _emailController = TextEditingController();
@@ -26,6 +35,213 @@ class _RegisterPageState extends State<RegisterPage> {
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
   final _phoneController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    // Menambahkan listener pada username controller
+    _usernameController.addListener(_onUsernameChanged);
+  }    @override
+  void dispose() {
+    // Membersihkan timer dan controller
+    _debounceTimer?.cancel();
+    _usernameController.removeListener(_onUsernameChanged);
+    _emailController.dispose();
+    _fullNameController.dispose();
+    _usernameController.dispose();
+    _passwordController.dispose();
+    _confirmPasswordController.dispose();
+    _phoneController.dispose();
+    super.dispose();
+  }
+    // Fungsi untuk mengecek ketersediaan username dengan delay
+  void _onUsernameChanged() {
+    // Batalkan timer sebelumnya jika ada
+    if (_debounceTimer?.isActive ?? false) {
+      _debounceTimer!.cancel();
+    }
+    
+    // Jika username kosong, reset status
+    if (_usernameController.text.trim().isEmpty) {
+      setState(() {
+        _isCheckingUsername = false;
+        _isUsernameAvailable = null;
+        _usernameMessage = '';
+      });
+      return;
+    }
+    
+    // Mulai timer baru (2 detik)
+    _debounceTimer = Timer(const Duration(seconds: 2), () async {
+      // Tampilkan loading
+      setState(() {
+        _isCheckingUsername = true;
+        _usernameMessage = 'Memeriksa ketersediaan username...';
+      });
+      
+      try {
+        final UserService userService = UserService();
+        final isAvailable = await userService.isUsernameAvailable(_usernameController.text.trim());
+        
+        if (!mounted) return;
+        
+        setState(() {
+          _isCheckingUsername = false;
+          _isUsernameAvailable = isAvailable;
+          _usernameMessage = isAvailable 
+              ? 'Username tersedia!'
+              : 'Username sudah digunakan, silakan pilih yang lain';
+        });
+      } catch (e) {
+        if (!mounted) return;
+        setState(() {
+          _isCheckingUsername = false;
+          _isUsernameAvailable = null;
+          _usernameMessage = 'Gagal memeriksa username: $e';
+        });
+      }
+    });
+  }
+
+  // Validasi semua field
+  bool _validateFields() {
+    if (_emailController.text.isEmpty ||
+        _fullNameController.text.isEmpty ||
+        _usernameController.text.isEmpty ||
+        _passwordController.text.isEmpty ||
+        _phoneController.text.isEmpty) {
+      setState(() {
+        _statusMessage = 'Semua field wajib diisi!';
+      });
+      return false;
+    }
+    
+    if (_passwordController.text != _confirmPasswordController.text) {
+      setState(() {
+        _statusMessage = 'Kata sandi tidak cocok!';
+      });
+      return false;
+    }
+    
+    // Validasi username availability jika sudah dicek
+    if (_isUsernameAvailable == false) {
+      setState(() {
+        _statusMessage = 'Username sudah digunakan, silakan pilih yang lain';
+      });
+      return false;
+    }
+    
+    return true;
+  }
+
+  // Dialog sukses registrasi dengan petunjuk konfirmasi email
+  void _showSuccessRegistrationDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        title: Text('Registrasi Berhasil'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Silakan cek email Anda untuk melakukan konfirmasi akun.'),
+            SizedBox(height: 12),
+            Text('Setelah konfirmasi, Anda bisa kembali ke aplikasi dan langsung masuk ke akun Anda.'),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop(); // Tutup dialog
+            },
+            child: Text('OK'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.of(context).pop(); // Tutup dialog
+              _tryLoginAfterConfirmation(); // Coba login setelah konfirmasi
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Color(0xFF8E1616),
+            ),
+            child: Text('Saya sudah konfirmasi email'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Dialog untuk email yang sudah terdaftar tapi perlu konfirmasi
+  void _showEmailConfirmationDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        title: Text('Email Sudah Terdaftar'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Email ini sudah terdaftar tetapi mungkin belum dikonfirmasi.'),
+            SizedBox(height: 8),
+            Text('Silakan cek email Anda untuk link konfirmasi.'),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+            },
+            child: Text('OK'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              _tryLoginAfterConfirmation();
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Color(0xFF8E1616),
+            ),
+            child: Text('Saya sudah konfirmasi email'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Fungsi untuk mencoba login setelah konfirmasi
+  Future<void> _tryLoginAfterConfirmation() async {
+    setState(() {
+      _statusMessage = 'Mencoba login setelah konfirmasi...';
+    });
+    
+    try {
+      final userService = UserService();
+      final signInRes = await userService.signIn(
+        email: _emailController.text.trim(), 
+        password: _passwordController.text
+      );
+      
+      if (signInRes.user != null) {
+        // Login berhasil, arahkan ke SetupAllergiesPage
+        if (!mounted) return;
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (_) => const SetupAllergiesPage()),
+          (route) => false,
+        );
+      } else {
+        setState(() {
+          _statusMessage = 'Login gagal setelah konfirmasi.';
+        });
+      }
+    } catch (e) {
+      setState(() {
+        _statusMessage = 'Error: $e';
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -184,13 +400,50 @@ class _RegisterPageState extends State<RegisterPage> {
                                     ),
                                   ),
                                 ),
-                                SizedBox(height: 12),
-                                TextField(
+                                SizedBox(height: 12),                                TextField(
                                   controller:
                                       _usernameController, // Tambahkan ini
                                   style: GoogleFonts.dmSans(),
                                   decoration: InputDecoration(
-                                    hintText: 'Username',
+                                    hintText: 'username',
+                                    prefixIcon: Container(
+                                      width: 50,
+                                      alignment: Alignment.center,
+                                      child: Row(
+                                        children: [
+                                          SizedBox(width: 10),
+                                          Text(
+                                            '@',
+                                            style: GoogleFonts.dmSans(
+                                              color: Colors.grey,
+                                              fontSize: 18, // Ukuran @ lebih besar
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                          SizedBox(width: 5),
+                                          Container(
+                                            height: 24,
+                                            width: 1,
+                                            color: Colors.grey.withOpacity(0.5), // Sekat vertikal
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    suffixIcon: _isCheckingUsername
+                                      ? Container(
+                                          width: 24,
+                                          height: 24,
+                                          padding: EdgeInsets.all(6),
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                            color: Colors.grey,
+                                          ),
+                                        )
+                                      : _isUsernameAvailable == null
+                                        ? null
+                                        : _isUsernameAvailable!
+                                          ? Icon(Icons.check_circle, color: Colors.green)
+                                          : Icon(Icons.cancel, color: Colors.red),
                                     hintStyle: GoogleFonts.dmSans(),
                                     filled: true,
                                     fillColor: Color.fromARGB(13, 0, 0, 0),
@@ -204,6 +457,22 @@ class _RegisterPageState extends State<RegisterPage> {
                                     ),
                                   ),
                                 ),
+                                if (_usernameMessage.isNotEmpty)
+                                  Container(
+                                    alignment: Alignment.centerLeft,
+                                    padding: EdgeInsets.only(left: 8, top: 4),
+                                    child: Text(
+                                      _usernameMessage,
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: _isUsernameAvailable == null
+                                            ? Colors.grey
+                                            : _isUsernameAvailable!
+                                                ? Colors.green
+                                                : Colors.red,
+                                      ),
+                                    ),
+                                  ),
                                 SizedBox(height: 12),
                                 TextField(
                                   controller:
@@ -275,6 +544,20 @@ class _RegisterPageState extends State<RegisterPage> {
                                   ),
                                 ),
                                 SizedBox(height: 12),
+                                // Status ketersediaan username
+                                if (_usernameMessage.isNotEmpty)
+                                  Padding(
+                                    padding: const EdgeInsets.only(top: 8.0),
+                                    child: Text(
+                                      _usernameMessage,
+                                      style: TextStyle(
+                                        color: _isUsernameAvailable == true
+                                            ? Colors.green
+                                            : Colors.red,
+                                        fontSize: 14,
+                                      ),
+                                    ),
+                                  ),
                               ],
                             ),
                           ),
@@ -316,76 +599,127 @@ class _RegisterPageState extends State<RegisterPage> {
                             SizedBox(
                               width: double.infinity,
                               height: 52,
-                              child: ElevatedButton(
-                                onPressed: () async {
+                              child: ElevatedButton(                                onPressed: () async {
                                   setState(() {
                                     _statusMessage = '';
                                   });
 
-                                  // Validasi sederhana
-                                  if (_emailController.text.isEmpty ||
-                                      _fullNameController.text.isEmpty ||
-                                      _usernameController.text.isEmpty ||
-                                      _passwordController.text.isEmpty ||
-                                      _phoneController.text.isEmpty) {
-                                    setState(() {
-                                      _statusMessage =
-                                          'Semua field wajib diisi!';
-                                    });
-                                    return;
-                                  }
+                                  // Validasi semua field dan password match
+                                  if (!_validateFields()) return;
                                   
-                                  if (_passwordController.text !=
-                                      _confirmPasswordController.text) {
-                                    setState(() {
-                                      _statusMessage =
-                                          'Kata sandi tidak cocok!';
-                                    });
-                                    return;
-                                  }
-
                                   try {
                                     final userService = UserService();
-                                    final res = await userService.signUp(
+                                    
+                                    // Cek dulu apakah username tersedia
+                                    final username = _usernameController.text.trim().startsWith('@')
+                                        ? _usernameController.text.trim().substring(1)
+                                        : _usernameController.text.trim();
+                                    
+                                    final isAvailable = await userService.isUsernameAvailable(username);
+                                    
+                                    if (!isAvailable) {
+                                      setState(() {
+                                        _statusMessage = 'Username sudah digunakan, silakan pilih yang lain';
+                                      });
+                                      return;
+                                    }
+                                    
+                                    // Cek apakah email sudah terdaftar sebelum pendaftaran
+                                    try {
+                                      final emailExistsCheck = await userService.checkEmailExists(_emailController.text.trim());
+                                      
+                                      if (emailExistsCheck) {
+                                        // Email sudah terdaftar, coba login saja
+                                        setState(() {
+                                          _statusMessage = 'Email sudah terdaftar. Mencoba login...';
+                                        });
+                                        
+                                        // Coba login
+                                        try {
+                                          final signInRes = await userService.signIn(
+                                            email: _emailController.text.trim(), 
+                                            password: _passwordController.text
+                                          );
+                                          
+                                          if (signInRes.user != null) {
+                                            // Login berhasil, arahkan ke SetupAllergiesPage
+                                            if (!mounted) return;
+                                            Navigator.pushAndRemoveUntil(
+                                              context,
+                                              MaterialPageRoute(builder: (_) => const SetupAllergiesPage()),
+                                              (route) => false,
+                                            );
+                                            return;
+                                          } else {
+                                            // Login gagal tapi email ada - mungkin password salah
+                                            setState(() {
+                                              _statusMessage = 'Password tidak sesuai dengan akun yang terdaftar';
+                                            });
+                                            return;
+                                          }
+                                        } catch (e) {
+                                          // Error saat login
+                                          if (e.toString().contains('Email not confirmed')) {
+                                            setState(() {
+                                              _statusMessage = 'Email belum dikonfirmasi. Silakan cek inbox email Anda untuk link konfirmasi';
+                                            });
+                                            
+                                            // Tambahkan tombol untuk cek konfirmasi lagi
+                                            _showEmailConfirmationDialog();
+                                          } else {
+                                            setState(() {
+                                              _statusMessage = 'Gagal login: $e';
+                                            });
+                                          }
+                                          return;
+                                        }
+                                      }
+                                    } catch (e) {
+                                      // Lanjutkan dengan pendaftaran jika gagal memeriksa email
+                                      print('Error checking email: $e');
+                                    }
+                                    
+                                    // Registrasi user baru jika email belum terdaftar
+                                    final signUpRes = await userService.signUp(
                                       email: _emailController.text.trim(),
                                       password: _passwordController.text,
-                                      username: _usernameController.text.trim(),
+                                      username: username,
                                       fullName: _fullNameController.text.trim(),
                                       phone: _phoneController.text.trim(),
                                     );
-                                    setState(() {
-                                      _statusMessage = 'Registrasi berhasil!';
-                                    });
-
-                                    // Tambahkan pengecekan login sebelum navigasi
-                                    if (AuthService.isUserLoggedIn()) {
-                                      // Jika user terdeteksi login, arahkan ke SetupAllergiesPage
-                                      print('User terdeteksi login, mengarahkan ke setup allergies');
-                                      Navigator.pushReplacement(
-                                        context,
-                                        MaterialPageRoute(
-                                          builder: (_) => const SetupAllergiesPage(),
-                                        ),
-                                      );
-                                    } else {
-                                      // Jika user tidak terdeteksi login, tampilkan pesan error
-                                      setState(() {
-                                        _statusMessage = 'Registrasi berhasil tetapi login gagal. Silakan login manual.';
-                                      });
+                                    
+                                    if (signUpRes.user != null) {
+                                      if (!mounted) return;
                                       
-                                      // Opsional: Arahkan ke halaman login
-                                      Navigator.pushReplacement(
-                                        context,
-                                        MaterialPageRoute(
-                                          builder: (_) => const LoginPage(),
-                                        ),
-                                      );
+                                      // Tampilkan halaman sukses dengan instruksi konfirmasi email
+                                      _showSuccessRegistrationDialog();
+                                      setState(() {
+                                        _statusMessage = 'Registrasi berhasil! Silakan cek email untuk konfirmasi.';
+                                      });
+                                    } else {
+                                      setState(() {
+                                        _statusMessage = 'Registrasi gagal: Tidak dapat membuat user.';
+                                      });
                                     }
                                   } catch (e) {
-                                    setState(() {
-                                      _statusMessage = 'Registrasi gagal: $e';
-                                    });
+                                    if (!mounted) return;
+                                    
+                                    // Tangani error spesifik Supabase
+                                    if (e.toString().contains('User already registered')) {
+                                      setState(() {
+                                        _statusMessage = 'Email sudah terdaftar. Silakan konfirmasi email atau coba login.';
+                                      });
+                                      
+                                      // Tambahkan tombol untuk cek konfirmasi atau login
+                                      _showEmailConfirmationDialog();
+                                    } else {
+                                      setState(() {
+                                        _statusMessage = 'Registrasi gagal: $e';
+                                      });
+                                    }
                                   }
+                                  
+                                  // Log untuk debugging
                                   print('Status login: ${AuthService.isUserLoggedIn()}');
                                   print('User ID: ${AuthService.getCurrentUserId()}');
                                 },
