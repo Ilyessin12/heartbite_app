@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/comment.dart';
 import '../utils/constants.dart';
+import '../../services/auth_service.dart'; // Added import
 
 class DiscussionScreen extends StatefulWidget {
   final List<Comment> comments;
@@ -28,6 +29,12 @@ class _DiscussionScreenState extends State<DiscussionScreen> {
   }
   
   void _addComment(String text) {
+    if (!AuthService.isUserLoggedIn()) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please log in to add a comment.')),
+      );
+      return;
+    }
     if (text.trim().isEmpty) return;
     
     setState(() {
@@ -118,8 +125,9 @@ class _DiscussionScreenState extends State<DiscussionScreen> {
                     Expanded(
                       child: TextField(
                         controller: _commentController,
-                        decoration: const InputDecoration(
-                          hintText: "Diskusi di sini",
+                        enabled: AuthService.isUserLoggedIn(), // Disable if not logged in
+                        decoration: InputDecoration(
+                          hintText: AuthService.isUserLoggedIn() ? "Diskusi di sini" : "Please log in to discuss",
                           border: InputBorder.none,
                           hintStyle: TextStyle(color: Colors.grey),
                         ),
@@ -127,9 +135,15 @@ class _DiscussionScreenState extends State<DiscussionScreen> {
                     ),
                     const SizedBox(width: 8),
                     GestureDetector(
-                      onTap: () {
-                        _addComment(_commentController.text);
-                      },
+                      onTap: AuthService.isUserLoggedIn()
+                          ? () {
+                              _addComment(_commentController.text);
+                            }
+                          : () {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('Please log in to send a comment.')),
+                              );
+                            },
                       child: Container(
                         padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
@@ -185,6 +199,12 @@ class _DiscussionScreenState extends State<DiscussionScreen> {
                   children: [
                     GestureDetector(
                       onTap: () {
+                        if (!AuthService.isUserLoggedIn()) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Please log in to like comments.')),
+                          );
+                          return;
+                        }
                         setState(() {
                           final index = _comments.indexOf(comment);
                           if (index != -1) {

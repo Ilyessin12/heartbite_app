@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:solar_icons/solar_icons.dart';
+import '../services/auth_service.dart'; // Added import
 
 class BottomNavBar extends StatelessWidget{
   final int currentIndex;
@@ -15,6 +16,7 @@ class BottomNavBar extends StatelessWidget{
 
   @override
   Widget build(BuildContext context){
+    final bool isLoggedIn = AuthService.isUserLoggedIn(); // Check login status
     return Stack(
       clipBehavior: Clip.none,
       alignment: Alignment.topCenter,
@@ -73,11 +75,11 @@ class BottomNavBar extends StatelessWidget{
               ],
             ),
             child: FloatingActionButton(
-              backgroundColor: Colors.white,
+              backgroundColor: isLoggedIn ? Colors.white : Colors.grey[300], // Change color if not logged in
               elevation: 0,
               shape: const CircleBorder(),
-              child: const Icon(Icons.add, color: Color(0xFF8E1616), size: 30),
-              onPressed: onFabPressed ?? (){},
+              child: Icon(Icons.add, color: isLoggedIn ? const Color(0xFF8E1616) : Colors.grey[700], size: 30),
+              onPressed: isLoggedIn ? (onFabPressed ?? (){}) : null, // Disable onPressed if not logged in
             ),
           ),
         ),
