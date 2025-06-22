@@ -5,6 +5,7 @@ import 'package:image_picker/image_picker.dart';
 import '../services/image_upload_service.dart';
 import '../services/recipe_service.dart';
 import '../models/recipe_model.dart';
+import '../services/auth_service.dart'; // Added import
 
 class InstructionStepData {
   final UniqueKey id;
@@ -202,6 +203,18 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
   }
 
   Future<void> _saveRecipe() async {
+    if (!AuthService.isUserLoggedIn()) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please log in to save recipes.')),
+      );
+      if (mounted) {
+        setState(() {
+          _isUploadingOrSaving = false;
+        });
+      }
+      return;
+    }
+
     if (!_formKey.currentState!.validate()) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please correct errors in the form before saving.')),
@@ -653,11 +666,11 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
                   : ElevatedButton(
                       key: const Key('save_button'),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.teal,
+                        backgroundColor: AuthService.isUserLoggedIn() ? Colors.teal : Colors.grey[400],
                         padding: const EdgeInsets.symmetric(vertical: 16),
                         textStyle: GoogleFonts.dmSans(fontSize: 18, fontWeight: FontWeight.bold),
                       ),
-                      onPressed: _saveRecipe,
+                      onPressed: AuthService.isUserLoggedIn() ? _saveRecipe : null,
                       child: const Text('Save Recipe Data'),
                     ),
               ],

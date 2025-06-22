@@ -8,6 +8,7 @@ import '../../recipe/edit_recipe_screen.dart'; // Import EditRecipeScreen
 import '../../services/recipe_service.dart'; // Import RecipeService
 import '../../services/bookmark_service.dart'; // Import BookmarkService
 import '../../services/supabase_client.dart'; // For current user
+import '../../services/auth_service.dart'; // Added import
 import '../models/recipe.dart' as DetailModel; // Alias for local detail model
 import '../models/ingredient.dart' as DetailModelIngredient;
 import '../models/direction.dart' as DetailModelDirection;
@@ -663,6 +664,12 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
                         const SizedBox(width: 8),
                         GestureDetector(
                           onTap: () {
+                            if (!AuthService.isUserLoggedIn()) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text("Please log in to bookmark recipes.")),
+                              );
+                              return;
+                            }
                             if (isBookmarked) {
                               _showRemoveBookmarkDialog(); // Shows dialog to remove from specific folders
                             } else {

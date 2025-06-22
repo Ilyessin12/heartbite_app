@@ -17,6 +17,7 @@ import '../recipe_detail/models/recipe.dart' as DetailRecipeModel;
 import '../recipe_detail/models/ingredient.dart' as DetailIngredientModel;
 import '../recipe_detail/models/direction.dart' as DetailDirectionModel;
 import '../recipe_detail/models/comment.dart' as DetailCommentModel;
+import '../services/auth_service.dart'; // Added import
 
 // DisplayRecipeItem is the primary model for recipe cards in this file.
 class DisplayRecipeItem {
@@ -197,6 +198,12 @@ class _HomePageState extends State<HomePage> {
   }
 
   void _onFabPressed() async {
+    if (!AuthService.isUserLoggedIn()) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please log in to create recipes.')),
+      );
+      return;
+    }
     final result = await Navigator.push(
       context,
       MaterialPageRoute(builder: (context) => const CreateRecipeScreen()),
