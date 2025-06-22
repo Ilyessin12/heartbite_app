@@ -794,9 +794,9 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
                     const SizedBox(height: 16),
 
                     // Display Tags
-                    _buildTagsSection("Allergens", _recipe!.allergenTags),
-                    _buildTagsSection("Dietary Programs", _recipe!.dietProgramTags),
-                    _buildTagsSection("Equipment Needed", _recipe!.equipmentTags),
+                    _buildTagsSection("Alergi", _recipe!.allergenTags),
+                    _buildTagsSection("Program Diet", _recipe!.dietProgramTags),
+                    _buildTagsSection("Alat-alat yang dibutuhkan", _recipe!.equipmentTags),
                     
                     SizedBox(
                       width: double.infinity,
