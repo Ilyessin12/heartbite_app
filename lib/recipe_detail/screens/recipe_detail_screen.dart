@@ -518,11 +518,30 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
     recipeToEdit.user_id =
         originalCreatorId; // Set the correct original creator's ID for EditRecipeScreen to check
 
-    // Now, perform the navigation with the correctly populated recipeToEdit
+    // Now, perform the navigation, passing only the recipeId
+    if (_recipe == null || _recipe!.id.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Error: Recipe ID not available to edit.')),
+        );
+      }
+      return;
+    }
+
+    final int? recipeIdToInt = int.tryParse(_recipe!.id);
+    if (recipeIdToInt == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Error: Invalid Recipe ID format.')),
+        );
+      }
+      return;
+    }
+
     final result = await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => EditRecipeScreen(recipe: recipeToEdit),
+        builder: (context) => EditRecipeScreen(recipeId: recipeIdToInt), // Pass recipeId
       ),
     );
     if (result == true) {

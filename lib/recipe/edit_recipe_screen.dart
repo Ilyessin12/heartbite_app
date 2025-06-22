@@ -40,11 +40,28 @@ class IngredientRowData {
   }
 }
 
+// Copied from create_recipe_screen.dart
+class InstructionStepData {
+  final UniqueKey id;
+  final TextEditingController textController;
+  File? selectedImageFile;
+  String? existingImageUrl; // To hold URL of image already part of the recipe
+
+  InstructionStepData({
+    String initialText = '',
+    this.selectedImageFile,
+    this.existingImageUrl,
+  }) : id = UniqueKey(), textController = TextEditingController(text: initialText);
+
+  void dispose() {
+    textController.dispose();
+  }
+}
 
 class EditRecipeScreen extends StatefulWidget {
-  final RecipeModel recipe;
+  final int recipeId; // Changed from RecipeModel to recipeId
 
-  const EditRecipeScreen({super.key, required this.recipe});
+  const EditRecipeScreen({super.key, required this.recipeId}); // Updated constructor
 
   @override
   State<EditRecipeScreen> createState() => _EditRecipeScreenState();
@@ -53,6 +70,13 @@ class EditRecipeScreen extends StatefulWidget {
 class _EditRecipeScreenState extends State<EditRecipeScreen> {
   final _formKey = GlobalKey<FormState>();
 
+  // State variables for the fetched recipe and loading state
+  RecipeModel? _recipe;
+  bool _isLoading = true;
+  String _loadingError = '';
+  final RecipeService _recipeService = RecipeService(); // Instance of RecipeService
+
+  // Controllers will be initialized after data is fetched
   late TextEditingController _titleController;
   late TextEditingController _descriptionController;
 
@@ -61,18 +85,19 @@ class _EditRecipeScreenState extends State<EditRecipeScreen> {
 
   final ImagePicker _picker = ImagePicker();
   final ImageUploadService _imageUploadService = ImageUploadService();
-  final RecipeService _recipeService = RecipeService();
+  // final RecipeService _recipeService = RecipeService(); // Removed duplicate
   bool _isUploadingOrSaving = false;
 
   late TextEditingController _caloriesController;
   late TextEditingController _servingsController;
   late TextEditingController _cookingMinutesController;
-  String? _selectedDifficultyLevel; 
-  List<IngredientRowData> _ingredientRows = []; // Changed to non-final
-  late TextEditingController _directionsController; 
+  String? _selectedDifficultyLevel;
+  List<IngredientRowData> _ingredientRows = [];
+  // late TextEditingController _directionsController; // Replaced by _instructionSteps
+  List<InstructionStepData> _instructionSteps = []; // For new instruction handling
 
-  List<String> _existingGalleryImageUrls = []; // Not final, reassigned in initState if widget.recipe.gallery_image_urls is not null
-  final List<File> _newSelectedGalleryImageFiles = []; // Made final
+  List<String> _existingGalleryImageUrls = [];
+  final List<File> _newSelectedGalleryImageFiles = [];
 
   // State for tags - these are re-assigned in _fetchTags
   List<Allergen> _availableAllergens = [];
@@ -87,115 +112,150 @@ class _EditRecipeScreenState extends State<EditRecipeScreen> {
   @override
   void initState() {
     super.initState();
-    _titleController = TextEditingController(text: widget.recipe.title);
-    _descriptionController = TextEditingController(text: widget.recipe.description); // Wajib
-    _existingImageUrl = widget.recipe.image_url; // Wajib
-    _caloriesController = TextEditingController(text: widget.recipe.calories.toString()); // Wajib
-    _servingsController = TextEditingController(text: widget.recipe.servings.toString()); // Wajib
-    _cookingMinutesController = TextEditingController(text: widget.recipe.cooking_time_minutes.toString()); // Wajib
-    // _difficultyLevelController = TextEditingController(text: widget.recipe.difficulty_level); // Dihapus
-    _selectedDifficultyLevel = widget.recipe.difficulty_level; // Inisialisasi dari resep yang diedit
-    // _ingredientsController = TextEditingController(text: widget.recipe.ingredients_text); // Diganti
+    _fetchRecipeDetailsAndInitializeForm();
+  }
 
-    // Populate _ingredientRows from widget.recipe.ingredients
-    if (widget.recipe.ingredients != null && widget.recipe.ingredients!.isNotEmpty) {
-      _ingredientRows = widget.recipe.ingredients!.map((ingModel) {
-        return IngredientRowData(
-          initialName: ingModel.ingredient_text ?? '', // ingredient_text is name here
-          initialQuantity: ingModel.quantity?.toString() ?? '',
-          initialUnit: ingModel.unit ?? '',
-        );
-      }).toList();
-    } else {
-      // If no structured ingredients, add one empty row for editing.
-      // We are NOT parsing ingredients_text back due to complexity and potential inaccuracy.
-      // User will need to re-enter if only old text format existed.
-      _ingredientRows.add(IngredientRowData());
+  Future<void> _fetchRecipeDetailsAndInitializeForm() async {
+    setState(() {
+      _isLoading = true;
+      _loadingError = '';
+    });
+    try {
+      final String? currentUserId = SupabaseClientWrapper().client.auth.currentUser?.id;
+      // Use the same service call as RecipeDetailScreen
+      final recipeDataMap = await _recipeService.getRecipeDetailsById(widget.recipeId, currentUserId: currentUserId);
+      
+      if (!mounted) return;
+
+      // Adapt the map to RecipeModel using its fromJson factory
+      // This factory is expected to handle nested lists like recipe_ingredients, recipe_instructions, allergens etc.
+      _recipe = RecipeModel.fromJson(recipeDataMap);
+
+      // Initialize controllers and state variables *after* _recipe is set
+      _titleController = TextEditingController(text: _recipe!.title);
+      _descriptionController = TextEditingController(text: _recipe!.description);
+      _existingImageUrl = _recipe!.image_url;
+      _caloriesController = TextEditingController(text: _recipe!.calories?.toString() ?? '');
+      _servingsController = TextEditingController(text: _recipe!.servings.toString());
+      _cookingMinutesController = TextEditingController(text: _recipe!.cooking_time_minutes.toString());
+      _selectedDifficultyLevel = _recipe!.difficulty_level;
+
+      if (_recipe!.ingredients != null && _recipe!.ingredients!.isNotEmpty) {
+        _ingredientRows = _recipe!.ingredients!.map((ingModel) {
+          return IngredientRowData(
+            initialName: ingModel.ingredient_text,
+            initialQuantity: ingModel.quantity.toString(),
+            initialUnit: ingModel.unit ?? '',
+          );
+        }).toList();
+      } else {
+        _ingredientRows.add(IngredientRowData());
+      }
+
+      if (_recipe!.instructions != null && _recipe!.instructions!.isNotEmpty) {
+        _instructionSteps = _recipe!.instructions!.map((instrModel) {
+          return InstructionStepData(
+            initialText: instrModel.instruction,
+            existingImageUrl: instrModel.image_url,
+          );
+        }).toList();
+      } else if (_recipe!.directions_text != null && _recipe!.directions_text!.trim().isNotEmpty) {
+        final lines = _recipe!.directions_text!
+            .split(RegExp(r'\r\n|\r|\n'))
+            .where((line) => line.trim().isNotEmpty);
+        _instructionSteps = lines.map((line) => InstructionStepData(initialText: line.trim())).toList();
+      }
+      if (_instructionSteps.isEmpty) {
+        _instructionSteps.add(InstructionStepData());
+      }
+
+      _existingGalleryImageUrls = List<String>.from(_recipe!.gallery_image_urls ?? []);
+      
+      // Fetch available tags and populate selected ones
+      await _fetchTagsAndPopulateSelected(); // This now uses _recipe internally
+
+      setState(() {
+        _isLoading = false;
+      });
+
+    } catch (e, s) {
+      print("Error fetching recipe details for edit: $e");
+      print("Stack trace: $s");
+      if (!mounted) return;
+      setState(() {
+        _isLoading = false;
+        _loadingError = "Gagal memuat detail resep untuk diedit: ${e.toString()}";
+      });
     }
-
-    // Untuk Edit, directions_text digunakan untuk instruksi. Ini juga akan dibuat wajib.
-    // Jika resep lama mungkin memiliki instructions (struktur baru) dan directions_text kosong,
-    // kita perlu cara untuk memigrasikannya atau memastikan directions_text diisi.
-    // Untuk saat ini, kita asumsikan directions_text adalah sumber kebenaran untuk instruksi di layar edit.
-    String initialDirections = widget.recipe.directions_text ?? '';
-    if (initialDirections.isEmpty && widget.recipe.instructions != null && widget.recipe.instructions!.isNotEmpty) {
-      // Jika directions_text kosong tapi ada instructions, kita konversi instructions ke format directions_text
-      initialDirections = widget.recipe.instructions!
-          .map((instr) => instr.instruction)
-          .join('\n');
-    }
-    _directionsController = TextEditingController(text: initialDirections); // Wajib
-
-    _existingGalleryImageUrls = List<String>.from(widget.recipe.gallery_image_urls ?? []);
-
-    _fetchTagsAndPopulateSelected();
   }
 
   Future<void> _fetchTagsAndPopulateSelected() async {
+    // This method now assumes _recipe is already populated.
+    if (_recipe == null) {
+      setState(() { _isLoadingTags = false; });
+      return;
+    }
+    setState(() { _isLoadingTags = true; });
     try {
-      // Fetch all available tags
       final allergens = await _recipeService.getAllergens();
       final dietPrograms = await _recipeService.getDietPrograms();
       final equipment = await _recipeService.getEquipment();
 
       if (!mounted) return;
-      setState(() {
-        _availableAllergens = allergens;
-        _availableDietPrograms = dietPrograms;
-        _availableEquipment = equipment;
+      
+      _availableAllergens = allergens;
+      _availableDietPrograms = dietPrograms;
+      _availableEquipment = equipment;
 
-        // Populate selected tags
-        _selectedAllergenIds.clear(); // Clear before adding to avoid duplicates if _fetch is called multiple times
-        _selectedAllergenIds.addAll(widget.recipe.allergensList?.map((a) => a.id).toSet() ?? {});
-        _selectedDietProgramIds.clear();
-        _selectedDietProgramIds.addAll(widget.recipe.dietProgramsList?.map((dp) => dp.id).toSet() ?? {});
-        _selectedEquipmentIds.clear();
-        _selectedEquipmentIds.addAll(widget.recipe.equipmentList?.map((e) => e.id).toSet() ?? {});
-        
-        _isLoadingTags = false;
-      });
+      _selectedAllergenIds.clear();
+      _selectedAllergenIds.addAll(_recipe!.allergensList?.map((a) => a.id).toSet() ?? {});
+      _selectedDietProgramIds.clear();
+      _selectedDietProgramIds.addAll(_recipe!.dietProgramsList?.map((dp) => dp.id).toSet() ?? {});
+      _selectedEquipmentIds.clear();
+      _selectedEquipmentIds.addAll(_recipe!.equipmentList?.map((e) => e.id).toSet() ?? {});
+      
+      setState(() { _isLoadingTags = false; });
     } catch (e) {
+      print("Error fetching tags: $e");
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Gagal memuat informasi tag: $e')),
       );
-      setState(() {
-        _isLoadingTags = false;
-      });
+      setState(() { _isLoadingTags = false; });
     }
   }
 
   @override
   void dispose() {
-    _titleController.dispose();
-    _descriptionController.dispose();
-    _caloriesController.dispose();
-    _servingsController.dispose();
-    _cookingMinutesController.dispose();
-    // _difficultyLevelController.dispose(); // Dihapus
-    // _ingredientsController.dispose(); // Diganti
-    for (var row in _ingredientRows) {
-      row.dispose();
+    // Dispose controllers only if they have been initialized
+    if (_recipe != null) {
+      _titleController.dispose();
+      _descriptionController.dispose();
+      _caloriesController.dispose();
+      _servingsController.dispose();
+      _cookingMinutesController.dispose();
+      for (var row in _ingredientRows) {
+        row.dispose();
+      }
+      for (var step in _instructionSteps) {
+        step.dispose();
+      }
     }
-    _directionsController.dispose();
     super.dispose();
   }
 
-  List<RecipeInstructionModel> _parseDirectionsToInstructions(String directionsText) {
-    final lines = directionsText.split('\n').where((line) => line.trim().isNotEmpty).toList();
-    List<RecipeInstructionModel> instructions = [];
-    for (int i = 0; i < lines.length; i++) {
-      instructions.add(RecipeInstructionModel(
-        step_number: i + 1,
-        instruction: lines[i].trim(),
-        // image_url for instructions from directions_text will be null
-        // as this screen does not support per-step image editing for directions_text
-      ));
+  Future<void> _pickInstructionImage(int index) async {
+    if (_isUploadingOrSaving) return;
+    final XFile? pickedFile = await _picker.pickImage(source: ImageSource.gallery);
+    if (pickedFile != null && mounted) {
+      setState(() {
+        _instructionSteps[index].selectedImageFile = File(pickedFile.path);
+        _instructionSteps[index].existingImageUrl = null; // Clear existing if new one is picked
+      });
     }
-    return instructions;
   }
 
-   double _parseQuantity(String quantityStr) { // Copied from create_recipe_screen
+  double _parseQuantity(String quantityStr) { // Copied from create_recipe_screen
     quantityStr = quantityStr.trim().replaceAll(',', '.');
     if (quantityStr.isEmpty) return 1.0;
 
@@ -259,6 +319,13 @@ class _EditRecipeScreenState extends State<EditRecipeScreen> {
     }
     _formKey.currentState!.save();
 
+    if (_recipe == null) { // Should not happen if UI is built, but good check
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Data resep tidak ditemukan.')),
+      );
+      return;
+    }
+
     final currentUser = SupabaseClientWrapper().auth.currentUser;
     if (currentUser == null) {
       if (!mounted) return;
@@ -268,13 +335,21 @@ class _EditRecipeScreenState extends State<EditRecipeScreen> {
       return;
     }
 
-    if (widget.recipe.user_id != currentUser.id) {
+    if (_recipe!.user_id != currentUser.id) { // Use _recipe.user_id
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Anda tidak berwenang untuk mengedit resep ini.')),
         );
         return;
     }
+     if (_instructionSteps.isEmpty || _instructionSteps.every((step) => step.textController.text.trim().isEmpty)) {
+       if (!mounted) return;
+       ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Silakan tambahkan minimal satu langkah instruksi dengan teks.')),
+      );
+      return;
+    }
+
 
     if (_isUploadingOrSaving) return;
 
@@ -295,7 +370,7 @@ class _EditRecipeScreenState extends State<EditRecipeScreen> {
       }
     }
 
-    List<String> finalGalleryImageUrls = List.from(_existingGalleryImageUrls); 
+    List<String> finalGalleryImageUrls = List.from(_existingGalleryImageUrls);
 
     if (_newSelectedGalleryImageFiles.isNotEmpty) {
       for (File imageFile in _newSelectedGalleryImageFiles) {
@@ -303,20 +378,66 @@ class _EditRecipeScreenState extends State<EditRecipeScreen> {
         if (url != null) {
           finalGalleryImageUrls.add(url);
         } else {
-          // print('Sebuah gambar galeri baru gagal diunggah dan akan dilewati.'); // Removed print
-           if (!mounted) return; // Check before showing SnackBar
+           if (!mounted) return;
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(content: Text('Sebuah gambar galeri baru gagal diunggah dan dilewati.')),
             );
-          // Not returning here, just skipping the image
         }
       }
     }
-    
-    // Konversi _directionsController.text ke List<RecipeInstructionModel>
-    // karena model RecipeModel sekarang menggunakan `instructions` bukan `directions_text`
-    // untuk penyimpanan terstruktur. `directions_text` masih bisa disimpan untuk kompatibilitas.
-    List<RecipeInstructionModel> updatedInstructions = _parseDirectionsToInstructions(_directionsController.text);
+
+    // Process new Instructions from _instructionSteps
+    List<RecipeInstructionModel> finalInstructions = [];
+    String directionsTextConcatenated = ""; // For RecipeModel.directions_text (legacy or display)
+
+    for (int i = 0; i < _instructionSteps.length; i++) {
+      InstructionStepData stepData = _instructionSteps[i];
+      String instructionText = stepData.textController.text.trim();
+      String? imageUrl = stepData.existingImageUrl; // Start with existing image
+
+      if (stepData.selectedImageFile != null) { // New image was picked for this step
+        final String? uploadedUrl = await _imageUploadService.uploadImage(stepData.selectedImageFile!);
+        if (uploadedUrl != null) {
+          imageUrl = uploadedUrl;
+          // TODO: Consider deleting the old image if `stepData.existingImageUrl` was not null and different.
+        } else {
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Gagal mengunggah gambar untuk langkah ${i + 1}. Gambar lama (jika ada) akan dipertahankan atau langkah tanpa gambar baru.')),
+          );
+          // imageUrl remains stepData.existingImageUrl or null if it was already null
+        }
+      }
+      // If instructionText is empty but there's an image, it's often undesirable.
+      // Create_recipe_screen skips such steps. Here, we might allow it if an image exists.
+      // However, to align with create, let's ensure text is present if we are to save the step.
+      if (instructionText.isNotEmpty) {
+        finalInstructions.add(RecipeInstructionModel(
+          // id: if this instruction existed before, its ID should be preserved for Supabase update.
+          // This requires RecipeInstructionModel to have an optional ID and for InstructionStepData
+          // to potentially store this ID if populated from an existing instruction.
+          // For simplicity now, we are not handling instruction ID preservation for updates,
+          // which means old instructions might be deleted and new ones created.
+          // This is a common simplification but can be improved.
+          step_number: i + 1,
+          instruction: instructionText,
+          image_url: imageUrl,
+        ));
+        directionsTextConcatenated += "$instructionText\n";
+      } else if (imageUrl != null && instructionText.isEmpty) {
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Langkah instruksi ${i + 1} memiliki gambar tetapi tidak ada teks. Langkah ini dilewati.')),
+          );
+      }
+    }
+     if (finalInstructions.isEmpty && _instructionSteps.any((s) => s.textController.text.trim().isNotEmpty || s.existingImageUrl != null || s.selectedImageFile != null)) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Mohon pastikan minimal satu langkah instruksi memiliki teks.')));
+        setState(() { _isUploadingOrSaving = false; });
+        return;
+    }
+
 
     // Process Ingredients from _ingredientRows
     List<RecipeIngredientModel> processedIngredients = [];
@@ -374,24 +495,26 @@ class _EditRecipeScreenState extends State<EditRecipeScreen> {
 
 
     RecipeModel recipeToUpdate = RecipeModel(
-      id: widget.recipe.id,
-      user_id: widget.recipe.user_id, 
-      title: _titleController.text, 
-      description: _descriptionController.text, 
-      image_url: finalMainImageUrl, 
-      calories: int.parse(_caloriesController.text), 
-      servings: int.parse(_servingsController.text), 
-      cooking_time_minutes: int.parse(_cookingMinutesController.text), 
-      difficulty_level: _selectedDifficultyLevel!, 
-      is_published: widget.recipe.is_published, 
-      created_at: widget.recipe.created_at, 
+      id: _recipe!.id, // Use _recipe.id
+      user_id: _recipe!.user_id, // Use _recipe.user_id
+      title: _titleController.text,
+      description: _descriptionController.text,
+      image_url: finalMainImageUrl,
+      calories: int.tryParse(_caloriesController.text), // Use tryParse for safety
+      servings: int.tryParse(_servingsController.text) ?? 1, // Use tryParse and provide default
+      cooking_time_minutes: int.tryParse(_cookingMinutesController.text) ?? 0, // Use tryParse and provide default
+      difficulty_level: _selectedDifficultyLevel!,
+      is_published: _recipe!.is_published, // Use _recipe.is_published
+      created_at: _recipe!.created_at, // Use _recipe.created_at
       ingredients_text: ingredientsTextConcatenated.trim().isNotEmpty ? ingredientsTextConcatenated.trim() : null,
-      directions_text: _directionsController.text, 
-      instructions: updatedInstructions, 
-      gallery_image_urls: finalGalleryImageUrls.isNotEmpty ? finalGalleryImageUrls : null, 
-      selectedAllergenIds: _selectedAllergenIds.toList(), 
-      selectedDietProgramIds: _selectedDietProgramIds.toList(), 
-      selectedEquipmentIds: _selectedEquipmentIds.toList(), 
+      directions_text: directionsTextConcatenated.trim().isNotEmpty ? directionsTextConcatenated.trim() : null,
+      instructions: finalInstructions.isNotEmpty ? finalInstructions : null,
+      gallery_image_urls: finalGalleryImageUrls.isNotEmpty ? finalGalleryImageUrls : null,
+      selectedAllergenIds: _selectedAllergenIds.toList(),
+      selectedDietProgramIds: _selectedDietProgramIds.toList(),
+      selectedEquipmentIds: _selectedEquipmentIds.toList(),
+      // Explicitly pass ingredients
+      ingredients: processedIngredients.isNotEmpty ? processedIngredients : null,
     );
 
     try {
@@ -400,9 +523,8 @@ class _EditRecipeScreenState extends State<EditRecipeScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Resep berhasil diperbarui!')),
       );
-      Navigator.pop(context, true); 
+      Navigator.pop(context, true);
     } catch (e) {
-      // print('Error memperbarui resep: $e'); // Removed print
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Gagal memperbarui resep: $e')),
@@ -441,9 +563,36 @@ class _EditRecipeScreenState extends State<EditRecipeScreen> {
     final textStyle = GoogleFonts.dmSans(fontSize: 16);
     final labelStyle = GoogleFonts.dmSans(fontSize: 14, color: Colors.grey[700]);
 
+    if (_isLoading) {
+      return Scaffold(
+        appBar: AppBar(title: Text('Memuat Resep...', style: GoogleFonts.dmSans(fontWeight: FontWeight.bold))),
+        body: const Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    if (_loadingError.isNotEmpty) {
+      return Scaffold(
+        appBar: AppBar(title: Text('Error Memuat Resep', style: GoogleFonts.dmSans(fontWeight: FontWeight.bold))),
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Text(_loadingError, style: const TextStyle(color: Colors.red, fontSize: 16), textAlign: TextAlign.center),
+          ),
+        ),
+      );
+    }
+
+    if (_recipe == null) { // Should be caught by _loadingError, but as a fallback
+      return Scaffold(
+        appBar: AppBar(title: Text('Resep Tidak Ditemukan', style: GoogleFonts.dmSans(fontWeight: FontWeight.bold))),
+        body: const Center(child: Text("Detail resep tidak dapat dimuat.")),
+      );
+    }
+
+    // If we reach here, _recipe is not null and we are not loading/error.
     return Scaffold(
       appBar: AppBar(
-        title: Text('Edit Resep', style: GoogleFonts.dmSans(fontWeight: FontWeight.bold)),
+        title: Text('Edit Resep: ${_recipe!.title}', style: GoogleFonts.dmSans(fontWeight: FontWeight.bold)),
         backgroundColor: Colors.white,
         foregroundColor: Colors.black,
         elevation: 1,
@@ -788,25 +937,147 @@ class _EditRecipeScreenState extends State<EditRecipeScreen> {
                   ],
                 ),
                 const SizedBox(height: 16),
-                TextFormField(
-                  key: const Key('directions_field'), 
-                  controller: _directionsController, // Ini field instruksi di edit screen
-                  style: textStyle,
-                  decoration: InputDecoration(
-                    labelText: 'Instruksi* (satu langkah per baris)',
-                    labelStyle: labelStyle,
-                    hintText: 'Campur tepung dan telur.\nPanggang pada suhu 175°C selama 30 menit.\n...',
+                // New Instructions UI
+                Text("Instruksi*", style: GoogleFonts.dmSans(fontSize: 16, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 8),
+                if (_instructionSteps.isEmpty)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 8.0),
+                    child: Text("Belum ada langkah instruksi ditambahkan.", style: labelStyle),
                   ),
-                  maxLines: null,
-                  keyboardType: TextInputType.multiline,
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Instruksi tidak boleh kosong';
-                    }
-                    return null;
-                  },
+                Column(
+                  children: _instructionSteps.asMap().entries.map((entry) {
+                    int idx = entry.key;
+                    InstructionStepData stepData = entry.value;
+                    return Card(
+                      key: stepData.id, // Use unique key for the card
+                      margin: const EdgeInsets.symmetric(vertical: 4.0),
+                      child: Padding(
+                        padding: const EdgeInsets.all(8.0),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Expanded(
+                                  child: TextFormField(
+                                    controller: stepData.textController,
+                                    decoration: InputDecoration(
+                                      labelText: 'Langkah ${idx + 1}*',
+                                      hintText: 'Masukkan detail instruksi...',
+                                      border: const OutlineInputBorder(),
+                                    ),
+                                    keyboardType: TextInputType.multiline,
+                                    maxLines: null, // Allows unlimited lines
+                                    validator: (value) {
+                                      // Validator for individual step can be basic, main validation in _saveChanges
+                                      if (value == null || value.trim().isEmpty) {
+                                        // Only enforce if it's not the only empty step
+                                        bool isOnlyEmptyStep = _instructionSteps.length == 1 && _instructionSteps.first.textController.text.trim().isEmpty && _instructionSteps.first.selectedImageFile == null && _instructionSteps.first.existingImageUrl == null;
+                                        if (!isOnlyEmptyStep) {
+                                          return 'Teks instruksi tidak boleh kosong.';
+                                        }
+                                      }
+                                      return null;
+                                    },
+                                  ),
+                                ),
+                                if (_instructionSteps.length > 1)
+                                  IconButton(
+                                    icon: const Icon(Icons.remove_circle_outline, color: Colors.red),
+                                    onPressed: () {
+                                      setState(() {
+                                        stepData.dispose();
+                                        _instructionSteps.removeAt(idx);
+                                        // TODO: If stepData.existingImageUrl was present, consider if the image file on server needs deletion.
+                                      });
+                                    },
+                                  )
+                                else
+                                  const SizedBox(width: 48), // Placeholder for alignment
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            Row(
+                              children: [
+                                ElevatedButton.icon(
+                                  onPressed: () => _pickInstructionImage(idx),
+                                  icon: const Icon(Icons.image_search),
+                                  label: Text(stepData.selectedImageFile == null && stepData.existingImageUrl == null ? 'Tambah Gambar' : 'Ganti Gambar'),
+                                  style: ElevatedButton.styleFrom(backgroundColor: Colors.grey[300], foregroundColor: Colors.black87),
+                                ),
+                                const SizedBox(width: 10),
+                                // Display selected new image or existing image
+                                if (stepData.selectedImageFile != null)
+                                  Expanded(
+                                    child: Stack(
+                                      alignment: Alignment.topRight,
+                                      children: [
+                                        Image.file(
+                                          stepData.selectedImageFile!,
+                                          height: 60,
+                                          fit: BoxFit.contain,
+                                        ),
+                                        IconButton( // Clear selected new image
+                                          icon: const Icon(Icons.clear, color: Colors.red, size: 18),
+                                          padding: EdgeInsets.zero,
+                                          constraints: const BoxConstraints(),
+                                          onPressed: () {
+                                            setState(() {
+                                              stepData.selectedImageFile = null;
+                                            });
+                                          },
+                                        )
+                                      ],
+                                    ),
+                                  )
+                                else if (stepData.existingImageUrl != null)
+                                  Expanded(
+                                    child: Stack(
+                                      alignment: Alignment.topRight,
+                                      children: [
+                                        Image.network(
+                                          stepData.existingImageUrl!,
+                                          height: 60,
+                                          fit: BoxFit.contain,
+                                          errorBuilder: (context, error, stackTrace) => const Icon(Icons.broken_image, size: 40),
+                                        ),
+                                        IconButton( // Clear existing image (sets URL to null for saving)
+                                          icon: const Icon(Icons.delete_outline, color: Colors.red, size: 18),
+                                           padding: EdgeInsets.zero,
+                                          constraints: const BoxConstraints(),
+                                          onPressed: () {
+                                            setState(() {
+                                              stepData.existingImageUrl = null;
+                                              // TODO: Mark this image for server-side deletion upon saving the recipe
+                                            });
+                                          },
+                                        )
+                                      ],
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  }).toList(),
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 8),
+                ElevatedButton.icon(
+                  onPressed: () {
+                    setState(() {
+                      _instructionSteps.add(InstructionStepData());
+                    });
+                  },
+                  icon: const Icon(Icons.add_circle_outline),
+                  label: const Text('Tambah Langkah Instruksi'),
+                  style: ElevatedButton.styleFrom(backgroundColor: Colors.teal[100], foregroundColor: Colors.teal[900]),
+                ),
+                const SizedBox(height: 24), // Maintain spacing before next section
+
                 Padding(
                   padding: const EdgeInsets.symmetric(vertical: 16.0),
                   child: Column(
