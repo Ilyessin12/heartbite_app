@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:solar_icons/solar_icons.dart';
 import '../services/auth_service.dart'; // Added import
+import '../login-register/login.dart'; // Import the LoginPage
 
 class BottomNavBar extends StatelessWidget{
   final int currentIndex;
@@ -38,7 +39,7 @@ class BottomNavBar extends StatelessWidget{
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    _buildNavItem(0, SolarIconsOutline.homeAngle),
+                    _buildNavItem(context, 0, SolarIconsOutline.homeAngle, isLoggedIn),
                   ],
                 ),
               ),
@@ -52,7 +53,7 @@ class BottomNavBar extends StatelessWidget{
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    _buildNavItem(1, SolarIconsOutline.bookmark),
+                    _buildNavItem(context, 1, SolarIconsOutline.bookmark, isLoggedIn),
                   ],
                 ),
               ),
@@ -79,7 +80,18 @@ class BottomNavBar extends StatelessWidget{
               elevation: 0,
               shape: const CircleBorder(),
               child: Icon(Icons.add, color: isLoggedIn ? const Color(0xFF8E1616) : Colors.grey[700], size: 30),
-              onPressed: isLoggedIn ? (onFabPressed ?? (){}) : null, // Disable onPressed if not logged in
+              onPressed: () { // FAB (Create Recipe button)
+                if (isLoggedIn) {
+                  if (onFabPressed != null) {
+                    onFabPressed!();
+                  }
+                } else {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const LoginPage()),
+                  );
+                }
+              },
             ),
           ),
         ),
@@ -87,7 +99,7 @@ class BottomNavBar extends StatelessWidget{
     );
   }
 
-  Widget _buildNavItem(int index, IconData icon){
+  Widget _buildNavItem(BuildContext context, int index, IconData icon, bool isLoggedIn){
     final bool isActive = currentIndex == index;
     
     return Column(
@@ -99,7 +111,16 @@ class BottomNavBar extends StatelessWidget{
             color: Colors.white,
             size: 28, // Sedikit lebih besar untuk visibilitas yang lebih baik
           ),
-          onPressed: () => onTap(index),
+          onPressed: () {
+            if (index == 1 && !isLoggedIn) { // Index 1 is bookmark
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const LoginPage()),
+              );
+            } else {
+              onTap(index);
+            }
+          },
         ),
         // Active indicator
         Container(
