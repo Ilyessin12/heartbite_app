@@ -104,23 +104,25 @@ class _CommentItemState extends State<CommentItem> {
                           ),
                         ),
                         const SizedBox(width: 16),
-                        GestureDetector(
-                          onTap: () => widget.onReply(widget.comment), // Pass current comment
-                          child: Row(
-                            children: [
-                              const Icon(
-                                Icons.reply,
-                                size: 16,
-                                color: Colors.grey,
-                              ),
-                              const SizedBox(width: 4),
-                              Text(
-                                "Balas", // "Reply"
-                                style: AppTextStyles.caption,
-                              ),
-                            ],
+                        // Conditionally show Reply button
+                        if (widget.comment.parentCommentId == null)
+                          GestureDetector(
+                            onTap: () => widget.onReply(widget.comment), // Pass current comment
+                            child: Row(
+                              children: [
+                                const Icon(
+                                  Icons.reply,
+                                  size: 16,
+                                  color: Colors.grey,
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  "Balas", // "Reply"
+                                  style: AppTextStyles.caption,
+                                ),
+                              ],
+                            ),
                           ),
-                        ),
                       ],
                     ),
                   ],
