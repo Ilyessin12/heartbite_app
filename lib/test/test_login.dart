@@ -89,6 +89,7 @@ class _TestLoginScreenState extends State<TestLoginScreen> {
         password: _passwordController.text,
         username: _usernameController.text.trim(),
         fullName: _fullNameController.text.trim(),
+        phone: '',
       );
 
       if (response.user != null) {
