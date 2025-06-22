@@ -43,7 +43,8 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
   bool _isLoading = true;
   String _loadingError = '';
 
-  bool isFavorite = false;
+  bool _isFavorite = false; // Renamed to avoid conflict with Icon
+  int _likeCount = 0; // To store like count
   bool isBookmarked = false;
   final TextEditingController _commentController = TextEditingController();
   List<DetailModelComment.Comment> _comments = []; // Initialize as empty
@@ -53,8 +54,44 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
   @override
   void initState() {
     super.initState();
-    _fetchRecipeDetails();
+    _fetchRecipeDetailsAndLikes();
     _checkBookmarkStatus();
+  }
+
+  Future<void> _fetchRecipeDetailsAndLikes() async {
+    await _fetchRecipeDetails(); // Fetch main details first
+    if (_recipe != null) { // Only fetch likes if recipe loaded
+      _checkIfFavorite();
+      _fetchLikeCount();
+    }
+  }
+
+  Future<void> _checkIfFavorite() async {
+    try {
+      final favorited = await _recipeService.isRecipeLikedByUser(widget.recipeId);
+      if (mounted) {
+        setState(() {
+          _isFavorite = favorited;
+        });
+      }
+    } catch (e) {
+      print('Error checking if recipe is favorited: $e');
+      // Optionally show a snackbar or handle error
+    }
+  }
+
+  Future<void> _fetchLikeCount() async {
+    try {
+      final count = await _recipeService.getRecipeLikeCount(widget.recipeId);
+      if (mounted) {
+        setState(() {
+          _likeCount = count;
+        });
+      }
+    } catch (e) {
+      print('Error fetching like count: $e');
+      // Optionally show a snackbar or handle error
+    }
   }
 
   Future<void> _checkBookmarkStatus() async {
@@ -654,19 +691,34 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
                               return;
                             }
                             if (_recipe == null) return;
+                            final currentRecipeId = int.tryParse(_recipe!.id);
+                            if (currentRecipeId == null) return;
 
                             // Optimistic UI update
                             setState(() {
-                              isFavorite = !isFavorite;
+                              _isFavorite = !_isFavorite;
+                              if (_isFavorite) {
+                                _likeCount++;
+                              } else {
+                                _likeCount--;
+                              }
                             });
 
                             try {
-                              await _recipeService.toggleLikeRecipe(int.parse(_recipe!.id));
-                              // Optionally, re-fetch recipe details or like status if needed for like counts
+                              await _recipeService.toggleLikeRecipe(currentRecipeId);
+                              // After server confirmation, refresh the like count and status
+                              // to ensure consistency, though optimistic update handles immediate UI.
+                              _fetchLikeCount(); 
+                              _checkIfFavorite(); 
                             } catch (e) {
                               // Revert UI on error
                               setState(() {
-                                isFavorite = !isFavorite;
+                                _isFavorite = !_isFavorite; // Toggle back
+                                if (_isFavorite) { // This means it was false before, and we are reverting the increment
+                                  _likeCount++;
+                                } else { // This means it was true before, and we are reverting the decrement
+                                  _likeCount--;
+                                }
                               });
                               if (mounted) {
                                 ScaffoldMessenger.of(context).showSnackBar(
@@ -684,11 +736,11 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
                               shape: BoxShape.circle,
                             ),
                             child: Icon(
-                              isFavorite
+                              _isFavorite // Use the new state variable
                                   ? Icons.favorite
                                   : Icons.favorite_border,
                               color:
-                                  isFavorite ? AppColors.primary : Colors.grey,
+                                  _isFavorite ? AppColors.primary : Colors.grey, // Use the new state variable
                             ),
                           ),
                         ),
@@ -757,7 +809,11 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    RecipeHeader(recipe: _recipe!),
+                    RecipeHeader(
+                      recipe: _recipe!,
+                      likeCount: _likeCount, // Pass likeCount
+                      isFavorite: _isFavorite, // Pass isFavorite status
+                    ),
                     const SizedBox(height: 16),
 
                     Container(
@@ -769,6 +825,11 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                         children: [
+                          // _buildStatItem( // Removed Suka/Likes from here, it's now in RecipeHeader
+                          //   Icons.favorite, 
+                          //   "$_likeCount", 
+                          //   "Suka", 
+                          // ),
                           _buildStatItem(
                             Icons.local_fire_department,
                             "${_recipe!.calories}",
@@ -779,7 +840,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
                             _recipe!.portions,
                             "Porsi",
                           ),
-                          _buildStatItem(
+                          _buildStatItem( // Restoring Timer/Cooking Time
                             Icons.timer,
                             "${_recipe!.cookingMinutes}",
                             "Menit",
@@ -825,9 +886,11 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder:
-                                  (context) =>
-                                      IngredientsScreen(recipe: _recipe!),
+                              builder: (context) => IngredientsScreen(
+                                recipe: _recipe!,
+                                likeCount: _likeCount,
+                                isFavorite: _isFavorite,
+                              ),
                             ),
                           );
                         },

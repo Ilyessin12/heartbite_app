@@ -6,12 +6,16 @@ class RecipeHeader extends StatelessWidget {
   final Recipe recipe;
   final bool showAuthor;
   final bool showOverlayInfo;
+  final int likeCount;
+  final bool isFavorite;
   
   const RecipeHeader({
     super.key,
     required this.recipe,
     this.showAuthor = true,
     this.showOverlayInfo = true,
+    required this.likeCount, // Added
+    required this.isFavorite, // Added
   });
 
   @override
@@ -121,23 +125,21 @@ class RecipeHeader extends StatelessWidget {
                     children: [
                       Row(
                         children: [
-                          const Icon(Icons.star, color: Colors.amber, size: 16),
-                          const SizedBox(width: 4),
+                          Icon(
+                            isFavorite ? Icons.favorite : Icons.favorite_border,
+                            color: isFavorite ? Colors.red : Colors.white, // Use white for border if not favorited for visibility on dark overlay
+                            size: 18, // Slightly larger for prominence
+                          ),
+                          const SizedBox(width: 6),
                           Text(
-                            recipe.rating.toString(),
+                            likeCount.toString(),
                             style: const TextStyle(
                               color: Colors.white,
                               fontWeight: FontWeight.bold,
+                              fontSize: 14, // Ensure visibility
                             ),
                           ),
-                          const SizedBox(width: 4),
-                          Text(
-                            "(${recipe.reviewCount} reviews)",
-                            style: TextStyle(
-                              color: Colors.white.withOpacity(0.8),
-                              fontSize: 12,
-                            ),
-                          ),
+                           // Removed "reviews" text or can be changed to "likes"
                         ],
                       ),
                       const SizedBox(height: 4),

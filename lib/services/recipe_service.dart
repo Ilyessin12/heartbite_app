@@ -420,6 +420,33 @@ class RecipeService {
     }
   }
 
+  Future<int> getRecipeLikeCount(int recipeId) async {
+    final result = await _supabase
+        .from('recipe_likes')
+        .select('id') // Select a minimal field, e.g., 'id'
+        .eq('recipe_id', recipeId);
+      
+    // The result is a list of Maps, e.g., List<Map<String, dynamic>>
+    // The length of this list is the count of likes.
+    return result.length;
+  }
+
+  Future<bool> isRecipeLikedByUser(int recipeId) async {
+    final userId = _supabase.auth.currentUser?.id;
+    if (userId == null) {
+      return false; // Or throw an exception, depending on desired behavior for non-logged-in users
+    }
+    
+    final like = await _supabase
+        .from('recipe_likes')
+        .select('id')
+        .eq('user_id', userId)
+        .eq('recipe_id', recipeId)
+        .maybeSingle();
+        
+    return like != null;
+  }
+
   /// Adds a comment to a recipe.
   /// Returns the newly created comment data including its ID and timestamps.
   Future<Map<String, dynamic>> addComment(int recipeId, String text, {int? parentCommentId}) async {
