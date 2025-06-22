@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'setupdiets.dart'; // Import setupdiets.dart for navigation
+import '../services/supabase_client.dart'; // Import Supabase client
 
 class SetupAllergiesPage extends StatefulWidget {
   const SetupAllergiesPage({Key? key}) : super(key: key);
@@ -11,15 +12,87 @@ class SetupAllergiesPage extends StatefulWidget {
 
 class _SetupAllergiesPageState extends State<SetupAllergiesPage> {
   final Color primaryRed = const Color(0xFF8E1616);
-
+  final _supabase = SupabaseClientWrapper().client;
+  
   // Track selected allergies - now empty by default
-  final Set<String> selectedAllergies = {}; // Removed 'Ikan' pre-selection
-
-  final List<String> allergies = [
-    'Gluten', 'Produk Susu', 'Telur',
-    'Kedelai', 'Kacang Tanah', 'Gandum',
-    'Susu', 'Ikan'
-  ];
+  final Set<String> selectedAllergies = {};
+  
+  // List untuk menyimpan data alergi dari database
+  List<Map<String, dynamic>> allergensList = [];
+  bool _isLoading = true;
+  @override
+  void initState() {
+    super.initState();
+    fetchAllergens();
+  }
+    // Fungsi untuk mengambil data alergi dari Supabase
+  Future<void> fetchAllergens() async {
+    setState(() {
+      _isLoading = true;
+    });
+    
+    try {
+      // Ambil data dari tabel allergens, hanya nama yang kita perlukan
+      final response = await _supabase
+          .from('allergens')
+          .select('name')
+          .order('name');
+      
+      // Update state dengan data yang diterima
+      setState(() {
+        allergensList = List<Map<String, dynamic>>.from(response);
+      });
+      
+      // Cek apakah user sudah login dan ambil alergi yang sudah dipilih
+      await loadSelectedAllergies();
+    } catch (e) {
+      print('Error fetching allergens: $e');
+      // Jika gagal mengambil data, gunakan data statis sebagai fallback
+      setState(() {
+        allergensList = [
+          {'name': 'Gluten'}, 
+          {'name': 'Produk Susu'}, 
+          {'name': 'Telur'},
+          {'name': 'Kedelai'}, 
+          {'name': 'Kacang Tanah'}, 
+          {'name': 'Gandum'},
+          {'name': 'Susu'}, 
+          {'name': 'Ikan'}
+        ];
+      });
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+  
+  // Fungsi untuk memuat alergi yang sudah dipilih oleh user
+  Future<void> loadSelectedAllergies() async {
+    try {
+      final userId = _supabase.auth.currentUser?.id;
+      if (userId != null) {        // Ambil alergi yang sudah dipilih user dari tabel user_allergens
+        final userAllergensResponse = await _supabase
+            .from('user_allergens')
+            .select('allergens(name)')
+            .eq('user_id', userId);
+        
+        if (userAllergensResponse.isNotEmpty) {
+          final selectedNames = userAllergensResponse
+              .map((item) => item['allergens']['name'] as String)
+              .toSet();
+          
+          setState(() {
+            selectedAllergies.addAll(selectedNames);
+          });
+          print('Loaded ${selectedNames.length} previously selected allergens');
+        }
+      }
+    } catch (e) {
+      print('Error loading selected allergens: $e');
+      // Jika gagal, tidak masalah, user bisa pilih lagi
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -129,52 +202,57 @@ class _SetupAllergiesPageState extends State<SetupAllergiesPage> {
                     ),
                   ),
 
-                  const SizedBox(height: 32),
-
-                  // Allergies grid
+                  const SizedBox(height: 32),                  // Allergies grid
                   Expanded(
-                    child: GridView.count(
-                      crossAxisCount: 3,
-                      childAspectRatio: 2.5,
-                      crossAxisSpacing: 12,
-                      mainAxisSpacing: 12,
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      children: allergies.map((allergy) {
-                        final isSelected = selectedAllergies.contains(allergy);
-                        return GestureDetector(
-                          onTap: () {
-                            setState(() {
-                              if (isSelected) {
-                                selectedAllergies.remove(allergy);
-                              } else {
-                                selectedAllergies.add(allergy);
-                              }
-                            });
-                          },
-                          child: Container(
-                            decoration: BoxDecoration(
-                              color: isSelected ? primaryRed : Colors.white,
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(
-                                color: Colors.grey.withOpacity(0.3),
-                                width: 1,
-                              ),
-                            ),
-                            child: Center(
-                              child: Text(
-                                allergy,
-                                style: GoogleFonts.dmSans(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w500,
-                                  color: isSelected ? Colors.white : Colors.black,
+                    child: _isLoading 
+                    ? Center(child: CircularProgressIndicator(color: primaryRed))
+                    : allergensList.isEmpty
+                      ? Center(child: Text('Tidak ada data alergi ditemukan'))
+                      : GridView.count(
+                          crossAxisCount: 3,
+                          childAspectRatio: 2.5,
+                          crossAxisSpacing: 12,
+                          mainAxisSpacing: 12,
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          children: allergensList.map((allergen) {
+                            final allergyName = allergen['name'] as String;
+                            final isSelected = selectedAllergies.contains(allergyName);
+                            return GestureDetector(
+                              onTap: () {
+                                setState(() {
+                                  if (isSelected) {
+                                    selectedAllergies.remove(allergyName);
+                                  } else {
+                                    selectedAllergies.add(allergyName);
+                                  }
+                                });
+                              },
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  color: isSelected ? primaryRed : Colors.white,
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(
+                                    color: Colors.grey.withOpacity(0.3),
+                                    width: 1,
+                                  ),
+                                ),
+                                child: Center(
+                                  child: Text(
+                                    allergyName,
+                                    style: GoogleFonts.dmSans(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w500,
+                                      color: isSelected ? Colors.white : Colors.black,
+                                    ),
+                                    textAlign: TextAlign.center,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
                                 ),
                               ),
-                            ),
-                          ),
-                        );
-                      }).toList(),
-                    ),
+                            );
+                          }).toList(),
+                        ),
                   ),
 
                   // Continue button
@@ -183,8 +261,36 @@ class _SetupAllergiesPageState extends State<SetupAllergiesPage> {
                     child: SizedBox(
                       width: double.infinity,
                       height: 56,
-                      child: ElevatedButton(
-                        onPressed: () {
+                      child: ElevatedButton(                        onPressed: () async {
+                          // Simpan alergi yang dipilih ke database jika user sudah login
+                          try {
+                            final userId = _supabase.auth.currentUser?.id;
+                            if (userId != null && selectedAllergies.isNotEmpty) {                              // Dapatkan ID untuk semua alergi yang dipilih
+                              final allergensData = await _supabase
+                                  .from('allergens')
+                                  .select('id, name')
+                                  .filter('name', 'in', selectedAllergies.toList());
+                                  
+                              // Siapkan data untuk dimasukkan ke user_allergens
+                              final userAllergens = allergensData.map((allergen) => {
+                                'user_id': userId,
+                                'allergen_id': allergen['id'],
+                              }).toList();
+                              
+                              // Jika ada data, simpan ke database
+                              if (userAllergens.isNotEmpty) {
+                                await _supabase
+                                  .from('user_allergens')
+                                  .upsert(userAllergens);
+                              }
+                              
+                              print('Saved ${userAllergens.length} allergens for user');
+                            }
+                          } catch (e) {
+                            print('Error saving allergens: $e');
+                            // Lanjutkan meski gagal menyimpan
+                          }
+                          
                           // Navigate to diets page with our selected allergies
                           Navigator.pushReplacement(
                             context,

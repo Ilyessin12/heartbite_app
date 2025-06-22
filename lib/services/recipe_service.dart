@@ -36,8 +36,9 @@ class RecipeService {
   }
 
   /// Get recipe details by ID including gallery images, ingredients, and instructions
-  Future<Map<String, dynamic>> getRecipeDetailsById(int recipeId) async {
-    final response = await _supabase
+  Future<Map<String, dynamic>> getRecipeDetailsById(int recipeId, {String? currentUserId}) async {
+    // Fetch main recipe data and basic comment structure
+    final Map<String, dynamic> recipeDataMap = await _supabase
         .from('recipes')
         .select('''
           *,
@@ -45,19 +46,69 @@ class RecipeService {
           recipe_categories(category_id, categories(name)),
           recipe_gallery_images(id, image_url, caption, order_index),
           recipe_ingredients(id, recipe_id, ingredients, quantity, unit, notes, order_index),
-          recipe_instructions(id, recipe_id, step_number, instruction, image_url, estimated_time_minutes)
+          recipe_instructions(id, recipe_id, step_number, instruction, image_url, estimated_time_minutes),
+          recipe_comments(
+            id,
+            comment,
+            created_at,
+            parent_comment_id,
+            user_id,
+            users (id, username, profile_picture),
+            comment_likes (count)
+          )
         ''')
         .eq('id', recipeId)
-        .single();
-    return response;
+        .order('created_at', referencedTable: 'recipe_comments', ascending: true)
+        .single(); // .single() returns a Future<Map<String, dynamic>> effectively after await
+    
+    // recipeDataMap is now correctly typed and contains the fetched data.
+
+    // Now, if currentUserId is provided, fetch the IDs of comments liked by this user for this recipe
+    if (currentUserId != null && recipeDataMap['recipe_comments'] != null) {
+      final List<dynamic> comments = recipeDataMap['recipe_comments'];
+      if (comments.isNotEmpty) {
+        final List<int> commentIds = comments.map((c) => c['id'] as int).toList();
+        
+        // Explicitly define the builder before using .in_()
+        final PostgrestFilterBuilder<List<Map<String, dynamic>>> likedCommentsQueryBuilder = _supabase
+            .from('comment_likes')
+            .select('comment_id')
+            .eq('user_id', currentUserId);
+
+        // Now call .filter() on the explicitly typed builder
+        // Format commentIds into a string like '(id1,id2,id3)'
+        List<Map<String, dynamic>> likedCommentData; // Declare here
+        if (commentIds.isEmpty) { // Handle empty list to avoid invalid filter like "in ()"
+          likedCommentData = [];
+        } else {
+          final String commentIdsString = '(${commentIds.join(',')})';
+          likedCommentData = await likedCommentsQueryBuilder
+              .filter('comment_id', 'in', commentIdsString);
+        }
+
+        final Set<int> likedCommentIds = likedCommentData
+            .map((likeMap) => likeMap['comment_id'] as int)
+            .toSet();
+
+        // Augment comment data with is_liked status
+        // Ensure we are modifying the list that is part of recipeDataMap
+        for (var comment in recipeDataMap['recipe_comments']) { 
+          comment['is_liked_by_current_user'] = likedCommentIds.contains(comment['id']);
+        }
+      }
+    }
+    return recipeDataMap; // Return the modified recipeDataMap
   }
 
   // _getOrCreateIngredientId is no longer needed as ingredient name is stored directly.
 
   Future<RecipeModel> createRecipe(RecipeModel recipeModel, List<String> galleryImageUrls) async {
-    if (recipeModel.user_id.isEmpty) {
-      throw Exception('User ID is missing in the recipe model.');
+    final userId = _supabase.auth.currentUser?.id;
+    if (userId == null) {
+      throw Exception('User not authenticated. Please log in to create a recipe.');
     }
+    // Update the recipeModel with the correct user_id before converting to JSON
+    recipeModel.user_id = userId;
 
     final Map<String, dynamic> recipeData = recipeModel.toJson();
     recipeData.remove('id');
@@ -273,6 +324,63 @@ class RecipeService {
         .delete()
         .eq('user_id', userId)
         .eq('recipe_id', recipeId);
+    }
+  }
+
+  /// Adds a comment to a recipe.
+  /// Returns the newly created comment data including its ID and timestamps.
+  Future<Map<String, dynamic>> addComment(int recipeId, String text, {int? parentCommentId}) async {
+    final userId = _supabase.auth.currentUser?.id;
+    if (userId == null) {
+      throw Exception('User not authenticated. Please log in to comment.');
+    }
+
+    final commentData = {
+      'recipe_id': recipeId,
+      'user_id': userId, // Use the authenticated user's ID
+      'comment': text,
+      'parent_comment_id': parentCommentId, // This will be null if not provided, which is fine
+    };
+    // Clean up null parent_comment_id if it wasn't provided, to avoid sending 'parent_comment_id': null
+    if (parentCommentId == null) {
+      commentData.remove('parent_comment_id');
+    }
+
+
+    final response = await _supabase
+        .from('recipe_comments')
+        .insert(commentData)
+        .select('*, users (id, username, profile_picture)') // Also fetch user data for the new comment
+        .single();
+
+    return response;
+  }
+
+  Future<void> toggleCommentLike(String commentId) async {
+    final userId = _supabase.auth.currentUser?.id;
+    if (userId == null) {
+      throw Exception('User not authenticated. Please log in to like comments.');
+    }
+    // Check if the like already exists
+    final existingLike = await _supabase
+        .from('comment_likes')
+        .select('id')
+        .eq('comment_id', int.parse(commentId)) // Assuming commentId in table is int
+        .eq('user_id', userId) // Use the authenticated user's ID
+        .maybeSingle();
+
+    if (existingLike != null) {
+      // Like exists, so delete it (unlike)
+      await _supabase
+          .from('comment_likes')
+          .delete()
+          .eq('id', existingLike['id']);
+    } else {
+      // Like doesn't exist, so insert it (like)
+      await _supabase.from('comment_likes').insert({
+        'comment_id': int.parse(commentId),
+        'user_id': userId,
+      });
     }
   }
 }

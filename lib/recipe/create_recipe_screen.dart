@@ -247,7 +247,7 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
       }
     }
 
-    const String hardcodedUserId = '325c40cc-d255-4f93-bf5f-40bc196ca093';
+    // const String hardcodedUserId = '325c40cc-d255-4f93-bf5f-40bc196ca093'; // No longer needed
 
     final List<RecipeIngredientModel> ingredients = _parseIngredients(_ingredientsController.text);
 
@@ -293,7 +293,8 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
 
 
     RecipeModel recipeToCreate = RecipeModel(
-      user_id: hardcodedUserId,
+      // user_id will be set by RecipeService from the authenticated user
+      user_id: '', // Provide a temporary non-null empty string, RecipeService will overwrite it.
       title: _titleController.text,
       description: _descriptionController.text.isEmpty ? null : _descriptionController.text,
       image_url: mainImageUrl,
@@ -320,8 +321,14 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
     } catch (e) {
       print('Error saving recipe: $e');
       if (mounted) {
+        String errorMessage = 'Failed to create recipe: ${e.toString()}';
+        if (e.toString().contains('User not authenticated')) {
+          errorMessage = 'Please log in to create a recipe.';
+          // Optionally, navigate to login screen
+          // Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (context) => LoginPage()));
+        }
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to create recipe: ${e.toString()}')),
+          SnackBar(content: Text(errorMessage)),
         );
       }
     } finally {

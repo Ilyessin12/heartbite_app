@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'setupaccount.dart'; // Import SetupAccountPage
 import 'setupallergies.dart'; // Import SetupAllergiesPage
+import '../services/supabase_client.dart'; // Import Supabase client
 
 class SetupDietsPage extends StatefulWidget {
   // Add parameter for the starting progress value
@@ -20,20 +21,15 @@ class _SetupDietsPageState extends State<SetupDietsPage> with SingleTickerProvid
   final Color primaryRed = const Color(0xFF8E1616);
   late AnimationController _progressController;
   late Animation<double> _progressAnimation;
-
+  final _supabase = SupabaseClientWrapper().client;
+  
   // Track selected diets
-  final Set<String> selectedDiets = {}; // Changed from {'Vegetarian'} to empty set
-
-  final List<String> diets = [
-    'Vegetarian',
-    'Vegan',
-    'Keto',
-    'Paleo',
-    'Intermittent Fasting',
-    'Atkins',
-    'Dukan',
-  ];
-
+  final Set<String> selectedDiets = {};
+  
+  // List untuk menyimpan data diet dari database
+  List<Map<String, dynamic>> dietProgramsList = [];
+  bool _isLoading = true;
+  bool _fetchFailed = false; // Tambahkan flag untuk tracking fetch failure
   @override
   void initState() {
     super.initState();
@@ -55,6 +51,72 @@ class _SetupDietsPageState extends State<SetupDietsPage> with SingleTickerProvid
     
     // Start the animation when the widget is built
     _progressController.forward();
+    
+    // Fetch diet programs from database
+    fetchDietPrograms();
+  }
+  
+  // Fungsi untuk mengambil data diet dari Supabase
+  Future<void> fetchDietPrograms() async {
+    setState(() {
+      _isLoading = true;
+    });
+      try {
+      // Ambil data dari tabel diet_programs, hanya nama yang kita perlukan
+      final response = await _supabase
+          .from('diet_programs')
+          .select('name')
+          .order('name');
+      
+      // Update state dengan data yang diterima
+      if (!mounted) return;
+      setState(() {
+        dietProgramsList = List<Map<String, dynamic>>.from(response);
+      });
+      
+      // Cek apakah user sudah login dan ambil diet yang sudah dipilih
+      await loadSelectedDiets();
+    } catch (e) {
+      print('Error fetching diet programs: $e');
+      // Set empty list and let the UI show error message
+      if (!mounted) return;
+      setState(() {
+        dietProgramsList = []; // Empty list instead of static data
+        _fetchFailed = true;   // Set flag to show fetch failed message
+      });
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+  
+  // Fungsi untuk memuat diet yang sudah dipilih oleh user
+  Future<void> loadSelectedDiets() async {
+    try {
+      final userId = _supabase.auth.currentUser?.id;
+      if (userId != null) {
+        // Ambil diet yang sudah dipilih user dari tabel user_diet_programs
+        final userDietsResponse = await _supabase
+            .from('user_diet_programs')
+            .select('diet_programs(name)')
+            .eq('user_id', userId);
+        
+        if (userDietsResponse.isNotEmpty) {
+          final selectedNames = userDietsResponse
+              .map((item) => item['diet_programs']['name'] as String)
+              .toSet();
+          
+          setState(() {
+            selectedDiets.addAll(selectedNames);
+          });
+          print('Loaded ${selectedNames.length} previously selected diets');
+        }
+      }
+    } catch (e) {
+      print('Error loading selected diets: $e');
+      // Jika gagal, tidak masalah, user bisa pilih lagi
+    }
   }
 
   @override
@@ -187,53 +249,93 @@ class _SetupDietsPageState extends State<SetupDietsPage> with SingleTickerProvid
                     ),
                   ),
 
-                  const SizedBox(height: 32),
-
-                  // Diets wrap
+                  const SizedBox(height: 32),                  // Diets wrap
                   Expanded(
-                    child: Wrap(
-                      spacing: 12, // Jarak horizontal antar box
-                      runSpacing: 12, // Jarak vertikal antar baris
-                      alignment: WrapAlignment.start, // Rata kiri seperti grid sebelumnya
-                      children: diets.map((diet) {
-                        final isSelected = selectedDiets.contains(diet);
-                        return GestureDetector(
-                          onTap: () {
-                            setState(() {
-                              if (isSelected) {
-                                selectedDiets.remove(diet);
-                              } else {
-                                selectedDiets.add(diet);
-                              }
-                            });
-                          },
-                          child: IntrinsicWidth(
-                            child: Container(
-                              height: 40, // Tinggi seragam untuk semua box
-                              padding: const EdgeInsets.symmetric(horizontal: 16), // Padding dalam box
-                              decoration: BoxDecoration(
-                                color: isSelected ? primaryRed : Colors.white,
-                                borderRadius: BorderRadius.circular(8),
-                                border: Border.all(
-                                  color: Colors.grey.withOpacity(0.3),
-                                  width: 1,
+                    child: _isLoading 
+                    ? Center(child: CircularProgressIndicator(color: primaryRed))
+                    : _fetchFailed
+                      ? Center(child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(Icons.error_outline, size: 48, color: Colors.grey),
+                            const SizedBox(height: 16),
+                            Text(
+                              'Gagal mengambil data',
+                              style: GoogleFonts.dmSans(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            ElevatedButton(
+                              onPressed: fetchDietPrograms,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: primaryRed,
+                                foregroundColor: Colors.white,
+                              ),
+                              child: const Text('Coba Lagi'),
+                            ),
+                          ],
+                        ))
+                      : dietProgramsList.isEmpty
+                        ? Center(child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const Icon(Icons.info_outline, size: 48, color: Colors.grey),
+                              const SizedBox(height: 16),
+                              Text(
+                                'Tidak ada data diet ditemukan',
+                                style: GoogleFonts.dmSans(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
                                 ),
                               ),
-                              child: Center(
-                                child: Text(
-                                  diet,
-                                  style: GoogleFonts.dmSans(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w500,
-                                    color: isSelected ? Colors.white : Colors.black,
+                            ],
+                          ))
+                        : Wrap(
+                          spacing: 12, // Jarak horizontal antar box
+                          runSpacing: 12, // Jarak vertikal antar baris
+                          alignment: WrapAlignment.start, // Rata kiri seperti grid sebelumnya
+                          children: dietProgramsList.map((dietProgram) {
+                            final dietName = dietProgram['name'] as String;
+                            final isSelected = selectedDiets.contains(dietName);
+                            return GestureDetector(
+                              onTap: () {
+                                setState(() {
+                                  if (isSelected) {
+                                    selectedDiets.remove(dietName);
+                                  } else {
+                                    selectedDiets.add(dietName);
+                                  }
+                                });
+                              },
+                              child: IntrinsicWidth(
+                                child: Container(
+                                  height: 40, // Tinggi seragam untuk semua box
+                                  padding: const EdgeInsets.symmetric(horizontal: 16), // Padding dalam box
+                                  decoration: BoxDecoration(
+                                    color: isSelected ? primaryRed : Colors.white,
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(
+                                      color: Colors.grey.withOpacity(0.3),
+                                      width: 1,
+                                    ),
+                                  ),
+                                  child: Center(
+                                    child: Text(
+                                      dietName,
+                                      style: GoogleFonts.dmSans(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w500,
+                                        color: isSelected ? Colors.white : Colors.black,
+                                      ),
+                                    ),
                                   ),
                                 ),
                               ),
-                            ),
-                          ),
-                        );
-                      }).toList(),
-                    ),
+                            );
+                          }).toList(),
+                        ),
                   ),
 
                   // Continue button
@@ -242,8 +344,37 @@ class _SetupDietsPageState extends State<SetupDietsPage> with SingleTickerProvid
                     child: SizedBox(
                       width: double.infinity,
                       height: 56,
-                      child: ElevatedButton(
-                        onPressed: () {
+                      child: ElevatedButton(                        onPressed: () async {
+                          // Simpan diet yang dipilih ke database jika user sudah login
+                          try {
+                            final userId = _supabase.auth.currentUser?.id;
+                            if (userId != null && selectedDiets.isNotEmpty) {
+                              // Dapatkan ID untuk semua diet yang dipilih
+                              final dietProgramsData = await _supabase
+                                  .from('diet_programs')
+                                  .select('id, name')
+                                  .filter('name', 'in', selectedDiets.toList());
+                                  
+                              // Siapkan data untuk dimasukkan ke user_diet_programs
+                              final userDietPrograms = dietProgramsData.map((dietProgram) => {
+                                'user_id': userId,
+                                'diet_program_id': dietProgram['id'],
+                              }).toList();
+                              
+                              // Jika ada data, simpan ke database
+                              if (userDietPrograms.isNotEmpty) {
+                                await _supabase
+                                  .from('user_diet_programs')
+                                  .upsert(userDietPrograms);
+                              }
+                              
+                              print('Saved ${userDietPrograms.length} diet programs for user');
+                            }
+                          } catch (e) {
+                            print('Error saving diet programs: $e');
+                            // Lanjutkan meski gagal menyimpan
+                          }
+                          
                           // Navigate to SetupAccountPage with animation
                           Navigator.pushReplacement(
                             context,

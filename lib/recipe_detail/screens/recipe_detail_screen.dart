@@ -46,6 +46,8 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
   bool isBookmarked = false;
   final TextEditingController _commentController = TextEditingController();
   List<DetailModelComment.Comment> _comments = []; // Initialize as empty
+  String? _replyingToCommentId;
+  String? _replyingToUserName;
 
   @override
   void initState() {
@@ -159,8 +161,11 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
       _loadingError = '';
     });
     try {
+      // Use the hardcoded currentUserId for now, this should be dynamic in a real app
+      final String currentUserId = "325c40cc-d255-4f93-bf5f-40bc196ca093";
       final recipeData = await _recipeService.getRecipeDetailsById(
         widget.recipeId,
+        currentUserId: currentUserId,
       );
       // Adapt recipeData (Map<String, dynamic>) to DetailModel.Recipe
       // This is a complex mapping due to different structures and related tables
@@ -241,11 +246,34 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
             .cast<String>()
             .toList();
 
-    // Comments (basic structure, assuming comments are not deeply nested or fetched here)
-    // This part would need more complex logic if comments are fetched with likes, replies etc.
-    // For now, we'll assume comments are not part of the initial getRecipeDetailsById or are simple.
-    final List<DetailModelComment.Comment> comments =
-        []; // Placeholder, fetch separately or adapt
+    // Comments
+    final List<dynamic> fetchedCommentsData = data['recipe_comments'] as List<dynamic>? ?? [];
+    final List<DetailModelComment.Comment> flatComments = fetchedCommentsData
+        .map((commentJson) => DetailModelComment.Comment.fromJson(commentJson as Map<String, dynamic>))
+        .toList();
+    
+    // Structure comments into threads
+    final Map<String, DetailModelComment.Comment> commentMap = {
+      for (var comment in flatComments) comment.id: comment
+    };
+    final List<DetailModelComment.Comment> topLevelComments = [];
+
+    for (var comment in flatComments) {
+      if (comment.parentCommentId != null) {
+        // It's a reply, find its parent
+        final parent = commentMap[comment.parentCommentId.toString()];
+        if (parent != null) {
+          parent.replies.add(comment);
+        } else {
+          // Orphaned reply
+          print('Warning: Orphaned reply found with id: ${comment.id}, parent_id: ${comment.parentCommentId}');
+          topLevelComments.add(comment);
+        }
+      } else {
+        // It's a top-level comment
+        topLevelComments.add(comment);
+      }
+    }
 
     return DetailModel.Recipe(
       id: data['id'].toString(), // DetailModel expects String ID
@@ -262,26 +290,167 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
       ingredients: ingredients,
       directions: directions,
       galleryImages: galleryImages,
-      comments: comments, // Initialize with empty or fetched comments
+      comments: topLevelComments, // Pass the structured, top-level comments
     );
   }
 
-  void _addComment(String text) {
+  void _addComment(String text) async { // Make async
     if (text.trim().isEmpty || _recipe == null) return;
 
-    // TODO: Implement actual comment saving to Supabase
-    // For now, just updating local state
-    setState(() {
-      _comments.insert(0, DetailModelComment.Comment.create(text: text));
-    });
-    _commentController.clear();
-    // After Supabase call, you might want to call _fetchRecipeDetails() or update locally
+    final currentUser = SupabaseClientWrapper().client.auth.currentUser;
+    if (currentUser == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Please log in to add a comment.")),
+        );
+      }
+      return;
+    }
+
+    // final String currentUserId = "325c40cc-d255-4f93-bf5f-40bc196ca093"; // Hardcoded User ID for now
+    final int recipeId = int.tryParse(_recipe!.id) ?? 0;
+    final int? parentId = _replyingToCommentId != null ? int.tryParse(_replyingToCommentId!) : null;
+
+    if (recipeId == 0) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Error: Invalid recipe ID.")),
+        );
+      }
+      return;
+    }
+
+    try {
+      // RecipeService.addComment will get the userId from currentUser
+      final newCommentData = await _recipeService.addComment(
+        recipeId,
+        // currentUserId, // No longer pass userId, service will get it
+        text.trim(),
+        parentCommentId: parentId,
+      );
+
+      final newComment = DetailModelComment.Comment.fromJson(newCommentData);
+
+      setState(() {
+        if (newComment.parentCommentId != null) {
+          // This is a reply, add it to the parent's replies list
+          final added = _addReplyToLocalList(_comments, newComment);
+          if (!added) {
+            // Parent not found, fallback to add as a top-level comment or handle error
+            print("Error: Parent comment not found for reply. Adding as top-level.");
+            _comments.insert(0, newComment);
+          }
+        } else {
+          // This is a top-level comment
+          _comments.insert(0, newComment); // Add to the beginning for newest first
+        }
+        _replyingToCommentId = null; // Reset reply state
+        _replyingToUserName = null;
+      });
+      _commentController.clear();
+
+    } catch (e) {
+      print("Error adding comment: $e");
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Failed to add comment: ${e.toString()}")),
+        );
+      }
+    }
   }
 
   @override
   void dispose() {
     _commentController.dispose();
     super.dispose();
+  }
+
+  void _initiateReply(DetailModelComment.Comment parentComment) {
+    setState(() {
+      _replyingToCommentId = parentComment.id;
+      _replyingToUserName = parentComment.userName;
+      // TODO: Optionally, focus the text field and set text like "@username "
+      // FocusScope.of(context).requestFocus(_commentFocusNode); // Assuming you have a FocusNode for the TextField
+      // _commentController.text = "@${parentComment.userName} ";
+    });
+  }
+
+  // Helper function to recursively find and add a reply to the local list
+  bool _addReplyToLocalList(List<DetailModelComment.Comment> commentsList, DetailModelComment.Comment reply) {
+    for (var comment in commentsList) {
+      if (comment.id == reply.parentCommentId.toString()) {
+        comment.replies.insert(0, reply); 
+        return true; 
+      }
+      if (comment.replies.isNotEmpty) {
+        if (_addReplyToLocalList(comment.replies, reply)) {
+          return true; 
+        }
+      }
+    }
+    return false; 
+  }
+
+  DetailModelComment.Comment? _findAndUpdateComment(
+    List<DetailModelComment.Comment> commentsList,
+    String commentId,
+    DetailModelComment.Comment Function(DetailModelComment.Comment) updater,
+  ) {
+    for (int i = 0; i < commentsList.length; i++) {
+      var comment = commentsList[i];
+      if (comment.id == commentId) {
+        commentsList[i] = updater(comment);
+        return commentsList[i];
+      }
+      if (comment.replies.isNotEmpty) {
+        final updatedInReply = _findAndUpdateComment(comment.replies, commentId, updater);
+        if (updatedInReply != null) return updatedInReply;
+      }
+    }
+    return null;
+  }
+
+  Future<void> _handleCommentLike(DetailModelComment.Comment commentToToggle) async {
+    // final String currentUserId = "325c40cc-d255-4f93-bf5f-40bc196ca093"; // Hardcoded User ID
+    final currentUser = SupabaseClientWrapper().client.auth.currentUser;
+
+    if (currentUser == null) {
+      if(mounted) ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Please log in to like comments.")),
+      );
+      return;
+    }
+
+    // Optimistic UI update
+    setState(() {
+      _findAndUpdateComment(_comments, commentToToggle.id, (comment) {
+        return comment.copyWith(
+          isLiked: !comment.isLiked,
+          likeCount: comment.isLiked ? comment.likeCount - 1 : comment.likeCount + 1,
+        );
+      });
+    });
+
+    try {
+      // toggleCommentLike in service will get current user ID
+      await _recipeService.toggleCommentLike(commentToToggle.id);
+    } catch (e) {
+      print("Error toggling comment like: $e");
+      // Revert UI update on error
+      setState(() {
+        _findAndUpdateComment(_comments, commentToToggle.id, (comment) {
+          return comment.copyWith(
+            isLiked: !comment.isLiked, 
+            likeCount: comment.isLiked ? comment.likeCount - 1 : comment.likeCount + 1, 
+          );
+        });
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Failed to update like status: ${e.toString()}")),
+        );
+      }
+    }
   }
 
   void _navigateToEditScreen() async {
@@ -442,11 +611,38 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
                             },
                           ),
                         GestureDetector(
-                          onTap: () {
+                          onTap: () async {
+                            final currentUser = SupabaseClientWrapper().client.auth.currentUser;
+                            if (currentUser == null) {
+                              if (mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(content: Text("Please log in to like recipes.")),
+                                );
+                              }
+                              return;
+                            }
+                            if (_recipe == null) return;
+
+                            // Optimistic UI update
                             setState(() {
                               isFavorite = !isFavorite;
-                              // TODO: Implement Supabase like/unlike logic
                             });
+
+                            try {
+                              await _recipeService.toggleLikeRecipe(int.parse(_recipe!.id));
+                              // Optionally, re-fetch recipe details or like status if needed for like counts
+                            } catch (e) {
+                              // Revert UI on error
+                              setState(() {
+                                isFavorite = !isFavorite;
+                              });
+                              if (mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(content: Text("Failed to update like: ${e.toString()}")),
+                                );
+                              }
+                              print("Error toggling recipe like: $e");
+                            }
                           },
                           child: Container(
                             width: 40,
@@ -692,30 +888,41 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
                     ),
                     const SizedBox(height: 8),
                     ..._comments
-                        .take(3)
+                        .take(3) // Still taking 3 top-level comments for the main screen preview
                         .map(
                           (comment) => CommentItem(
+                            key: ValueKey(comment.id), // Add key for proper updates
                             comment: comment,
-                            onLike: (liked) {
-                              setState(() {
-                                final index = _comments.indexOf(comment);
-                                if (index != -1) {
-                                  _comments[index] = comment.copyWith(
-                                    isLiked: liked,
-                                    likeCount:
-                                        liked
-                                            ? comment.likeCount + 1
-                                            : comment.likeCount - 1,
-                                  );
-                                }
-                              });
-                            },
-                            onReply: () {
-                              // Handle reply
-                            },
+                            onLike: _handleCommentLike, // Pass the method reference
+                            onReply: _initiateReply,   // Pass the method reference
                           ),
                         ),
                     const SizedBox(height: 16),
+
+                    // UI indication for replying
+                    if (_replyingToCommentId != null && _replyingToUserName != null)
+                      Padding(
+                        padding: const EdgeInsets.only(left: 16, bottom: 8, right: 16),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                "Replying to @$_replyingToUserName",
+                                style: TextStyle(color: Colors.grey[700], fontStyle: FontStyle.italic),
+                              ),
+                            ),
+                            IconButton(
+                              icon: Icon(Icons.close, size: 18, color: Colors.grey[700]),
+                              onPressed: () {
+                                setState(() {
+                                  _replyingToCommentId = null;
+                                  _replyingToUserName = null;
+                                });
+                              },
+                            )
+                          ],
+                        ),
+                      ),
 
                     // Comment input
                     Container(
@@ -732,8 +939,9 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
                           Expanded(
                             child: TextField(
                               controller: _commentController,
-                              decoration: const InputDecoration(
-                                hintText: "Diskusi di sini",
+                              enabled: currentUser != null, // Disable if no user
+                              decoration: InputDecoration(
+                                hintText: currentUser != null ? "Diskusi di sini" : "Login to comment",
                                 border: InputBorder.none,
                                 hintStyle: TextStyle(color: Colors.grey),
                               ),
@@ -741,9 +949,9 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
                           ),
                           const SizedBox(width: 8),
                           GestureDetector(
-                            onTap: () {
+                            onTap: currentUser != null ? () { // Only allow tap if user exists
                               _addComment(_commentController.text);
-                            },
+                            } : null,
                             child: Container(
                               padding: const EdgeInsets.all(8),
                               decoration: BoxDecoration(
