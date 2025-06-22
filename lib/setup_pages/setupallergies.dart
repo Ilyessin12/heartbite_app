@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'setupdiets.dart'; // Import setupdiets.dart for navigation
 import '../services/supabase_client.dart'; // Import Supabase client
+import '../services/auth_service.dart'; // Import AuthService untuk mengakses user ID
 
 class SetupAllergiesPage extends StatefulWidget {
   const SetupAllergiesPage({Key? key}) : super(key: key);
@@ -66,11 +67,10 @@ class _SetupAllergiesPageState extends State<SetupAllergiesPage> {
       });
     }
   }
-  
-  // Fungsi untuk memuat alergi yang sudah dipilih oleh user
+    // Fungsi untuk memuat alergi yang sudah dipilih oleh user
   Future<void> loadSelectedAllergies() async {
     try {
-      final userId = _supabase.auth.currentUser?.id;
+      final userId = AuthService.getCurrentUserId();
       if (userId != null) {        // Ambil alergi yang sudah dipilih user dari tabel user_allergens
         final userAllergensResponse = await _supabase
             .from('user_allergens')
@@ -260,12 +260,14 @@ class _SetupAllergiesPageState extends State<SetupAllergiesPage> {
                     padding: const EdgeInsets.only(bottom: 32.0),
                     child: SizedBox(
                       width: double.infinity,
-                      height: 56,
-                      child: ElevatedButton(                        onPressed: () async {
+                      height: 56,                      child: ElevatedButton(
+                        onPressed: () async {
                           // Simpan alergi yang dipilih ke database jika user sudah login
                           try {
-                            final userId = _supabase.auth.currentUser?.id;
-                            if (userId != null && selectedAllergies.isNotEmpty) {                              // Dapatkan ID untuk semua alergi yang dipilih
+                            // Gunakan AuthService untuk mendapatkan ID user yang sedang login
+                            final userId = AuthService.getCurrentUserId();
+                            if (userId != null && selectedAllergies.isNotEmpty) {
+                              // Dapatkan ID untuk semua alergi yang dipilih
                               final allergensData = await _supabase
                                   .from('allergens')
                                   .select('id, name')
@@ -275,16 +277,22 @@ class _SetupAllergiesPageState extends State<SetupAllergiesPage> {
                               final userAllergens = allergensData.map((allergen) => {
                                 'user_id': userId,
                                 'allergen_id': allergen['id'],
+                                'created_at': DateTime.now().toIso8601String(),
                               }).toList();
-                              
-                              // Jika ada data, simpan ke database
+                                // Jika ada data, simpan ke database
                               if (userAllergens.isNotEmpty) {
                                 await _supabase
                                   .from('user_allergens')
                                   .upsert(userAllergens);
+                                  
+                                print('Saved ${userAllergens.length} allergens for user $userId');
                               }
-                              
-                              print('Saved ${userAllergens.length} allergens for user');
+                            } else {
+                              if (userId == null) {
+                                print('Tidak ada user yang login');
+                              } else if (selectedAllergies.isEmpty) {
+                                print('Tidak ada alergi yang dipilih');
+                              }
                             }
                           } catch (e) {
                             print('Error saving allergens: $e');

@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'setupaccount.dart'; // Import SetupAccountPage
 import 'setupallergies.dart'; // Import SetupAllergiesPage
 import '../services/supabase_client.dart'; // Import Supabase client
+import '../services/auth_service.dart'; // Import AuthService untuk mengakses user ID
 
 class SetupDietsPage extends StatefulWidget {
   // Add parameter for the starting progress value
@@ -90,11 +91,10 @@ class _SetupDietsPageState extends State<SetupDietsPage> with SingleTickerProvid
       });
     }
   }
-  
-  // Fungsi untuk memuat diet yang sudah dipilih oleh user
+    // Fungsi untuk memuat diet yang sudah dipilih oleh user
   Future<void> loadSelectedDiets() async {
     try {
-      final userId = _supabase.auth.currentUser?.id;
+      final userId = AuthService.getCurrentUserId();
       if (userId != null) {
         // Ambil diet yang sudah dipilih user dari tabel user_diet_programs
         final userDietsResponse = await _supabase
@@ -105,7 +105,7 @@ class _SetupDietsPageState extends State<SetupDietsPage> with SingleTickerProvid
         if (userDietsResponse.isNotEmpty) {
           final selectedNames = userDietsResponse
               .map((item) => item['diet_programs']['name'] as String)
-              .toSet();
+              .toSet(); 
           
           setState(() {
             selectedDiets.addAll(selectedNames);
@@ -343,11 +343,11 @@ class _SetupDietsPageState extends State<SetupDietsPage> with SingleTickerProvid
                     padding: const EdgeInsets.only(bottom: 32.0),
                     child: SizedBox(
                       width: double.infinity,
-                      height: 56,
-                      child: ElevatedButton(                        onPressed: () async {
+                      height: 56,                      child: ElevatedButton(
+                        onPressed: () async {
                           // Simpan diet yang dipilih ke database jika user sudah login
                           try {
-                            final userId = _supabase.auth.currentUser?.id;
+                            final userId = AuthService.getCurrentUserId();
                             if (userId != null && selectedDiets.isNotEmpty) {
                               // Dapatkan ID untuk semua diet yang dipilih
                               final dietProgramsData = await _supabase
@@ -359,6 +359,7 @@ class _SetupDietsPageState extends State<SetupDietsPage> with SingleTickerProvid
                               final userDietPrograms = dietProgramsData.map((dietProgram) => {
                                 'user_id': userId,
                                 'diet_program_id': dietProgram['id'],
+                                'created_at': DateTime.now().toIso8601String(),
                               }).toList();
                               
                               // Jika ada data, simpan ke database
@@ -366,9 +367,15 @@ class _SetupDietsPageState extends State<SetupDietsPage> with SingleTickerProvid
                                 await _supabase
                                   .from('user_diet_programs')
                                   .upsert(userDietPrograms);
+                                
+                                print('Saved ${userDietPrograms.length} diet programs for user $userId');
                               }
-                              
-                              print('Saved ${userDietPrograms.length} diet programs for user');
+                            } else {
+                              if (userId == null) {
+                                print('Tidak ada user yang login');
+                              } else if (selectedDiets.isEmpty) {
+                                print('Tidak ada diet yang dipilih');
+                              }
                             }
                           } catch (e) {
                             print('Error saving diet programs: $e');

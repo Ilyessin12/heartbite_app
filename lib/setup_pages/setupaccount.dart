@@ -4,7 +4,9 @@ import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import 'finishsetup.dart';
 import 'setupdiets.dart';
-import '../services/image_upload_service.dart'; // Add this import
+import '../services/image_upload_service.dart';
+import '../services/auth_service.dart'; // Import AuthService
+import '../services/supabase_client.dart'; // Import Supabase client
 
 class SetupAccountPage extends StatefulWidget {
   final double startProgressValue;
@@ -20,8 +22,6 @@ class SetupAccountPage extends StatefulWidget {
 
 class _SetupAccountPageState extends State<SetupAccountPage> with SingleTickerProviderStateMixin {
   final Color primaryRed = const Color(0xFF8E1616);
-  final TextEditingController _usernameController = TextEditingController();
-  final TextEditingController _displayNameController = TextEditingController();
   late AnimationController _progressController;
   late Animation<double> _progressAnimation;
   
@@ -57,16 +57,12 @@ class _SetupAccountPageState extends State<SetupAccountPage> with SingleTickerPr
     
     _progressController.forward();
   }
-
   @override
   void dispose() {
-    _usernameController.dispose();
-    _displayNameController.dispose();
     _progressController.dispose();
     super.dispose();
   }
-  
-  // Function to pick cover image
+    // Function to pick cover image - dipilih saja, tidak langsung upload
   Future<void> _pickCoverImage() async {
     try {
       final XFile? pickedFile = await _picker.pickImage(
@@ -79,37 +75,19 @@ class _SetupAccountPageState extends State<SetupAccountPage> with SingleTickerPr
       if (pickedFile != null) {
         setState(() {
           _coverImage = File(pickedFile.path);
-          _isUploadingCover = true;
+          // Tidak upload ke Cloudinary di sini
         });
         
-        // Upload to Cloudinary
-        final url = await _imageUploadService.uploadImage(_coverImage!);
-        
-        setState(() {
-          _coverImageUrl = url;
-          _isUploadingCover = false;
-        });
-        
-        if (url == null) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Gagal mengunggah foto sampul ke cloud')),
-          );
-        } else {
-          print("Cover image uploaded successfully: $_coverImageUrl");
-        }
+        print("Cover image selected: ${pickedFile.path}");
       }
     } catch (e) {
-      setState(() {
-        _isUploadingCover = false;
-      });
-      debugPrint('Error picking/uploading image: $e');
+      debugPrint('Error picking image: $e');
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Gagal memilih/mengunggah gambar: $e')),
+        SnackBar(content: Text('Gagal memilih gambar: $e')),
       );
     }
   }
-
-  // Function to pick profile image
+  // Function to pick profile image - dipilih saja, tidak langsung upload
   Future<void> _pickProfileImage() async {
     try {
       final XFile? pickedFile = await _picker.pickImage(
@@ -122,32 +100,15 @@ class _SetupAccountPageState extends State<SetupAccountPage> with SingleTickerPr
       if (pickedFile != null) {
         setState(() {
           _profileImage = File(pickedFile.path);
-          _isUploadingProfile = true;
+          // Tidak upload ke Cloudinary di sini
         });
         
-        // Upload to Cloudinary
-        final url = await _imageUploadService.uploadImage(_profileImage!);
-        
-        setState(() {
-          _profileImageUrl = url;
-          _isUploadingProfile = false;
-        });
-        
-        if (url == null) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Gagal mengunggah foto profil ke cloud')),
-          );
-        } else {
-          print("Profile image uploaded successfully: $_profileImageUrl");
-        }
+        print("Profile image selected: ${pickedFile.path}");
       }
     } catch (e) {
-      setState(() {
-        _isUploadingProfile = false;
-      });
-      debugPrint('Error picking/uploading image: $e');
+      debugPrint('Error picking image: $e');
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Gagal memilih/mengunggah gambar: $e')),
+        SnackBar(content: Text('Gagal memilih gambar: $e')),
       );
     }
   }
@@ -352,26 +313,11 @@ class _SetupAccountPageState extends State<SetupAccountPage> with SingleTickerPr
                                                   ),
                                                 ),
                                               ],
-                                            )
-                                          : Stack(
-                                              alignment: Alignment.topRight,
-                                              children: [
-                                                Image.file(
-                                                  _coverImage!,
-                                                  fit: BoxFit.cover,
-                                                  width: double.infinity,
-                                                  height: double.infinity,
-                                                ),
-                                                if (_coverImageUrl != null)
-                                                  Padding(
-                                                    padding: const EdgeInsets.all(8.0),
-                                                    child: Icon(
-                                                      Icons.cloud_done,
-                                                      color: Colors.green.shade700,
-                                                      size: 24,
-                                                    ),
-                                                  )
-                                              ],
+                                            )                                          : Image.file(
+                                              _coverImage!,
+                                              fit: BoxFit.cover,
+                                              width: double.infinity,
+                                              height: double.infinity,
                                             ),
                                 ),
                               ),
@@ -437,26 +383,11 @@ class _SetupAccountPageState extends State<SetupAccountPage> with SingleTickerPr
                                                     ),
                                                   ),
                                                 ],
-                                              )
-                                            : Stack(
-                                                alignment: Alignment.topRight,
-                                                children: [
-                                                  Image.file(
-                                                    _profileImage!,
-                                                    fit: BoxFit.cover,
-                                                    width: double.infinity,
-                                                    height: double.infinity,
-                                                  ),
-                                                  if (_profileImageUrl != null)
-                                                    Padding(
-                                                      padding: const EdgeInsets.all(4.0),
-                                                      child: Icon(
-                                                        Icons.cloud_done,
-                                                        color: Colors.green.shade700,
-                                                        size: 20,
-                                                      ),
-                                                    )
-                                                ],
+                                              )                                            : Image.file(
+                                                _profileImage!,
+                                                fit: BoxFit.cover,
+                                                width: double.infinity,
+                                                height: double.infinity,
                                               ),
                                   ),
                                 ),
@@ -464,115 +395,7 @@ class _SetupAccountPageState extends State<SetupAccountPage> with SingleTickerPr
                             ],
                           ),
 
-                          const SizedBox(height: 32), // Add some space before the divider
-
-                          // Fading horizontal divider
-                          Container(
-                            height: 1.0,
-                            width: double.infinity,
-                            margin: const EdgeInsets.only(bottom: 24.0), // Space after divider
-                            decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                colors: [
-                                  Colors.transparent,
-                                  Colors.grey.withOpacity(0.5),
-                                  Colors.grey.withOpacity(0.5),
-                                  Colors.transparent,
-                                ],
-                                stops: const [0.0, 0.1, 0.9, 1.0],
-                                begin: Alignment.centerLeft,
-                                end: Alignment.centerRight,
-                              ),
-                            ),
-                          ),
-
-                          // Display Name field with matching border color
-                          TextField(
-                            controller: _displayNameController,
-                            decoration: InputDecoration(
-                              labelText: 'Nama Tampilan',
-                              labelStyle: GoogleFonts.dmSans(
-                                fontSize: 16,
-                                color: Colors.grey,
-                              ),
-                              hintText: 'Nama yang ditampilkan ke pengguna lain',
-                              hintStyle: GoogleFonts.dmSans(
-                                fontSize: 14,
-                                color: Colors.grey.withOpacity(0.7),
-                              ),
-                              filled: true,
-                              fillColor: primaryRed.withOpacity(0.12),
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(8),
-                                borderSide: BorderSide(
-                                  color: primaryRed.withOpacity(0.12), // Match with fillColor
-                                ),
-                              ),
-                              enabledBorder: OutlineInputBorder( // Add this to control the default border
-                                borderRadius: BorderRadius.circular(8),
-                                borderSide: BorderSide(
-                                  color: primaryRed.withOpacity(0.12), // Match with fillColor
-                                ),
-                              ),
-                              focusedBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(8),
-                                borderSide: BorderSide(color: primaryRed), // Keep this as is for focus state
-                              ),
-                            ),
-                            style: GoogleFonts.dmSans(fontSize: 16),
-                          ),
-
-                          const SizedBox(height: 16), // Add spacing between the fields
-
-                          // Username field with @ prefix and matching border color
-                          TextField(
-                            controller: _usernameController,
-                            decoration: InputDecoration(
-                              labelText: 'Username',
-                              labelStyle: GoogleFonts.dmSans(
-                                fontSize: 16,
-                                color: Colors.grey,
-                              ),
-                              hintText: 'Username harus unik dan tidak sama dengan user lain',
-                              hintStyle: GoogleFonts.dmSans(
-                                fontSize: 14,
-                                color: Colors.grey.withOpacity(0.7),
-                              ),
-                              prefixIcon: Padding(
-                                padding: const EdgeInsets.all(15.0),
-                                child: Text(
-                                  '@',
-                                  style: GoogleFonts.dmSans(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.grey[700],
-                                  ),
-                                ),
-                              ),
-                              prefixIconConstraints: const BoxConstraints(minWidth: 0, minHeight: 0),
-                              filled: true,
-                              fillColor: primaryRed.withOpacity(0.12),
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(8),
-                                borderSide: BorderSide(
-                                  color: primaryRed.withOpacity(0.12), // Match with fillColor
-                                ),
-                              ),
-                              enabledBorder: OutlineInputBorder( // Add this to control the default border
-                                borderRadius: BorderRadius.circular(8),
-                                borderSide: BorderSide(
-                                  color: primaryRed.withOpacity(0.12), // Match with fillColor
-                                ),
-                              ),
-                              focusedBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(8),
-                                borderSide: BorderSide(color: primaryRed), // Keep this as is for focus state
-                              ),
-                            ),
-                            style: GoogleFonts.dmSans(fontSize: 16),
-                          ),
-
-                          const SizedBox(height: 40),
+                          const SizedBox(height: 32), // Add some space before the divider                          const SizedBox(height: 40),
                         ],
                       ),
                     ),
@@ -585,47 +408,102 @@ class _SetupAccountPageState extends State<SetupAccountPage> with SingleTickerPr
                   child: SizedBox(
                     width: double.infinity,
                     height: 56,
-                    child: ElevatedButton(
-                      onPressed: (_isUploadingCover || _isUploadingProfile) 
+                    child: ElevatedButton(                      onPressed: (_isUploadingCover || _isUploadingProfile) 
                           ? null 
-                          : () {
-                              if (_usernameController.text.isEmpty) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(content: Text('Mohon isi username Anda')),
-                                );
-                                return;
+                          : () async {
+                              // Mulai proses upload
+                              setState(() {
+                                if (_coverImage != null) _isUploadingCover = true;
+                                if (_profileImage != null) _isUploadingProfile = true;
+                              });
+                              
+                              try {
+                                // Upload foto sampul ke Cloudinary jika ada
+                                if (_coverImage != null) {
+                                  final coverUrl = await _imageUploadService.uploadImage(_coverImage!);
+                                  if (coverUrl != null) {
+                                    setState(() {
+                                      _coverImageUrl = coverUrl;
+                                    });
+                                    print("Cover image uploaded successfully: $_coverImageUrl");
+                                  }
+                                }
+                                
+                                // Upload foto profil ke Cloudinary jika ada
+                                if (_profileImage != null) {
+                                  final profileUrl = await _imageUploadService.uploadImage(_profileImage!);
+                                  if (profileUrl != null) {
+                                    setState(() {
+                                      _profileImageUrl = profileUrl;
+                                    });
+                                    print("Profile image uploaded successfully: $_profileImageUrl");
+                                  }
+                                }
+                                
+                                // Simpan URL ke Supabase jika salah satu foto berhasil diupload
+                                final userId = AuthService.getCurrentUserId();
+                                if (userId != null && (_coverImageUrl != null || _profileImageUrl != null)) {
+                                  // Siapkan data untuk update
+                                  final dataToUpdate = <String, dynamic>{};
+                                  
+                                  if (_coverImageUrl != null) {
+                                    dataToUpdate['cover_picture'] = _coverImageUrl;
+                                  }
+                                  
+                                  if (_profileImageUrl != null) {
+                                    dataToUpdate['profile_picture'] = _profileImageUrl;
+                                  }                                    // Update data user di Supabase
+                                    if (dataToUpdate.isNotEmpty) {
+                                      final supabase = SupabaseClientWrapper().client;
+                                      await supabase
+                                          .from('users')
+                                          .update(dataToUpdate)
+                                          .eq('id', userId);
+                                          
+                                      print("Data user berhasil diupdate di Supabase");
+                                    }
+                                }
+                                
+                                // Navigate to next screen
+                                if (mounted) {
+                                  Navigator.push(
+                                    context,
+                                    PageRouteBuilder(
+                                      pageBuilder: (context, animation1, animation2) => 
+                                        const FinishSetupScreen(),
+                                      transitionDuration: const Duration(milliseconds: 300),
+                                      transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                                        const begin = Offset(1.0, 0.0);
+                                        const end = Offset.zero;
+                                        const curve = Curves.easeInOut;
+                                        
+                                        var tween = Tween(begin: begin, end: end)
+                                            .chain(CurveTween(curve: curve));
+                                        var offsetAnimation = animation.drive(tween);
+                                        
+                                        return SlideTransition(
+                                          position: offsetAnimation,
+                                          child: child,
+                                        );
+                                      },
+                                    ),
+                                  );
+                                }
+                              } catch (e) {
+                                print("Error saat upload/update: $e");
+                                if (mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(content: Text('Terjadi kesalahan: $e')),
+                                  );
+                                }
+                              } finally {
+                                if (mounted) {
+                                  setState(() {
+                                    _isUploadingCover = false;
+                                    _isUploadingProfile = false;
+                                  });
+                                }
                               }
-                              
-                              // Here we would typically save the data to a user model
-                              // For now we'll just print the values
-                              print("Saving user profile with:");
-                              print("Username: ${_usernameController.text}");
-                              print("Display name: ${_displayNameController.text}");
-                              print("Cover image URL: $_coverImageUrl");
-                              print("Profile image URL: $_profileImageUrl");
-                              
-                              Navigator.push(
-                                context,
-                                PageRouteBuilder(
-                                  pageBuilder: (context, animation1, animation2) => 
-                                    const FinishSetupScreen(),
-                                  transitionDuration: const Duration(milliseconds: 300),
-                                  transitionsBuilder: (context, animation, secondaryAnimation, child) {
-                                    const begin = Offset(1.0, 0.0);
-                                    const end = Offset.zero;
-                                    const curve = Curves.easeInOut;
-                                    
-                                    var tween = Tween(begin: begin, end: end)
-                                        .chain(CurveTween(curve: curve));
-                                    var offsetAnimation = animation.drive(tween);
-                                    
-                                    return SlideTransition(
-                                      position: offsetAnimation,
-                                      child: child,
-                                    );
-                                  },
-                                ),
-                              );
                             },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: primaryRed,

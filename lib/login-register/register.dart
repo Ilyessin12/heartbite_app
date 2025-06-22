@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'login.dart';
 import '../services/user_service.dart';
+import '../services/auth_service.dart';
 import '../setup_pages/setupallergies.dart';
 
 class RegisterPage extends StatefulWidget {
@@ -353,22 +354,40 @@ class _RegisterPageState extends State<RegisterPage> {
                                       phone: _phoneController.text.trim(),
                                     );
                                     setState(() {
-                                      _statusMessage =
-                                          'Registrasi berhasil! Silakan login.';
+                                      _statusMessage = 'Registrasi berhasil!';
                                     });
-                                    // Redirect ke SetupAllergiesPage
-                                    Navigator.pushReplacement(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder:
-                                            (_) => const SetupAllergiesPage(),
-                                      ),
-                                    );
+
+                                    // Tambahkan pengecekan login sebelum navigasi
+                                    if (AuthService.isUserLoggedIn()) {
+                                      // Jika user terdeteksi login, arahkan ke SetupAllergiesPage
+                                      print('User terdeteksi login, mengarahkan ke setup allergies');
+                                      Navigator.pushReplacement(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (_) => const SetupAllergiesPage(),
+                                        ),
+                                      );
+                                    } else {
+                                      // Jika user tidak terdeteksi login, tampilkan pesan error
+                                      setState(() {
+                                        _statusMessage = 'Registrasi berhasil tetapi login gagal. Silakan login manual.';
+                                      });
+                                      
+                                      // Opsional: Arahkan ke halaman login
+                                      Navigator.pushReplacement(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (_) => const LoginPage(),
+                                        ),
+                                      );
+                                    }
                                   } catch (e) {
                                     setState(() {
                                       _statusMessage = 'Registrasi gagal: $e';
                                     });
                                   }
+                                  print('Status login: ${AuthService.isUserLoggedIn()}');
+                                  print('User ID: ${AuthService.getCurrentUserId()}');
                                 },
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: Color(0xFF8E1616),

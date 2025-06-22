@@ -1,301 +1,250 @@
--- Schema for HeartBite App in PostgreSQL (Supabase)
+-- WARNING: This schema is for context only and is not meant to be run.
+-- Table order and constraints may not be valid for execution.
 
--- Drop existing tables (hati-hati: akan menghapus semua data)
-DROP TABLE IF EXISTS notifications CASCADE;
-DROP TABLE IF EXISTS recipe_ratings CASCADE;
-DROP TABLE IF EXISTS comment_likes CASCADE;
-DROP TABLE IF EXISTS recipe_comments CASCADE;
-DROP TABLE IF EXISTS recipe_bookmarks CASCADE;
-DROP TABLE IF EXISTS bookmark_folders CASCADE;
-DROP TABLE IF EXISTS recipe_likes CASCADE;
-DROP TABLE IF EXISTS recipe_gallery_images CASCADE;
-DROP TABLE IF EXISTS recipe_equipment CASCADE;
-DROP TABLE IF EXISTS recipe_instructions CASCADE;
-DROP TABLE IF EXISTS recipe_ingredients CASCADE;
-DROP TABLE IF EXISTS recipe_diet_programs CASCADE;
-DROP TABLE IF EXISTS recipe_categories CASCADE;
-DROP TABLE IF EXISTS recipes CASCADE;
-DROP TABLE IF EXISTS ingredient_allergens CASCADE;
-DROP TABLE IF EXISTS user_missing_equipment CASCADE;
-DROP TABLE IF EXISTS user_diet_programs CASCADE;
-DROP TABLE IF EXISTS user_allergens CASCADE;
-DROP TABLE IF EXISTS ingredients CASCADE;
-DROP TABLE IF EXISTS categories CASCADE;
-DROP TABLE IF EXISTS equipment CASCADE;
-DROP TABLE IF EXISTS allergens CASCADE;
-DROP TABLE IF EXISTS diet_programs CASCADE;
-DROP TABLE IF EXISTS user_follows CASCADE;
-DROP TABLE IF EXISTS users CASCADE;
-
--- Rebuild tables with correct types
-
--- users table (UUID primary key)
-CREATE TABLE users(
-    id UUID PRIMARY KEY,
-    full_name TEXT NOT NULL,
-    username TEXT UNIQUE NOT NULL,
-    email TEXT UNIQUE NOT NULL,
-    phone TEXT,
-    password_hash TEXT,
-    profile_picture TEXT,
-    cover_picture TEXT,
-    bio TEXT,
-    is_active BOOLEAN DEFAULT TRUE,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+CREATE TABLE public.allergens (
+  id integer NOT NULL DEFAULT nextval('allergens_id_seq'::regclass),
+  name text NOT NULL UNIQUE,
+  description text,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT allergens_pkey PRIMARY KEY (id)
 );
-
--- user_follows table (UUID foreign keys)
-CREATE TABLE user_follows(
-    id SERIAL PRIMARY KEY,
-    follower_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    following_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    UNIQUE(follower_id, following_id)
+CREATE TABLE public.bookmark_folders (
+  id integer NOT NULL DEFAULT nextval('bookmark_folders_id_seq'::regclass),
+  user_id uuid NOT NULL,
+  name text NOT NULL,
+  description text,
+  is_default boolean DEFAULT false,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  image_url text,
+  CONSTRAINT bookmark_folders_pkey PRIMARY KEY (id),
+  CONSTRAINT bookmark_folders_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id)
 );
-
--- diet_programs table
-CREATE TABLE diet_programs(
-    id SERIAL PRIMARY KEY,
-    name TEXT UNIQUE NOT NULL,
-    description TEXT,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+CREATE TABLE public.categories (
+  id integer NOT NULL DEFAULT nextval('categories_id_seq'::regclass),
+  name text NOT NULL UNIQUE,
+  description text,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT categories_pkey PRIMARY KEY (id)
 );
-
--- allergens table
-CREATE TABLE allergens(
-    id SERIAL PRIMARY KEY,
-    name TEXT UNIQUE NOT NULL,
-    description TEXT,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+CREATE TABLE public.comment_likes (
+  id integer NOT NULL DEFAULT nextval('comment_likes_id_seq'::regclass),
+  comment_id integer NOT NULL,
+  user_id uuid NOT NULL,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT comment_likes_pkey PRIMARY KEY (id),
+  CONSTRAINT comment_likes_comment_id_fkey FOREIGN KEY (comment_id) REFERENCES public.recipe_comments(id),
+  CONSTRAINT comment_likes_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id)
 );
-
--- equipment table
-CREATE TABLE equipment(
-    id SERIAL PRIMARY KEY,
-    name TEXT UNIQUE NOT NULL,
-    description TEXT,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+CREATE TABLE public.diet_programs (
+  id integer NOT NULL DEFAULT nextval('diet_programs_id_seq'::regclass),
+  name text NOT NULL UNIQUE,
+  description text,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT diet_programs_pkey PRIMARY KEY (id)
 );
-
--- categories table
-CREATE TABLE categories(
-    id SERIAL PRIMARY KEY,
-    name TEXT UNIQUE NOT NULL,
-    description TEXT,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+CREATE TABLE public.equipment (
+  id integer NOT NULL DEFAULT nextval('equipment_id_seq'::regclass),
+  name text NOT NULL UNIQUE,
+  description text,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT equipment_pkey PRIMARY KEY (id)
 );
-
--- ingredients table
-CREATE TABLE ingredients(
-    id SERIAL PRIMARY KEY,
-    name TEXT UNIQUE NOT NULL,
-    unit TEXT,
-    category TEXT,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+CREATE TABLE public.ingredient_allergens (
+  id integer NOT NULL DEFAULT nextval('ingredient_allergens_id_seq'::regclass),
+  allergen_id integer NOT NULL,
+  CONSTRAINT ingredient_allergens_pkey PRIMARY KEY (id),
+  CONSTRAINT ingredient_allergens_allergen_id_fkey FOREIGN KEY (allergen_id) REFERENCES public.allergens(id)
 );
-
--- user_allergens table
-CREATE TABLE user_allergens(
-    id SERIAL PRIMARY KEY,
-    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    allergen_id INTEGER NOT NULL REFERENCES allergens(id) ON DELETE CASCADE,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    UNIQUE(user_id, allergen_id)
+CREATE TABLE public.ingredients (
+  id integer NOT NULL DEFAULT nextval('ingredients_id_seq'::regclass),
+  name text NOT NULL UNIQUE,
+  unit text,
+  category text,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT ingredients_pkey PRIMARY KEY (id)
 );
-
--- user_diet_programs table
-CREATE TABLE user_diet_programs(
-    id SERIAL PRIMARY KEY,
-    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    diet_program_id INTEGER NOT NULL REFERENCES diet_programs(id) ON DELETE CASCADE,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    UNIQUE(user_id, diet_program_id)
+CREATE TABLE public.notifications (
+  id integer NOT NULL DEFAULT nextval('notifications_id_seq'::regclass),
+  user_id uuid NOT NULL,
+  actor_id uuid NOT NULL,
+  type text NOT NULL CHECK (type = ANY (ARRAY['follow'::text, 'like_recipe'::text, 'comment'::text, 'like_comment'::text, 'reply'::text, 'new_recipe'::text, 'rating'::text])),
+  target_id integer,
+  target_type text,
+  message text,
+  is_read boolean DEFAULT false,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT notifications_pkey PRIMARY KEY (id),
+  CONSTRAINT notifications_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id),
+  CONSTRAINT notifications_actor_id_fkey FOREIGN KEY (actor_id) REFERENCES public.users(id)
 );
-
--- user_missing_equipment table
-CREATE TABLE user_missing_equipment(
-    id SERIAL PRIMARY KEY,
-    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    equipment_id INTEGER NOT NULL REFERENCES equipment(id) ON DELETE CASCADE,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    UNIQUE(user_id, equipment_id)
+CREATE TABLE public.recipe_bookmarks (
+  id integer NOT NULL DEFAULT nextval('recipe_bookmarks_id_seq'::regclass),
+  recipe_id integer NOT NULL,
+  user_id uuid NOT NULL,
+  folder_id integer NOT NULL,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT recipe_bookmarks_pkey PRIMARY KEY (id),
+  CONSTRAINT recipe_bookmarks_recipe_id_fkey FOREIGN KEY (recipe_id) REFERENCES public.recipes(id),
+  CONSTRAINT recipe_bookmarks_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id),
+  CONSTRAINT recipe_bookmarks_folder_id_fkey FOREIGN KEY (folder_id) REFERENCES public.bookmark_folders(id)
 );
-
--- ingredient_allergens table
-CREATE TABLE ingredient_allergens(
-    id SERIAL PRIMARY KEY,
-    ingredient_id INTEGER NOT NULL REFERENCES ingredients(id) ON DELETE CASCADE,
-    allergen_id INTEGER NOT NULL REFERENCES allergens(id) ON DELETE CASCADE,
-    UNIQUE(ingredient_id, allergen_id)
+CREATE TABLE public.recipe_categories (
+  id integer NOT NULL DEFAULT nextval('recipe_categories_id_seq'::regclass),
+  recipe_id integer NOT NULL,
+  category_id integer NOT NULL,
+  CONSTRAINT recipe_categories_pkey PRIMARY KEY (id),
+  CONSTRAINT recipe_categories_category_id_fkey FOREIGN KEY (category_id) REFERENCES public.categories(id),
+  CONSTRAINT recipe_categories_recipe_id_fkey FOREIGN KEY (recipe_id) REFERENCES public.recipes(id)
 );
-
--- recipes table
-CREATE TABLE recipes(
-    id SERIAL PRIMARY KEY,
-    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    title TEXT NOT NULL,
-    description TEXT,
-    image_url TEXT,
-    calories INTEGER,
-    servings INTEGER NOT NULL DEFAULT 1,
-    cooking_time_minutes INTEGER NOT NULL,
-    difficulty_level TEXT DEFAULT 'medium',
-    is_published BOOLEAN DEFAULT TRUE,
-    rating REAL DEFAULT 0.0,
-    review_count INTEGER DEFAULT 0,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    CONSTRAINT difficulty_level_check CHECK(difficulty_level IN ('easy', 'medium', 'hard'))
+CREATE TABLE public.recipe_comments (
+  id integer NOT NULL DEFAULT nextval('recipe_comments_id_seq'::regclass),
+  recipe_id integer NOT NULL,
+  user_id uuid NOT NULL,
+  parent_comment_id integer,
+  comment text NOT NULL,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT recipe_comments_pkey PRIMARY KEY (id),
+  CONSTRAINT recipe_comments_recipe_id_fkey FOREIGN KEY (recipe_id) REFERENCES public.recipes(id),
+  CONSTRAINT recipe_comments_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id),
+  CONSTRAINT recipe_comments_parent_comment_id_fkey FOREIGN KEY (parent_comment_id) REFERENCES public.recipe_comments(id)
 );
-
--- recipe_categories table
-CREATE TABLE recipe_categories(
-    id SERIAL PRIMARY KEY,
-    recipe_id INTEGER NOT NULL REFERENCES recipes(id) ON DELETE CASCADE,
-    category_id INTEGER NOT NULL REFERENCES categories(id) ON DELETE CASCADE,
-    UNIQUE(recipe_id, category_id)
+CREATE TABLE public.recipe_diet_programs (
+  id integer NOT NULL DEFAULT nextval('recipe_diet_programs_id_seq'::regclass),
+  recipe_id integer NOT NULL,
+  diet_program_id integer NOT NULL,
+  CONSTRAINT recipe_diet_programs_pkey PRIMARY KEY (id),
+  CONSTRAINT recipe_diet_programs_recipe_id_fkey FOREIGN KEY (recipe_id) REFERENCES public.recipes(id),
+  CONSTRAINT recipe_diet_programs_diet_program_id_fkey FOREIGN KEY (diet_program_id) REFERENCES public.diet_programs(id)
 );
-
--- recipe_diet_programs table
-CREATE TABLE recipe_diet_programs(
-    id SERIAL PRIMARY KEY,
-    recipe_id INTEGER NOT NULL REFERENCES recipes(id) ON DELETE CASCADE,
-    diet_program_id INTEGER NOT NULL REFERENCES diet_programs(id) ON DELETE CASCADE,
-    UNIQUE(recipe_id, diet_program_id)
+CREATE TABLE public.recipe_equipment (
+  id integer NOT NULL DEFAULT nextval('recipe_equipment_id_seq'::regclass),
+  recipe_id integer NOT NULL,
+  equipment_id integer NOT NULL,
+  is_required boolean DEFAULT true,
+  notes text,
+  CONSTRAINT recipe_equipment_pkey PRIMARY KEY (id),
+  CONSTRAINT recipe_equipment_recipe_id_fkey FOREIGN KEY (recipe_id) REFERENCES public.recipes(id),
+  CONSTRAINT recipe_equipment_equipment_id_fkey FOREIGN KEY (equipment_id) REFERENCES public.equipment(id)
 );
-
--- recipe_ingredients table
-CREATE TABLE recipe_ingredients(
-    id SERIAL PRIMARY KEY,
-    recipe_id INTEGER NOT NULL REFERENCES recipes(id) ON DELETE CASCADE,
-    ingredients TEXT NOT NULL,
-    quantity REAL NOT NULL,
-    unit TEXT,
-    notes TEXT,
-    order_index INTEGER DEFAULT 0
+CREATE TABLE public.recipe_gallery_images (
+  id integer NOT NULL DEFAULT nextval('recipe_gallery_images_id_seq'::regclass),
+  recipe_id integer NOT NULL,
+  image_url text NOT NULL,
+  caption text,
+  order_index integer DEFAULT 0,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT recipe_gallery_images_pkey PRIMARY KEY (id),
+  CONSTRAINT recipe_gallery_images_recipe_id_fkey FOREIGN KEY (recipe_id) REFERENCES public.recipes(id)
 );
-
--- recipe_instructions table
-CREATE TABLE recipe_instructions(
-    id SERIAL PRIMARY KEY,
-    recipe_id INTEGER NOT NULL REFERENCES recipes(id) ON DELETE CASCADE,
-    step_number INTEGER NOT NULL,
-    instruction TEXT NOT NULL,
-    image_url TEXT,
-    estimated_time_minutes INTEGER,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    UNIQUE(recipe_id, step_number)
+CREATE TABLE public.recipe_ingredients (
+  id integer NOT NULL DEFAULT nextval('recipe_ingredients_id_seq'::regclass),
+  recipe_id integer NOT NULL,
+  quantity real NOT NULL,
+  unit text,
+  notes text,
+  order_index integer DEFAULT 0,
+  ingredients text NOT NULL,
+  CONSTRAINT recipe_ingredients_pkey PRIMARY KEY (id),
+  CONSTRAINT recipe_ingredients_recipe_id_fkey FOREIGN KEY (recipe_id) REFERENCES public.recipes(id)
 );
-
--- recipe_equipment table
-CREATE TABLE recipe_equipment(
-    id SERIAL PRIMARY KEY,
-    recipe_id INTEGER NOT NULL REFERENCES recipes(id) ON DELETE CASCADE,
-    equipment_id INTEGER NOT NULL REFERENCES equipment(id) ON DELETE RESTRICT,
-    is_required BOOLEAN DEFAULT TRUE,
-    notes TEXT,
-    UNIQUE(recipe_id, equipment_id)
+CREATE TABLE public.recipe_instructions (
+  id integer NOT NULL DEFAULT nextval('recipe_instructions_id_seq'::regclass),
+  recipe_id integer NOT NULL,
+  step_number integer NOT NULL,
+  instruction text NOT NULL,
+  image_url text,
+  estimated_time_minutes integer,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT recipe_instructions_pkey PRIMARY KEY (id),
+  CONSTRAINT recipe_instructions_recipe_id_fkey FOREIGN KEY (recipe_id) REFERENCES public.recipes(id)
 );
-
--- recipe_gallery_images table
-CREATE TABLE recipe_gallery_images(
-    id SERIAL PRIMARY KEY,
-    recipe_id INTEGER NOT NULL REFERENCES recipes(id) ON DELETE CASCADE,
-    image_url TEXT NOT NULL,
-    caption TEXT,
-    order_index INTEGER DEFAULT 0,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+CREATE TABLE public.recipe_likes (
+  id integer NOT NULL DEFAULT nextval('recipe_likes_id_seq'::regclass),
+  recipe_id integer NOT NULL,
+  user_id uuid NOT NULL,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT recipe_likes_pkey PRIMARY KEY (id),
+  CONSTRAINT recipe_likes_recipe_id_fkey FOREIGN KEY (recipe_id) REFERENCES public.recipes(id),
+  CONSTRAINT recipe_likes_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id)
 );
-
--- recipe_likes table
-CREATE TABLE recipe_likes(
-    id SERIAL PRIMARY KEY,
-    recipe_id INTEGER NOT NULL REFERENCES recipes(id) ON DELETE CASCADE,
-    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    UNIQUE(recipe_id, user_id)
+CREATE TABLE public.recipe_ratings (
+  id integer NOT NULL DEFAULT nextval('recipe_ratings_id_seq'::regclass),
+  recipe_id integer NOT NULL,
+  user_id uuid NOT NULL,
+  rating_value integer NOT NULL CHECK (rating_value >= 1 AND rating_value <= 5),
+  review_text text,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT recipe_ratings_pkey PRIMARY KEY (id),
+  CONSTRAINT recipe_ratings_recipe_id_fkey FOREIGN KEY (recipe_id) REFERENCES public.recipes(id),
+  CONSTRAINT recipe_ratings_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id)
 );
-
--- bookmark_folders table
-CREATE TABLE bookmark_folders(
-    id SERIAL PRIMARY KEY,
-    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    name TEXT NOT NULL,
-    image_url TEXT,
-    description TEXT,
-    is_default BOOLEAN DEFAULT FALSE,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    UNIQUE(user_id, name)
+CREATE TABLE public.recipes (
+  id integer NOT NULL DEFAULT nextval('recipes_id_seq'::regclass),
+  user_id uuid NOT NULL,
+  title text NOT NULL,
+  description text,
+  image_url text,
+  calories integer,
+  servings integer NOT NULL DEFAULT 1,
+  cooking_time_minutes integer NOT NULL,
+  difficulty_level text DEFAULT 'medium'::text CHECK (difficulty_level = ANY (ARRAY['easy'::text, 'medium'::text, 'hard'::text])),
+  is_published boolean DEFAULT true,
+  rating real DEFAULT 0.0,
+  review_count integer DEFAULT 0,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT recipes_pkey PRIMARY KEY (id),
+  CONSTRAINT recipes_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id)
 );
-
--- recipe_bookmarks table
-CREATE TABLE recipe_bookmarks(
-    id SERIAL PRIMARY KEY,
-    recipe_id INTEGER NOT NULL REFERENCES recipes(id) ON DELETE CASCADE,
-    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    folder_id INTEGER NOT NULL REFERENCES bookmark_folders(id) ON DELETE CASCADE,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    UNIQUE(recipe_id, user_id, folder_id)
+CREATE TABLE public.user_allergens (
+  id integer NOT NULL DEFAULT nextval('user_allergens_id_seq'::regclass),
+  user_id uuid NOT NULL,
+  allergen_id integer NOT NULL,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT user_allergens_pkey PRIMARY KEY (id),
+  CONSTRAINT user_allergens_allergen_id_fkey FOREIGN KEY (allergen_id) REFERENCES public.allergens(id),
+  CONSTRAINT user_allergens_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id)
 );
-
--- recipe_comments table
-CREATE TABLE recipe_comments(
-    id SERIAL PRIMARY KEY,
-    recipe_id INTEGER NOT NULL REFERENCES recipes(id) ON DELETE CASCADE,
-    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    parent_comment_id INTEGER REFERENCES recipe_comments(id) ON DELETE CASCADE,
-    comment TEXT NOT NULL,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+CREATE TABLE public.user_diet_programs (
+  id integer NOT NULL DEFAULT nextval('user_diet_programs_id_seq'::regclass),
+  user_id uuid NOT NULL,
+  diet_program_id integer NOT NULL,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT user_diet_programs_pkey PRIMARY KEY (id),
+  CONSTRAINT user_diet_programs_diet_program_id_fkey FOREIGN KEY (diet_program_id) REFERENCES public.diet_programs(id),
+  CONSTRAINT user_diet_programs_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id)
 );
-
--- comment_likes table
-CREATE TABLE comment_likes(
-    id SERIAL PRIMARY KEY,
-    comment_id INTEGER NOT NULL REFERENCES recipe_comments(id) ON DELETE CASCADE,
-    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    UNIQUE(comment_id, user_id)
+CREATE TABLE public.user_follows (
+  id integer NOT NULL DEFAULT nextval('user_follows_id_seq'::regclass),
+  follower_id uuid NOT NULL,
+  following_id uuid NOT NULL,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT user_follows_pkey PRIMARY KEY (id),
+  CONSTRAINT user_follows_follower_id_fkey FOREIGN KEY (follower_id) REFERENCES public.users(id),
+  CONSTRAINT user_follows_following_id_fkey FOREIGN KEY (following_id) REFERENCES public.users(id)
 );
-
--- recipe_ratings table
-CREATE TABLE recipe_ratings(
-    id SERIAL PRIMARY KEY,
-    recipe_id INTEGER NOT NULL REFERENCES recipes(id) ON DELETE CASCADE,
-    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    rating_value INTEGER NOT NULL,
-    review_text TEXT,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    UNIQUE(recipe_id, user_id),
-    CONSTRAINT rating_value_check CHECK(rating_value >= 1 AND rating_value <= 5)
+CREATE TABLE public.user_missing_equipment (
+  id integer NOT NULL DEFAULT nextval('user_missing_equipment_id_seq'::regclass),
+  user_id uuid NOT NULL,
+  equipment_id integer NOT NULL,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT user_missing_equipment_pkey PRIMARY KEY (id),
+  CONSTRAINT user_missing_equipment_equipment_id_fkey FOREIGN KEY (equipment_id) REFERENCES public.equipment(id),
+  CONSTRAINT user_missing_equipment_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id)
 );
-
--- notifications table
-CREATE TABLE notifications(
-    id SERIAL PRIMARY KEY,
-    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    actor_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    type TEXT NOT NULL,
-    target_id INTEGER,
-    target_type TEXT,
-    message TEXT,
-    is_read BOOLEAN DEFAULT FALSE,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    CONSTRAINT notification_type_check CHECK(type IN ('follow', 'like_recipe', 'comment', 'like_comment', 'reply', 'new_recipe', 'rating'))
+CREATE TABLE public.users (
+  id uuid NOT NULL,
+  full_name text NOT NULL,
+  username text NOT NULL UNIQUE,
+  email text NOT NULL UNIQUE,
+  phone text,
+  password_hash text,
+  profile_picture text,
+  cover_picture text,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT users_pkey PRIMARY KEY (id)
 );
-
--- Indexes
-CREATE INDEX idx_recipes_cooking_time ON recipes(cooking_time_minutes);
-CREATE INDEX idx_recipes_created_at ON recipes(created_at);
-CREATE INDEX idx_recipes_title_published ON recipes(title, is_published);
-CREATE INDEX idx_recipes_user_created ON recipes(user_id, created_at);
-CREATE INDEX idx_recipe_bookmarks_user_folder ON recipe_bookmarks(user_id, folder_id);
-CREATE INDEX idx_recipe_comments_recipe_created ON recipe_comments(recipe_id, created_at);
-CREATE INDEX idx_recipe_comments_parent ON recipe_comments(parent_comment_id);
-CREATE INDEX idx_user_follows_following_follower ON user_follows(following_id, follower_id);
-CREATE INDEX idx_notifications_user_read_created ON notifications(user_id, is_read, created_at);
-CREATE INDEX idx_recipe_gallery_recipe_id ON recipe_gallery_images(recipe_id, order_index);
-CREATE INDEX idx_recipe_ratings_recipe_user ON recipe_ratings(recipe_id, user_id);

@@ -19,4 +19,9 @@ class AuthService {
   static bool isUserLoggedInAlt() {
     return SupabaseClientWrapper().auth.currentUser != null;
   }
+  
+  // Fungsi untuk sign out (logout)
+  static Future<void> signOut() async {
+    await Supabase.instance.client.auth.signOut();
+  }
 }
