@@ -3,16 +3,20 @@ import 'package:flutter/services.dart';
 import '../theme/app_theme.dart';
 import '../widgets/custom_back_button.dart';
 import '../widgets/profile_stats.dart';
-import '../widgets/recipe_card.dart';
+// import '../widgets/recipe_card.dart';
 import '../models/user_model.dart';
 import '../models/user_stats_model.dart';
 import '../models/recipe_model.dart';
 import '../services/profile_service.dart';
 import '../services/supabase_service.dart';
 import '../../recipe/create_recipe_screen.dart';
+// import '../../bookmark/models/recipe_item.dart';
 import '../screens/edit_profile_screen.dart';
 import '../screens/following_screen.dart';
 import '../screens/followers_screen.dart';
+import '../../bookmark/models/recipe_item.dart';
+import '../../bookmark/widgets/recipe_card.dart';
+import '../../recipe_detail/screens/recipe_detail_screen.dart';
 
 
 class ProfileScreenWithBackend extends StatefulWidget {
@@ -439,147 +443,29 @@ class _ProfileScreenWithBackendState extends State<ProfileScreenWithBackend>
     );
   }
 
-  Widget _buildRecipeCard(RecipeModel recipe) {
-    return GestureDetector(
-      onTap: () {
-        // Navigate to recipe detail
-        Navigator.pushNamed(context, '/recipe-detail', arguments: recipe.id);
-      },
-      child: Container(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.2),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
-            ),
-          ],
+    Widget _buildRecipeCard(RecipeModel recipe) {
+  return GestureDetector(
+    onTap: () {
+      // Navigate to recipe detail
+        Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => RecipeDetailScreen(recipeId: recipe.id as int),
         ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(16),
-          child: Stack(
-            fit: StackFit.expand,
-            children: [
-              // Recipe image
-              recipe.imageUrl != null
-                  ? Image.network(
-                      recipe.imageUrl!,
-                      fit: BoxFit.cover,
-                      loadingBuilder: (context, child, loadingProgress) {
-                        if (loadingProgress == null) return child;
-                        return Container(
-                          color: Colors.grey[300],
-                          child: const Center(
-                            child: CircularProgressIndicator(),
-                          ),
-                        );
-                      },
-                      errorBuilder: (context, error, stackTrace) {
-                        return Container(
-                          color: Colors.grey[300],
-                          child: const Icon(Icons.image_not_supported),
-                        );
-                      },
-                    )
-                  : Container(
-                      color: Colors.grey[300],
-                      child: const Icon(Icons.image_not_supported),
-                    ),
-              
-              // Dark gradient overlay
-              Positioned.fill(
-                child: Container(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: [
-                        Colors.transparent,
-                        Colors.black.withOpacity(0.3),
-                        Colors.black.withOpacity(0.7),
-                      ],
-                      stops: const [0.6, 0.8, 1.0],
-                    ),
-                  ),
-                ),
-              ),
-              
-              // Cook time
-              Positioned(
-                top: 12,
-                left: 12,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: Colors.black.withOpacity(0.5),
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  child: Text(
-                    '${recipe.cookingTimeMinutes} min',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 10,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ),
-              ),
-              
-              // Recipe title
-              Positioned(
-                bottom: 16,
-                left: 16,
-                right: 16,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      recipe.title,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                        height: 1.2,
-                      ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    if (recipe.rating > 0) ...[
-                      const SizedBox(height: 4),
-                      Row(
-                        children: [
-                          const Icon(
-                            Icons.star,
-                            color: Colors.amber,
-                            size: 12,
-                          ),
-                          const SizedBox(width: 2),
-                          Text(
-                            recipe.rating.toStringAsFixed(1),
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 10,
-                            ),
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            '(${recipe.reviewCount})',
-                            style: const TextStyle(
-                              color: Colors.white70,
-                              fontSize: 10,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
+      );
+    },
+    child: RecipeCard(
+      recipe: RecipeItem(
+        id: recipe.id as int?,
+        name: recipe.title,
+        imageUrl: recipe.imageUrl ?? '',
+        rating: recipe.rating,
+        reviewCount: recipe.reviewCount,
+        calories: 0, // Default value karena tidak ada di RecipeModel
+        prepTime: 1,  // Default value karena tidak ada di RecipeModel
+        cookTime: recipe.cookingTimeMinutes ?? 0,
       ),
-    );
-  }
+    ),
+  );
+}
 }
