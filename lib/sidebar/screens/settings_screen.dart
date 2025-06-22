@@ -32,27 +32,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     onTap: () => Navigator.pushNamed(context, '/settings/notifications'),
                   ),
                   SettingItem(
-                    title: 'Mode Malam',
-                    trailing: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          _isDarkMode ? Icons.nightlight_round : Icons.wb_sunny,
-                          color: _isDarkMode ? Colors.indigo : Colors.orange,
-                        ),
-                        const SizedBox(width: 8),
-                        Switch(
-                          value: _isDarkMode,
-                          onChanged: (value) {
-                            setState(() {
-                              _isDarkMode = value;
-                            });
-                          },
-                        ),
-                      ],
-                    ),
-                  ),
-                  SettingItem(
                     title: 'Tentang Aplikasi',
                     onTap: () => Navigator.pushNamed(context, '/about'),
                   ),

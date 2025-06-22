@@ -1,5 +1,11 @@
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
+import '../screens/profile_screen.dart';
+// import '../screens/bookmark_screen.dart';
+// import 'lib\bookmark\screens\bookmark_screen.dart';
+import '../../bookmark/screens/bookmark_screen.dart';
+import '../screens/settings_screen.dart';
+import '../screens/about_screen.dart';
 
 class SidebarScreen extends StatelessWidget {
   const SidebarScreen({super.key});
@@ -60,25 +66,25 @@ class SidebarScreen extends StatelessWidget {
               context,
               icon: Icons.person,
               title: 'Profil',
-              route: '/profile',
+              destination: const ProfileScreen(),
             ),
             _buildMenuItem(
               context,
               icon: Icons.bookmark,
               title: 'Bookmark',
-              route: '/bookmark',
+              destination: const BookmarkScreen(),
             ),
             _buildMenuItem(
               context,
               icon: Icons.settings,
               title: 'Pengaturan',
-              route: '/settings',
+              destination: const SettingsScreen(),
             ),
             _buildMenuItem(
               context,
               icon: Icons.info,
               title: 'About',
-              route: '/about',
+              destination: const AboutScreen(),
             ),
           ],
         ),
@@ -90,10 +96,13 @@ class SidebarScreen extends StatelessWidget {
     BuildContext context, {
     required IconData icon,
     required String title,
-    required String route,
+    required Widget destination,
   }) {
     return InkWell(
-      onTap: () => Navigator.pushNamed(context, route),
+      onTap: () => Navigator.push(
+        context,
+        MaterialPageRoute(builder: (context) => destination),
+      ),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
         child: Row(
