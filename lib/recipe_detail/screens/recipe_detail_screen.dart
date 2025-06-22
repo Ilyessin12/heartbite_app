@@ -297,7 +297,17 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
   void _addComment(String text) async { // Make async
     if (text.trim().isEmpty || _recipe == null) return;
 
-    final String currentUserId = "325c40cc-d255-4f93-bf5f-40bc196ca093"; // Hardcoded User ID for now
+    final currentUser = SupabaseClientWrapper().client.auth.currentUser;
+    if (currentUser == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Please log in to add a comment.")),
+        );
+      }
+      return;
+    }
+
+    // final String currentUserId = "325c40cc-d255-4f93-bf5f-40bc196ca093"; // Hardcoded User ID for now
     final int recipeId = int.tryParse(_recipe!.id) ?? 0;
     final int? parentId = _replyingToCommentId != null ? int.tryParse(_replyingToCommentId!) : null;
 
@@ -311,9 +321,10 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
     }
 
     try {
+      // RecipeService.addComment will get the userId from currentUser
       final newCommentData = await _recipeService.addComment(
         recipeId,
-        currentUserId,
+        // currentUserId, // No longer pass userId, service will get it
         text.trim(),
         parentCommentId: parentId,
       );
@@ -400,13 +411,17 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
   }
 
   Future<void> _handleCommentLike(DetailModelComment.Comment commentToToggle) async {
-    final String currentUserId = "325c40cc-d255-4f93-bf5f-40bc196ca093"; // Hardcoded User ID
+    // final String currentUserId = "325c40cc-d255-4f93-bf5f-40bc196ca093"; // Hardcoded User ID
+    final currentUser = SupabaseClientWrapper().client.auth.currentUser;
 
-    if (currentUserId.isEmpty) {
-      if(mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("User not authenticated.")));
+    if (currentUser == null) {
+      if(mounted) ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Please log in to like comments.")),
+      );
       return;
     }
 
+    // Optimistic UI update
     setState(() {
       _findAndUpdateComment(_comments, commentToToggle.id, (comment) {
         return comment.copyWith(
@@ -417,9 +432,11 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
     });
 
     try {
-      await _recipeService.toggleCommentLike(commentToToggle.id, currentUserId);
+      // toggleCommentLike in service will get current user ID
+      await _recipeService.toggleCommentLike(commentToToggle.id);
     } catch (e) {
       print("Error toggling comment like: $e");
+      // Revert UI update on error
       setState(() {
         _findAndUpdateComment(_comments, commentToToggle.id, (comment) {
           return comment.copyWith(
@@ -594,11 +611,38 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
                             },
                           ),
                         GestureDetector(
-                          onTap: () {
+                          onTap: () async {
+                            final currentUser = SupabaseClientWrapper().client.auth.currentUser;
+                            if (currentUser == null) {
+                              if (mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(content: Text("Please log in to like recipes.")),
+                                );
+                              }
+                              return;
+                            }
+                            if (_recipe == null) return;
+
+                            // Optimistic UI update
                             setState(() {
                               isFavorite = !isFavorite;
-                              // TODO: Implement Supabase like/unlike logic
                             });
+
+                            try {
+                              await _recipeService.toggleLikeRecipe(int.parse(_recipe!.id));
+                              // Optionally, re-fetch recipe details or like status if needed for like counts
+                            } catch (e) {
+                              // Revert UI on error
+                              setState(() {
+                                isFavorite = !isFavorite;
+                              });
+                              if (mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(content: Text("Failed to update like: ${e.toString()}")),
+                                );
+                              }
+                              print("Error toggling recipe like: $e");
+                            }
                           },
                           child: Container(
                             width: 40,
@@ -895,8 +939,9 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
                           Expanded(
                             child: TextField(
                               controller: _commentController,
-                              decoration: const InputDecoration(
-                                hintText: "Diskusi di sini",
+                              enabled: currentUser != null, // Disable if no user
+                              decoration: InputDecoration(
+                                hintText: currentUser != null ? "Diskusi di sini" : "Login to comment",
                                 border: InputBorder.none,
                                 hintStyle: TextStyle(color: Colors.grey),
                               ),
@@ -904,9 +949,9 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
                           ),
                           const SizedBox(width: 8),
                           GestureDetector(
-                            onTap: () {
+                            onTap: currentUser != null ? () { // Only allow tap if user exists
                               _addComment(_commentController.text);
-                            },
+                            } : null,
                             child: Container(
                               padding: const EdgeInsets.all(8),
                               decoration: BoxDecoration(
