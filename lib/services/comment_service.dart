@@ -38,6 +38,23 @@ class CommentService {
   }) async {
     final userId = _supabase.auth.currentUser?.id;
     if (userId == null) throw Exception('User not authenticated');
+
+    // If parentCommentId is provided, check if the parent is a top-level comment
+    if (parentCommentId != null) {
+      final parentComment = await _supabase
+          .from('recipe_comments')
+          .select('id, parent_comment_id')
+          .eq('id', parentCommentId)
+          .maybeSingle(); // Use maybeSingle to handle if parent comment doesn't exist
+
+      if (parentComment == null) {
+        throw Exception('Parent comment not found.');
+      }
+      // Check if the parent comment is itself a reply
+      if (parentComment['parent_comment_id'] != null) {
+        throw Exception('Cannot reply to a reply.');
+      }
+    }
     
     final result = await _supabase
       .from('recipe_comments')

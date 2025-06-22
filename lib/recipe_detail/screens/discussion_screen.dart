@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/comment.dart';
 import '../utils/constants.dart';
+import '../widgets/comment_item.dart'; // Import the consolidated CommentItem
 import '../../services/auth_service.dart'; // Added import
 import '../../services/recipe_service.dart'; // Import RecipeService
 import '../../services/supabase_client.dart'; // For current user check
@@ -237,14 +238,12 @@ class _DiscussionScreenState extends State<DiscussionScreen> {
                 itemCount: _comments.length,
                 itemBuilder: (context, index) {
                   final comment = _comments[index];
-                  // Use CommentItem widget which handles replies and uses the new like logic
-                  return CommentItemWidget( // Renamed to avoid conflict with model
+                  // Use the consolidated CommentItem widget
+                  return CommentItem( 
+                    key: ValueKey(comment.id), // Add key for better list performance
                     comment: comment,
                     onLike: _handleCommentLike,
                     onReply: _initiateReply,
-                    // We'll need a way to update the state from CommentItemWidget if it handles its own state
-                    // or ensure CommentItemWidget uses the passed comment data directly.
-                    // For now, _handleCommentLike updates _comments list, and CommentItemWidget should rebuild.
                   );
                 },
               ),
@@ -330,136 +329,6 @@ class _DiscussionScreenState extends State<DiscussionScreen> {
             ),
           ],
         ),
-      ),
-    );
-  }
-}
-
-// Renamed to avoid conflict with the Comment model
-// This widget is now effectively the same as the one in recipe_detail/widgets/comment_item.dart
-// We should consolidate them later if possible, or ensure this one is used here.
-// For now, this is a direct adaptation of the old _buildCommentItem.
-class CommentItemWidget extends StatelessWidget {
-  final Comment comment;
-  final Function(Comment) onLike;
-  final Function(Comment) onReply;
-
-  const CommentItemWidget({
-    super.key,
-    required this.comment,
-    required this.onLike,
-    required this.onReply,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    ImageProvider avatarImage;
-    if (comment.userImageUrl.startsWith('assets/')) {
-      avatarImage = AssetImage(comment.userImageUrl);
-    } else {
-      avatarImage = NetworkImage(comment.userImageUrl);
-    }
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              CircleAvatar(
-                radius: 16, // Smaller avatar for discussion screen consistency with RecipeDetail
-                backgroundImage: avatarImage,
-                // Fallback for network image error
-                onBackgroundImageError: (_, __) {
-                  // Consider a placeholder or default avatar image
-                },
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Text(
-                          comment.userName,
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const Spacer(),
-                        Text(
-                          comment.timeAgo,
-                          style: AppTextStyles.caption,
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 4),
-                    Text(comment.text),
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        GestureDetector(
-                          onTap: () => onLike(comment),
-                          child: Row(
-                            children: [
-                              Icon(
-                                comment.isLiked ? Icons.favorite : Icons.favorite_border,
-                                size: 16,
-                                color: comment.isLiked ? AppColors.primary : Colors.grey,
-                              ),
-                              const SizedBox(width: 4),
-                              Text(
-                                comment.likeCount.toString(),
-                                style: AppTextStyles.caption,
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(width: 16),
-                        GestureDetector(
-                          onTap: () => onReply(comment),
-                          child: Row(
-                            children: [
-                              const Icon(
-                                Icons.reply,
-                                size: 16,
-                                color: Colors.grey,
-                              ),
-                              const SizedBox(width: 4),
-                              Text(
-                                "Balas",
-                                style: AppTextStyles.caption,
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          // Display replies recursively using the same CommentItemWidget
-          if (comment.replies.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.only(left: 44.0, top: 8.0), // Indent replies
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: comment.replies.map((reply) {
-                  return CommentItemWidget(
-                    key: ValueKey(reply.id), // Important for list updates
-                    comment: reply,
-                    onLike: onLike, // Pass down the like handler
-                    onReply: onReply, // Pass down the reply handler
-                  );
-                }).toList(),
-              ),
-            ),
-        ],
       ),
     );
   }
