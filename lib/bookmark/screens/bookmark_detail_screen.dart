@@ -202,11 +202,19 @@ class _BookmarkDetailScreenState extends State<BookmarkDetailScreen> {
 
   void handleBottomNavTap(int index) {
     if (index == 0) {
-      // Navigate back to Homepage
-      Navigator.popUntil(context, (route) => route.isFirst);
+      // Navigate to HomePage using named route
+      Navigator.pushNamedAndRemoveUntil(
+        context,
+        '/home',
+        ModalRoute.withName('/'),
+      );
     } else if (index == 1) {
-      // Navigate to main bookmark screen
-      Navigator.pop(context);
+      // Navigate to main bookmark screen using named route
+      Navigator.pushNamedAndRemoveUntil(
+        context,
+        '/bookmark',
+        ModalRoute.withName('/'),
+      );
     }
   }
 

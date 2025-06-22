@@ -48,8 +48,12 @@ class _BookmarkScreenState extends State<BookmarkScreen> {
 
   void handleBottomNavTap(int index) {
     if (index == 0) {
-      // Navigate back to Homepage
-      Navigator.popUntil(context, (route) => route.isFirst);
+      // Navigate to Homepage using named route
+      Navigator.pushNamedAndRemoveUntil(
+        context,
+        '/home',
+        ModalRoute.withName('/'),
+      );
     }
     // index == 1 is already bookmark screen, so no action needed
   }

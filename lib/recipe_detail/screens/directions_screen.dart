@@ -7,11 +7,8 @@ import '../utils/constants.dart';
 
 class DirectionsScreen extends StatefulWidget {
   final Recipe recipe;
-  
-  const DirectionsScreen({
-    super.key,
-    required this.recipe,
-  });
+
+  const DirectionsScreen({super.key, required this.recipe});
 
   @override
   State<DirectionsScreen> createState() => _DirectionsScreenState();
@@ -35,12 +32,9 @@ class _DirectionsScreenState extends State<DirectionsScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        RecipeHeader(
-                          recipe: widget.recipe,
-                          showAuthor: false,
-                        ),
+                        RecipeHeader(recipe: widget.recipe, showAuthor: false),
                         const SizedBox(height: 24),
-                        
+
                         // Directions section header
                         const Text(
                           "Langkah-langkah",
@@ -52,7 +46,7 @@ class _DirectionsScreenState extends State<DirectionsScreen> {
                           style: AppTextStyles.caption,
                         ),
                         const SizedBox(height: 16),
-                        
+
                         // Directions list
                         ListView.builder(
                           shrinkWrap: true,
@@ -93,10 +87,7 @@ class _DirectionsScreenState extends State<DirectionsScreen> {
                     color: AppColors.primary,
                     shape: BoxShape.circle,
                   ),
-                  child: const Icon(
-                    Icons.arrow_back,
-                    color: Colors.white,
-                  ),
+                  child: const Icon(Icons.arrow_back, color: Colors.white),
                 ),
               ),
             ),
@@ -143,31 +134,42 @@ class _DirectionsScreenState extends State<DirectionsScreen> {
       ),
     );
   }
-  
+
   void _showCompletionDialog(BuildContext context) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text("Selamat!"),
-        content: const Text("Anda telah berhasil menyelesaikan resep ini. Apakah Anda ingin berbagi pengalaman Anda?"),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context); // Close dialog
-              Navigator.popUntil(context, (route) => route.isFirst); // Go back to first screen
-            },
-            child: const Text("Nanti Saja"),
+      builder:
+          (context) => AlertDialog(
+            title: const Text("Selamat!"),
+            content: const Text(
+              "Anda telah berhasil menyelesaikan resep ini. Apakah Anda ingin berbagi pengalaman Anda?",
+            ),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.pop(context); // Close dialog
+                  Navigator.pushNamedAndRemoveUntil(
+                    context,
+                    '/home',
+                    ModalRoute.withName('/'),
+                  ); // Go back to home screen
+                },
+                child: const Text("Nanti Saja"),
+              ),
+              ElevatedButton(
+                onPressed: () {
+                  Navigator.pop(context); // Close dialog
+                  Navigator.pushNamedAndRemoveUntil(
+                    context,
+                    '/home',
+                    ModalRoute.withName('/'),
+                  ); // Go back to home screen
+                  // Show share options or comment section
+                },
+                child: const Text("Bagikan"),
+              ),
+            ],
           ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context); // Close dialog
-              Navigator.popUntil(context, (route) => route.isFirst); // Go back to first screen
-              // Show share options or comment section
-            },
-            child: const Text("Bagikan"),
-          ),
-        ],
-      ),
     );
   }
 }

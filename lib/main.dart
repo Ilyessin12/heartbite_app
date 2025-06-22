@@ -4,7 +4,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:timeago/timeago.dart' as timeago; // Import untuk timeago
 import 'welcome_pages/welcome.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'screens/test_supabase.dart'; 
+import 'screens/test_supabase.dart';
 import 'bookmark/screens/bookmark_screen.dart';
 import 'test/test_login.dart';
 import 'services/auth_service.dart'; // Import untuk sign out
@@ -61,7 +61,13 @@ class MyApp extends StatelessWidget {
           bodySmall: TextStyle(color: Colors.black54),
         ),
       ),
-      home: const HomeScreenWrapper(),
+      initialRoute: '/',
+      routes: {
+        '/': (context) => const HomeScreenWrapper(),
+        '/home': (context) => const HomePage(),
+        '/bookmark': (context) => const BookmarkScreen(),
+        '/profile': (context) => const ProfileScreen(),
+      },
     );
   }
 }
@@ -79,16 +85,18 @@ class _HomeScreenWrapperState extends State<HomeScreenWrapper> {
   String? _userFullName;
   String? _username;
   bool _isLoading = false;
-    // Subscription untuk perubahan status autentikasi
+  // Subscription untuk perubahan status autentikasi
   StreamSubscription<AuthState>? _authSubscription;
 
   @override
   void initState() {
     super.initState();
     _fetchUserInfo();
-    
+
     // Dengarkan perubahan status autentikasi
-    _authSubscription = Supabase.instance.client.auth.onAuthStateChange.listen((data) {
+    _authSubscription = Supabase.instance.client.auth.onAuthStateChange.listen((
+      data,
+    ) {
       // Perbarui UI saat status autentikasi berubah
       if (data.event == AuthChangeEvent.signedIn) {
         print('User signed in');
@@ -105,16 +113,17 @@ class _HomeScreenWrapperState extends State<HomeScreenWrapper> {
       }
     });
   }
-  
+
   @override
   void dispose() {
     _authSubscription?.cancel();
     super.dispose();
   }
-  
+
   Future<void> _fetchUserInfo() async {
     if (!AuthService.isUserLoggedIn()) {
-      if (mounted) { // Add this check
+      if (mounted) {
+        // Add this check
         setState(() {
           _userEmail = null;
           _userFullName = null;
@@ -123,24 +132,27 @@ class _HomeScreenWrapperState extends State<HomeScreenWrapper> {
       }
       return;
     }
-    
-    if (mounted) { // Add this check
+
+    if (mounted) {
+      // Add this check
       setState(() {
         _isLoading = true;
       });
     }
-    
+
     try {
       final userId = AuthService.getCurrentUserId();
       if (userId != null) {
         // Ambil data user dari Supabase
-        final userData = await SupabaseClientWrapper().client
-          .from('users')
-          .select()
-          .eq('id', userId)
-          .single();
-        
-        if (mounted) { // Add this check
+        final userData =
+            await SupabaseClientWrapper().client
+                .from('users')
+                .select()
+                .eq('id', userId)
+                .single();
+
+        if (mounted) {
+          // Add this check
           setState(() {
             _userEmail = Supabase.instance.client.auth.currentUser?.email;
             _userFullName = userData['full_name'];
@@ -151,58 +163,62 @@ class _HomeScreenWrapperState extends State<HomeScreenWrapper> {
       }
     } catch (e) {
       print('Error saat fetch user info: $e');
-      if (mounted) { // Add this check
+      if (mounted) {
+        // Add this check
         setState(() {
           _isLoading = false;
         });
       }
     }
   }
-  
+
   // Fungsi untuk sign out
   void _signOut(BuildContext context) async {
     // Konfirmasi logout
     final shouldLogout = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Konfirmasi'),
-        content: const Text('Apakah Anda yakin ingin keluar?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Batal'),
+      builder:
+          (context) => AlertDialog(
+            title: const Text('Konfirmasi'),
+            content: const Text('Apakah Anda yakin ingin keluar?'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('Batal'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(context, true),
+                child: const Text('Ya, Keluar'),
+              ),
+            ],
           ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Ya, Keluar'),
-          ),
-        ],
-      ),
     );
-    
+
     // Jika user konfirmasi logout
     if (shouldLogout == true) {
       try {
         await AuthService.signOut();
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Berhasil logout')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Berhasil logout')));
         _fetchUserInfo(); // Refresh UI
       } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Gagal logout: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Gagal logout: $e')));
       }
     }
   }
+
   @override
-  Widget build(BuildContext context) {    return Scaffold(
+  Widget build(BuildContext context) {
+    return Scaffold(
       appBar: null, // Hapus AppBar
       body: Stack(
         children: [
           // Main content
           const WelcomeScreen(),
-          
+
           // User info panel
           if (AuthService.isUserLoggedIn())
             Positioned(
@@ -223,33 +239,44 @@ class _HomeScreenWrapperState extends State<HomeScreenWrapper> {
                     ),
                   ],
                 ),
-                child: _isLoading
-                  ? const Center(child: CircularProgressIndicator())
-                  : Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Akun yang login:',                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: const Color(0xFF8E1616),
-                          ),
+                child:
+                    _isLoading
+                        ? const Center(child: CircularProgressIndicator())
+                        : Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Akun yang login:',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: const Color(0xFF8E1616),
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            _buildInfoRow(
+                              'Email',
+                              _userEmail ?? 'Tidak tersedia',
+                            ),
+                            _buildInfoRow(
+                              'Nama',
+                              _userFullName ?? 'Tidak tersedia',
+                            ),
+                            _buildInfoRow(
+                              'Username',
+                              _username ?? 'Tidak tersedia',
+                            ),
+                          ],
                         ),
-                        const SizedBox(height: 8),
-                        _buildInfoRow('Email', _userEmail ?? 'Tidak tersedia'),
-                        _buildInfoRow('Nama', _userFullName ?? 'Tidak tersedia'),
-                        _buildInfoRow('Username', _username ?? 'Tidak tersedia'),
-                      ],
-                    ),
               ),
             ),
         ],
-      ),      floatingActionButton: Column(
+      ),
+      floatingActionButton: Column(
         mainAxisAlignment: MainAxisAlignment.end,
         children: [
           // Tombol Sign Out - hanya muncul saat user login
-          if (AuthService.isUserLoggedIn())
-          ...[
+          if (AuthService.isUserLoggedIn()) ...[
             FloatingActionButton(
               onPressed: () => _signOut(context),
               backgroundColor: const Color(0xFFFF5252),
@@ -259,12 +286,14 @@ class _HomeScreenWrapperState extends State<HomeScreenWrapper> {
             ),
             const SizedBox(height: 10),
           ],
-          
+
           FloatingActionButton(
             onPressed: () {
               Navigator.push(
                 context,
-                MaterialPageRoute(builder: (context) => const TestLoginScreen()),
+                MaterialPageRoute(
+                  builder: (context) => const TestLoginScreen(),
+                ),
               );
             },
             backgroundColor: const Color(0xFF4CAF50),
@@ -275,10 +304,7 @@ class _HomeScreenWrapperState extends State<HomeScreenWrapper> {
           const SizedBox(height: 10),
           FloatingActionButton(
             onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const BookmarkScreen()),
-              );
+              Navigator.pushNamed(context, '/bookmark');
             },
             backgroundColor: const Color(0xFF8E1616),
             child: const Icon(Icons.bookmark, color: Colors.white),
@@ -304,35 +330,29 @@ class _HomeScreenWrapperState extends State<HomeScreenWrapper> {
           // ✅ Floating Action Button untuk ProfileScreen
           FloatingActionButton(
             onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const ProfileScreen()),
-              );
+              Navigator.pushNamed(context, '/profile');
             },
             backgroundColor: Colors.deepPurple,
             child: const Icon(Icons.person, color: Colors.white),
             heroTag: "profile",
-            tooltip: 'Profile Page', 
+            tooltip: 'Profile Page',
           ),
           const SizedBox(height: 10),
-          // ✅ Floating Action Button untuk ProfileScreen
+          // ✅ Floating Action Button untuk HomePage
           FloatingActionButton(
             onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const HomePage()),
-              );
+              Navigator.pushNamed(context, '/home');
             },
             backgroundColor: const Color.fromARGB(255, 200, 128, 13),
-            child: const Icon(Icons.person, color: Colors.white),
+            child: const Icon(Icons.home, color: Colors.white),
             heroTag: "homepage",
-            tooltip: 'Home Page', 
+            tooltip: 'Home Page',
           ),
         ],
       ),
     );
   }
-  
+
   // Helper untuk membuat baris informasi
   Widget _buildInfoRow(String label, String value) {
     return Padding(
@@ -344,18 +364,11 @@ class _HomeScreenWrapperState extends State<HomeScreenWrapper> {
             width: 80,
             child: Text(
               '$label:',
-              style: const TextStyle(
-                fontWeight: FontWeight.w500,
-              ),
+              style: const TextStyle(fontWeight: FontWeight.w500),
             ),
           ),
           Expanded(
-            child: Text(
-              value,
-              style: const TextStyle(
-                color: Colors.black87,
-              ),
-            ),
+            child: Text(value, style: const TextStyle(color: Colors.black87)),
           ),
         ],
       ),

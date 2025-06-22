@@ -14,7 +14,6 @@ import '../services/recipe_service.dart';
 import '../models/recipe_model.dart';
 import '../recipe/create_recipe_screen.dart';
 import '../recipe_detail/screens/recipe_detail_screen.dart';
-import '../bookmark/screens/bookmark_screen.dart';
 import '../recipe_detail/models/recipe.dart' as DetailRecipeModel;
 import '../recipe_detail/models/ingredient.dart' as DetailIngredientModel;
 import '../recipe_detail/models/direction.dart' as DetailDirectionModel;
@@ -85,10 +84,10 @@ class _HomePageState extends State<HomePage> {
   double _dragCurrentX = 0.0;
   bool _isDragging = false;
   bool _isSwipeFromEdge = false; // Flag untuk memastikan swipe dari tepi
-  
+
   // Variabel untuk foto profil pengguna
   String? _userProfilePictureUrl;
-  
+
   // Subscription untuk perubahan autentikasi
   StreamSubscription<AuthState>? _authSubscription;
 
@@ -145,18 +144,21 @@ class _HomePageState extends State<HomePage> {
   List<DisplayRecipeItem> get _popularRecipes =>
       _allFetchedRecipes.skip(3).take(4).toList();
   List<DisplayRecipeItem> get _breakfastRecipes =>
-      _allFetchedRecipes.skip(7).take(4).toList();  @override
+      _allFetchedRecipes.skip(7).take(4).toList();
+  @override
   void initState() {
     super.initState();
     _fetchRecipes();
     _fetchUserProfilePicture(); // Ambil foto profil dari Supabase
-    
+
     // Dengarkan perubahan status autentikasi
-    _authSubscription = Supabase.instance.client.auth.onAuthStateChange.listen((event) {
+    _authSubscription = Supabase.instance.client.auth.onAuthStateChange.listen((
+      event,
+    ) {
       // Update foto profil saat status autentikasi berubah
       _fetchUserProfilePicture();
     });
-    
+
     _searchController.addListener(() {
       if (_searchController.text.isNotEmpty) {
         _updateSearchResults();
@@ -198,6 +200,7 @@ class _HomePageState extends State<HomePage> {
       });
     }
   }
+
   // Fungsi untuk mengambil foto profil dari Supabase
   Future<void> _fetchUserProfilePicture() async {
     if (AuthService.isUserLoggedIn()) {
@@ -220,6 +223,7 @@ class _HomePageState extends State<HomePage> {
       }
     }
   }
+
   @override
   void dispose() {
     _searchController.dispose();
@@ -231,12 +235,18 @@ class _HomePageState extends State<HomePage> {
     setState(() {
       _currentIndex = index;
     });
-    if (index == 1) {
+    if (index == 0) {
+      // Home button pressed - reset search/filters if any
+      if (_showSearchResults || _showFilters) {
+        setState(() {
+          _showSearchResults = false;
+          _showFilters = false;
+          _searchController.clear();
+        });
+      }
+    } else if (index == 1) {
       // Navigate to Bookmark screen
-      Navigator.push(
-        context,
-        MaterialPageRoute(builder: (context) => const BookmarkScreen()),
-      );
+      Navigator.pushNamed(context, '/bookmark');
     }
   }
 
@@ -397,9 +407,7 @@ class _HomePageState extends State<HomePage> {
       key: _scaffoldKey,
       backgroundColor: Colors.white,
       // Tambahkan drawer untuk sidebar dari kiri
-      drawer: Drawer(
-        child: SidebarScreen(),
-      ),
+      drawer: Drawer(child: SidebarScreen()),
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
@@ -407,16 +415,22 @@ class _HomePageState extends State<HomePage> {
         // Ubah leading menjadi seperti ini
         leading: Padding(
           padding: const EdgeInsets.only(left: 16.0),
-          child: Builder( 
+          child: Builder(
             builder: (BuildContext context) {
               return GestureDetector(
                 onTap: () {
                   // Buka sidebar dari kiri
                   Scaffold.of(context).openDrawer();
-                },                child: CircleAvatar(
-                  backgroundImage: _userProfilePictureUrl != null && _userProfilePictureUrl!.isNotEmpty
-                    ? NetworkImage(_userProfilePictureUrl!) as ImageProvider
-                    : AssetImage("assets/images/homepage/placeholder_profile.jpg"),
+                },
+                child: CircleAvatar(
+                  backgroundImage:
+                      _userProfilePictureUrl != null &&
+                              _userProfilePictureUrl!.isNotEmpty
+                          ? NetworkImage(_userProfilePictureUrl!)
+                              as ImageProvider
+                          : AssetImage(
+                            "assets/images/homepage/placeholder_profile.jpg",
+                          ),
                 ),
               );
             },
@@ -475,18 +489,18 @@ class _HomePageState extends State<HomePage> {
         // onPanStart: Dipanggil saat user mulai menyentuh layar
         onPanStart: (DragStartDetails details) {
           print("🟢 Pan Start - Position: ${details.localPosition.dx}");
-          
+
           // Reset semua state
           _isDragging = false;
           _isSwipeFromEdge = false;
-          
+
           // Cek apakah sentuhan dimulai dari tepi kiri (60px dari kiri)
           if (details.localPosition.dx <= 60) {
             _isDragging = true;
             _isSwipeFromEdge = true;
             _dragStartX = details.localPosition.dx;
             _dragCurrentX = details.localPosition.dx;
-            
+
             print("✅ Swipe dari tepi kiri terdeteksi!");
           }
         },
@@ -496,9 +510,11 @@ class _HomePageState extends State<HomePage> {
           if (_isDragging && _isSwipeFromEdge) {
             _dragCurrentX = details.localPosition.dx;
             double dragDistance = _dragCurrentX - _dragStartX;
-            
-            print("🔄 Pan Update - Current: ${_dragCurrentX}, Distance: $dragDistance");
-            
+
+            print(
+              "🔄 Pan Update - Current: ${_dragCurrentX}, Distance: $dragDistance",
+            );
+
             // Optional: Bisa tambahkan visual feedback di sini
             // Misalnya, ubah opacity sidebar atau animasi
           }
@@ -507,17 +523,17 @@ class _HomePageState extends State<HomePage> {
         // onPanEnd: Dipanggil saat user mengangkat jari
         onPanEnd: (DragEndDetails details) {
           print("🔴 Pan End");
-          
+
           if (_isDragging && _isSwipeFromEdge) {
             // Hitung jarak total drag
             double totalDragDistance = _dragCurrentX - _dragStartX;
-            
+
             // Hitung velocity (kecepatan) drag
             double velocityX = details.velocity.pixelsPerSecond.dx;
-            
+
             print("📊 Total Distance: $totalDragDistance");
             print("🚀 Velocity X: $velocityX");
-            
+
             // KONDISI UNTUK MEMBUKA SIDEBAR:
             // 1. Velocity ke kanan > 500 pixels/second (swipe cepat)
             // 2. ATAU drag distance > 100 pixels (drag jauh)
@@ -528,7 +544,7 @@ class _HomePageState extends State<HomePage> {
               print("❌ Kondisi tidak terpenuhi untuk membuka sidebar");
             }
           }
-          
+
           // Reset state
           _isDragging = false;
           _isSwipeFromEdge = false;
@@ -547,9 +563,10 @@ class _HomePageState extends State<HomePage> {
 
         // Child: Konten utama
         child: SafeArea(
-          child: _isLoading
-              ? Center(child: CircularProgressIndicator())
-              : _loadingError.isNotEmpty
+          child:
+              _isLoading
+                  ? Center(child: CircularProgressIndicator())
+                  : _loadingError.isNotEmpty
                   ? Center(
                     child: Text(
                       _loadingError,
