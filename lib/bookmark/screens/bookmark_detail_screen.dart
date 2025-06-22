@@ -398,7 +398,15 @@ class _BookmarkDetailScreenState extends State<BookmarkDetailScreen> {
                             },
                             child: Stack(
                               children: [
-                                RecipeCard(recipe: recipe),
+                                RecipeCard(
+                                  recipe: recipe,
+                                  showRemoveButton: !isSelectionMode,
+                                  onRemove: () {
+                                    if (recipe.id != null) {
+                                      _removeRecipe(recipe.id!);
+                                    }
+                                  },
+                                ),
 
                                 // Selection overlay
                                 if (isSelectionMode)
@@ -440,32 +448,6 @@ class _BookmarkDetailScreenState extends State<BookmarkDetailScreen> {
                                             isSelected
                                                 ? Colors.blue
                                                 : Colors.grey,
-                                      ),
-                                    ),
-                                  ),
-
-                                // Remove button for non-selection mode
-                                if (!isSelectionMode)
-                                  Positioned(
-                                    top: 8,
-                                    right: 8,
-                                    child: GestureDetector(
-                                      onTap: () {
-                                        if (recipe.id != null) {
-                                          _removeRecipe(recipe.id!);
-                                        }
-                                      },
-                                      child: Container(
-                                        padding: const EdgeInsets.all(4),
-                                        decoration: BoxDecoration(
-                                          color: Colors.red.withOpacity(0.8),
-                                          shape: BoxShape.circle,
-                                        ),
-                                        child: const Icon(
-                                          Icons.remove,
-                                          color: Colors.white,
-                                          size: 16,
-                                        ),
                                       ),
                                     ),
                                   ),
