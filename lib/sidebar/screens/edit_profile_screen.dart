@@ -376,139 +376,179 @@ class _EditProfileScreenWithBackendState extends State<EditProfileScreen> {
   }
 
   Widget _buildProfilePicture() {
-    return Column(
-      children: [
-        Stack(
-          clipBehavior: Clip.none,
-          children: [
-            // Background/Cover Photo
-            Container(
-              height: 180,
-              width: double.infinity,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(0),
-              ),
-              child: _buildCoverImage(),
+  return Column(
+    children: [
+      Stack(
+        clipBehavior: Clip.none,
+        children: [
+          // Background/Cover Photo
+          Container(
+            height: 180,
+            width: double.infinity,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(0),
             ),
-            
-            // Cover photo edit button
-            Positioned(
-              top: 12,
-              right: 12,
-              child: GestureDetector(
-                onTap: () => _showImageSourceDialog(false),
-                child: Container(
-                  decoration: const BoxDecoration(
-                    color: AppColors.primary,
-                    shape: BoxShape.circle,
+            child: _buildCoverImage(),
+          ),
+          
+          // Cover photo edit button
+          Positioned(
+            top: 12,
+            right: 12,
+            child: ElevatedButton(
+              onPressed: () => _showImageSourceDialog(false),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                shape: const CircleBorder(),
+                padding: const EdgeInsets.all(8),
+                minimumSize: const Size(40, 40),
+              ),
+              child: _isUploadingCover
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        color: Colors.white,
+                        strokeWidth: 2,
+                      ),
+                    )
+                  : const Icon(
+                      Icons.edit,
+                      color: Colors.white,
+                      size: 20,
+                    ),
+            ),
+          ),
+          
+          // Profile Picture
+          Positioned(
+            bottom: -40,
+            left: 0,
+            right: 0,
+            child: Center(
+              child: Stack(
+                children: [
+                  Container(
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(color: Colors.white, width: 4),
+                    ),
+                    child: CircleAvatar(
+                      radius: 40,
+                      backgroundColor: AppColors.primary,
+                      child: _buildProfileImage(),
+                    ),
                   ),
-                  padding: const EdgeInsets.all(8),
-                  child: _isUploadingCover
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(
-                            color: Colors.white,
-                            strokeWidth: 2,
-                          ),
-                        )
-                      : const Icon(
-                          Icons.edit,
-                          color: Colors.white,
-                          size: 20,
-                        ),
-                ),
-              ),
-            ),
-            
-            // Profile Picture
-            Positioned(
-              bottom: -40,
-              left: 0,
-              right: 0,
-              child: Center(
-                child: Stack(
-                  children: [
-                    Container(
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        border: Border.all(color: Colors.white, width: 4),
-                      ),
-                      child: CircleAvatar(
-                        radius: 40,
+                  
+                  // Profile picture edit button dengan ElevatedButton
+                  Positioned(
+                    bottom: -2,
+                    right: -2,
+                    child: ElevatedButton(
+                      onPressed: () {
+                        print("Profile picture edit button pressed!"); // Debug
+                        _showImageSourceDialog(true);
+                      },
+                      style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.primary,
-                        child: _buildProfileImage(),
+                        shape: const CircleBorder(),
+                        padding: EdgeInsets.zero,
+                        minimumSize: const Size(36, 36),
+                        elevation: 4,
                       ),
+                      child: _isUploadingProfile
+                          ? const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(
+                                color: Colors.white,
+                                strokeWidth: 2,
+                              ),
+                            )
+                          : const Icon(
+                              Icons.camera_alt,
+                              size: 18,
+                              color: Colors.white,
+                            ),
                     ),
-                    
-                    // Profile picture edit button
-                    Positioned(
-                      bottom: 0,
-                      right: 0,
-                      child: GestureDetector(
-                        onTap: () => _showImageSourceDialog(true),
-                        child: Container(
-                          width: 28,
-                          height: 28,
-                          decoration: const BoxDecoration(
-                            color: AppColors.primary,
-                            shape: BoxShape.circle,
-                          ),
-                          child: _isUploadingProfile
-                              ? const SizedBox(
-                                  width: 16,
-                                  height: 16,
-                                  child: CircularProgressIndicator(
-                                    color: Colors.white,
-                                    strokeWidth: 2,
-                                  ),
-                                )
-                              : const Icon(
-                                  Icons.camera_alt,
-                                  size: 16,
-                                  color: Colors.white,
-                                ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
-          ],
-        ),
-        const SizedBox(height: 48),
-      ],
-    );
-  }
+          ),
+        ],
+      ),
+      const SizedBox(height: 48),
+    ],
+  );
+}
 
+  // widget background kosong
+  // Widget _buildCoverImage() {
+  //   if (_selectedCoverImageBytes != null) {
+  //     return Image.memory(
+  //       _selectedCoverImageBytes!,
+  //       fit: BoxFit.cover,
+  //     );
+  //   } else if (_newCoverImageUrl != null) {
+  //     return Image.network(
+  //       _newCoverImageUrl!,
+  //       fit: BoxFit.cover,
+  //     );
+  //   } else if (_currentUser!.coverPicture != null) {
+  //     return Image.network(
+  //       _currentUser!.coverPicture!,
+  //       fit: BoxFit.cover,
+  //     );
+  //   } else {
+  //     return Container(
+  //       color: Colors.grey[300],
+  //       child: const Icon(
+  //         Icons.image,
+  //         size: 50,
+  //         color: Colors.grey,
+  //       ),
+  //     );
+  //   }
+  // }
+
+  // widget background default
   Widget _buildCoverImage() {
     if (_selectedCoverImageBytes != null) {
       return Image.memory(
         _selectedCoverImageBytes!,
         fit: BoxFit.cover,
       );
-    } else if (_newCoverImageUrl != null) {
+    } else if (_newCoverImageUrl != null && _newCoverImageUrl!.isNotEmpty) {
       return Image.network(
         _newCoverImageUrl!,
         fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) {
+          return Image.asset(
+            'assets/images/bg_welcome.png',
+            fit: BoxFit.cover,
+          );
+        },
       );
-    } else if (_currentUser!.coverPicture != null) {
+    } else if (_currentUser?.coverPicture != null && _currentUser!.coverPicture!.isNotEmpty) {
       return Image.network(
         _currentUser!.coverPicture!,
         fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) {
+          return Image.asset(
+            'assets/images/bg_welcome.png',
+            fit: BoxFit.cover,
+          );
+        },
       );
     } else {
-      return Container(
-        color: Colors.grey[300],
-        child: const Icon(
-          Icons.image,
-          size: 50,
-          color: Colors.grey,
-        ),
+      return Image.asset(
+        'assets/images/bg_welcome.png',
+        fit: BoxFit.cover,
       );
     }
   }
+
 
   Widget _buildProfileImage() {
     if (_selectedProfileImageBytes != null) {
