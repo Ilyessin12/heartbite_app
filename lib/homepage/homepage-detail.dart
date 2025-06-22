@@ -42,14 +42,14 @@ class _HomePageDetailScreenState extends State<HomePageDetailScreen> {
     _currentRecipes = List<DisplayRecipeItem>.from(
       widget.recipes.map((recipe) {
         // Assuming recipe is already DisplayRecipeItem, we can copy it or use as is if no local modification needed
-        // For safety, let's create new instances if DisplayRecipeItem has complex internal state or if we modify bookmark status etc.
-        // If DisplayRecipeItem is simple and its fields are final (except isBookmarked), direct use after casting is also an option.
+        // For safety, let's create new instances if DisplayRecipeItem has complex internal state or if we modify bookmark status etc.        // If DisplayRecipeItem is simple and its fields are final (except isBookmarked), direct use after casting is also an option.
         final dr = recipe; // recipe is already DisplayRecipeItem here
         return DisplayRecipeItem(
           id: dr.id,
           name: dr.name,
           rating: dr.rating,
           reviewCount: dr.reviewCount,
+          likeCount: dr.likeCount,
           calories: dr.calories,
           servings: dr.servings, // Use servings
           cookingTimeMinutes: dr.cookingTimeMinutes, // Use cookingTimeMinutes

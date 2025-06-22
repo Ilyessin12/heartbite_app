@@ -14,7 +14,9 @@ class RecipeService {
 
   Future<List<DietProgram>> getDietPrograms() async {
     final response = await _supabase.from('diet_programs').select();
-    return (response as List).map((data) => DietProgram.fromJson(data)).toList();
+    return (response as List)
+        .map((data) => DietProgram.fromJson(data))
+        .toList();
   }
 
   Future<List<Equipment>> getEquipment() async {
@@ -40,7 +42,9 @@ class RecipeService {
 
     if (searchQuery != null && searchQuery.isNotEmpty) {
       final searchPattern = '%${searchQuery.trim().replaceAll(' ', '%')}%';
-      queryBuilder = queryBuilder.or('title.ilike.$searchPattern,description.ilike.$searchPattern');
+      queryBuilder = queryBuilder.or(
+        'title.ilike.$searchPattern,description.ilike.$searchPattern',
+      );
     }
 
     final finalQuery = queryBuilder
@@ -49,15 +53,41 @@ class RecipeService {
         .range(offset, offset + limit - 1);
 
     final response = await finalQuery;
-    return List<Map<String, dynamic>>.from(response);
+    final recipes = List<Map<String, dynamic>>.from(response);
+
+    // Enhance each recipe with like count and comment count
+    for (var recipe in recipes) {
+      final recipeId = recipe['id'];
+
+      // Get like count
+      final likeResult = await _supabase
+          .from('recipe_likes')
+          .select('id')
+          .eq('recipe_id', recipeId);
+
+      // Get comment count
+      final commentResult = await _supabase
+          .from('recipe_comments')
+          .select('id')
+          .eq('recipe_id', recipeId);
+
+      recipe['like_count'] = likeResult.length;
+      recipe['comment_count'] = commentResult.length;
+    }
+
+    return recipes;
   }
 
   /// Get recipe details by ID including gallery images, ingredients, and instructions
-  Future<Map<String, dynamic>> getRecipeDetailsById(int recipeId, {String? currentUserId}) async {
+  Future<Map<String, dynamic>> getRecipeDetailsById(
+    int recipeId, {
+    String? currentUserId,
+  }) async {
     // Fetch main recipe data and basic comment structure
-    final Map<String, dynamic> recipeDataMap = await _supabase
-        .from('recipes')
-        .select('''
+    final Map<String, dynamic> recipeDataMap =
+        await _supabase
+            .from('recipes')
+            .select('''
           *,
           users(id, username, profile_picture),
           recipe_categories(category_id, categories(name)),
@@ -77,28 +107,40 @@ class RecipeService {
           recipe_diet_programs(diet_program_id, diet_programs(id, name, description)),
           recipe_equipment(equipment_id, equipment(id, name, description))
         ''')
-        .eq('id', recipeId)
-        .order('created_at', referencedTable: 'recipe_comments', ascending: true)
-        .single(); 
-    
+            .eq('id', recipeId)
+            .order(
+              'created_at',
+              referencedTable: 'recipe_comments',
+              ascending: true,
+            )
+            .single();
+
     // Process and structure tag data
     // The Supabase query with joins will return lists of association records.
     // We need to extract the actual tag objects from these.
 
-    recipeDataMap['allergens'] = (recipeDataMap['recipe_allergens'] as List<dynamic>?)
-        ?.map((joinRecord) => joinRecord['allergens'])
-        .where((tag) => tag != null) // Filter out nulls if a join was missing
-        .toList() ?? [];
-    
-    recipeDataMap['diet_programs'] = (recipeDataMap['recipe_diet_programs'] as List<dynamic>?)
-        ?.map((joinRecord) => joinRecord['diet_programs'])
-        .where((tag) => tag != null)
-        .toList() ?? [];
+    recipeDataMap['allergens'] =
+        (recipeDataMap['recipe_allergens'] as List<dynamic>?)
+            ?.map((joinRecord) => joinRecord['allergens'])
+            .where(
+              (tag) => tag != null,
+            ) // Filter out nulls if a join was missing
+            .toList() ??
+        [];
 
-    recipeDataMap['equipment'] = (recipeDataMap['recipe_equipment'] as List<dynamic>?)
-        ?.map((joinRecord) => joinRecord['equipment'])
-        .where((tag) => tag != null)
-        .toList() ?? [];
+    recipeDataMap['diet_programs'] =
+        (recipeDataMap['recipe_diet_programs'] as List<dynamic>?)
+            ?.map((joinRecord) => joinRecord['diet_programs'])
+            .where((tag) => tag != null)
+            .toList() ??
+        [];
+
+    recipeDataMap['equipment'] =
+        (recipeDataMap['recipe_equipment'] as List<dynamic>?)
+            ?.map((joinRecord) => joinRecord['equipment'])
+            .where((tag) => tag != null)
+            .toList() ??
+        [];
 
     // Remove the join table data to keep the response clean for RecipeModel.fromJson
     recipeDataMap.remove('recipe_allergens');
@@ -109,9 +151,11 @@ class RecipeService {
     if (currentUserId != null && recipeDataMap['recipe_comments'] != null) {
       final List<dynamic> comments = recipeDataMap['recipe_comments'];
       if (comments.isNotEmpty) {
-        final List<int> commentIds = comments.map((c) => c['id'] as int).toList();
-        
-        final PostgrestFilterBuilder<List<Map<String, dynamic>>> likedCommentsQueryBuilder = _supabase
+        final List<int> commentIds =
+            comments.map((c) => c['id'] as int).toList();
+
+        final PostgrestFilterBuilder<List<Map<String, dynamic>>>
+        likedCommentsQueryBuilder = _supabase
             .from('comment_likes')
             .select('comment_id')
             .eq('user_id', currentUserId);
@@ -121,16 +165,22 @@ class RecipeService {
           likedCommentData = [];
         } else {
           final String commentIdsString = '(${commentIds.join(',')})';
-          likedCommentData = await likedCommentsQueryBuilder
-              .filter('comment_id', 'in', commentIdsString);
+          likedCommentData = await likedCommentsQueryBuilder.filter(
+            'comment_id',
+            'in',
+            commentIdsString,
+          );
         }
 
-        final Set<int> likedCommentIds = likedCommentData
-            .map((likeMap) => likeMap['comment_id'] as int)
-            .toSet();
+        final Set<int> likedCommentIds =
+            likedCommentData
+                .map((likeMap) => likeMap['comment_id'] as int)
+                .toSet();
 
-        for (var comment in recipeDataMap['recipe_comments']) { 
-          comment['is_liked_by_current_user'] = likedCommentIds.contains(comment['id']);
+        for (var comment in recipeDataMap['recipe_comments']) {
+          comment['is_liked_by_current_user'] = likedCommentIds.contains(
+            comment['id'],
+          );
         }
       }
     }
@@ -139,10 +189,15 @@ class RecipeService {
 
   // _getOrCreateIngredientId is no longer needed as ingredient name is stored directly.
 
-  Future<RecipeModel> createRecipe(RecipeModel recipeModel, List<String> galleryImageUrls) async {
+  Future<RecipeModel> createRecipe(
+    RecipeModel recipeModel,
+    List<String> galleryImageUrls,
+  ) async {
     final userId = _supabase.auth.currentUser?.id;
     if (userId == null) {
-      throw Exception('User not authenticated. Please log in to create a recipe.');
+      throw Exception(
+        'User not authenticated. Please log in to create a recipe.',
+      );
     }
     // Update the recipeModel with the correct user_id before converting to JSON
     recipeModel.user_id = userId;
@@ -150,81 +205,106 @@ class RecipeService {
     final Map<String, dynamic> recipeData = recipeModel.toJson();
     // Note: recipeModel.toJson() already excludes fields not in the main 'recipes' table.
 
-    final insertedRecipeData = await _supabase
-        .from('recipes')
-        .insert(recipeData)
-        .select()
-        .single();
+    final insertedRecipeData =
+        await _supabase.from('recipes').insert(recipeData).select().single();
 
     final newRecipeId = insertedRecipeData['id'] as int;
     recipeModel.id = newRecipeId; // Update the model with the new ID
 
     // Handle gallery images
     if (galleryImageUrls.isNotEmpty) {
-      final List<Map<String, dynamic>> galleryImagesData = galleryImageUrls
-          .asMap()
-          .entries
-          .map((entry) => {
-                'recipe_id': newRecipeId,
-                'image_url': entry.value,
-                'order_index': entry.key,
-              })
-          .toList();
+      final List<Map<String, dynamic>> galleryImagesData =
+          galleryImageUrls
+              .asMap()
+              .entries
+              .map(
+                (entry) => {
+                  'recipe_id': newRecipeId,
+                  'image_url': entry.value,
+                  'order_index': entry.key,
+                },
+              )
+              .toList();
       await _supabase.from('recipe_gallery_images').insert(galleryImagesData);
     }
-    insertedRecipeData['gallery_image_urls'] = galleryImageUrls; // For returning complete model
+    insertedRecipeData['gallery_image_urls'] =
+        galleryImageUrls; // For returning complete model
 
     // Handle ingredients
-    if (recipeModel.ingredients != null && recipeModel.ingredients!.isNotEmpty) {
-      final List<Map<String, dynamic>> recipeIngredientsData = recipeModel.ingredients!
-          .map((ingModel) {
+    if (recipeModel.ingredients != null &&
+        recipeModel.ingredients!.isNotEmpty) {
+      final List<Map<String, dynamic>> recipeIngredientsData =
+          recipeModel.ingredients!.map((ingModel) {
             Map<String, dynamic> ingData = ingModel.toJson();
             ingData['recipe_id'] = newRecipeId;
             return ingData;
-          })
-          .toList();
+          }).toList();
       if (recipeIngredientsData.isNotEmpty) {
-        await _supabase.from('recipe_ingredients').insert(recipeIngredientsData);
+        await _supabase
+            .from('recipe_ingredients')
+            .insert(recipeIngredientsData);
       }
-      insertedRecipeData['recipe_ingredients'] = recipeModel.ingredients!.map((e) => e.toJson()).toList();
+      insertedRecipeData['recipe_ingredients'] =
+          recipeModel.ingredients!.map((e) => e.toJson()).toList();
     }
 
     // Handle instructions
-    if (recipeModel.instructions != null && recipeModel.instructions!.isNotEmpty) {
-      final List<Map<String, dynamic>> recipeInstructionsData = recipeModel.instructions!
-          .map((instrModel) {
+    if (recipeModel.instructions != null &&
+        recipeModel.instructions!.isNotEmpty) {
+      final List<Map<String, dynamic>> recipeInstructionsData =
+          recipeModel.instructions!.map((instrModel) {
             Map<String, dynamic> instrData = instrModel.toJson();
             instrData['recipe_id'] = newRecipeId;
             return instrData;
-          })
-          .toList();
+          }).toList();
       if (recipeInstructionsData.isNotEmpty) {
-        await _supabase.from('recipe_instructions').insert(recipeInstructionsData);
+        await _supabase
+            .from('recipe_instructions')
+            .insert(recipeInstructionsData);
       }
-      insertedRecipeData['recipe_instructions'] = recipeModel.instructions!.map((e) => e.toJson()).toList();
+      insertedRecipeData['recipe_instructions'] =
+          recipeModel.instructions!.map((e) => e.toJson()).toList();
     }
 
     // Handle Tags
     await _updateRecipeTags(newRecipeId, recipeModel);
 
     // Add tag data to insertedRecipeData for the returned model
-    insertedRecipeData['allergens'] = recipeModel.selectedAllergenIds != null
-        ? await _fetchFullTagObjects('allergens', recipeModel.selectedAllergenIds!)
-        : [];
-    insertedRecipeData['diet_programs'] = recipeModel.selectedDietProgramIds != null
-        ? await _fetchFullTagObjects('diet_programs', recipeModel.selectedDietProgramIds!)
-        : [];
-    insertedRecipeData['equipment'] = recipeModel.selectedEquipmentIds != null
-        ? await _fetchFullTagObjects('equipment', recipeModel.selectedEquipmentIds!)
-        : [];
+    insertedRecipeData['allergens'] =
+        recipeModel.selectedAllergenIds != null
+            ? await _fetchFullTagObjects(
+              'allergens',
+              recipeModel.selectedAllergenIds!,
+            )
+            : [];
+    insertedRecipeData['diet_programs'] =
+        recipeModel.selectedDietProgramIds != null
+            ? await _fetchFullTagObjects(
+              'diet_programs',
+              recipeModel.selectedDietProgramIds!,
+            )
+            : [];
+    insertedRecipeData['equipment'] =
+        recipeModel.selectedEquipmentIds != null
+            ? await _fetchFullTagObjects(
+              'equipment',
+              recipeModel.selectedEquipmentIds!,
+            )
+            : [];
 
     return RecipeModel.fromJson(insertedRecipeData);
   }
 
   // Helper function to fetch full tag objects based on IDs
-  Future<List<Map<String, dynamic>>> _fetchFullTagObjects(String tableName, List<int> ids) async {
+  Future<List<Map<String, dynamic>>> _fetchFullTagObjects(
+    String tableName,
+    List<int> ids,
+  ) async {
     if (ids.isEmpty) return [];
-    final response = await _supabase.from(tableName).select().inFilter('id', ids);
+    final response = await _supabase
+        .from(tableName)
+        .select()
+        .inFilter('id', ids);
     return List<Map<String, dynamic>>.from(response);
   }
 
@@ -233,113 +313,175 @@ class RecipeService {
     // Allergens
     // Assuming 'recipe_allergens' is the correct table name and has 'recipe_id' and 'allergen_id'
     await _supabase.from('recipe_allergens').delete().eq('recipe_id', recipeId);
-    if (recipeModel.selectedAllergenIds != null && recipeModel.selectedAllergenIds!.isNotEmpty) {
-      final allergenAssociations = recipeModel.selectedAllergenIds!
-          .map((allergenId) => {'recipe_id': recipeId, 'allergen_id': allergenId})
-          .toList();
+    if (recipeModel.selectedAllergenIds != null &&
+        recipeModel.selectedAllergenIds!.isNotEmpty) {
+      final allergenAssociations =
+          recipeModel.selectedAllergenIds!
+              .map(
+                (allergenId) => {
+                  'recipe_id': recipeId,
+                  'allergen_id': allergenId,
+                },
+              )
+              .toList();
       await _supabase.from('recipe_allergens').insert(allergenAssociations);
     }
 
     // Diet Programs
-    await _supabase.from('recipe_diet_programs').delete().eq('recipe_id', recipeId);
-    if (recipeModel.selectedDietProgramIds != null && recipeModel.selectedDietProgramIds!.isNotEmpty) {
-      final dietProgramAssociations = recipeModel.selectedDietProgramIds!
-          .map((dietProgramId) => {'recipe_id': recipeId, 'diet_program_id': dietProgramId})
-          .toList();
-      await _supabase.from('recipe_diet_programs').insert(dietProgramAssociations);
+    await _supabase
+        .from('recipe_diet_programs')
+        .delete()
+        .eq('recipe_id', recipeId);
+    if (recipeModel.selectedDietProgramIds != null &&
+        recipeModel.selectedDietProgramIds!.isNotEmpty) {
+      final dietProgramAssociations =
+          recipeModel.selectedDietProgramIds!
+              .map(
+                (dietProgramId) => {
+                  'recipe_id': recipeId,
+                  'diet_program_id': dietProgramId,
+                },
+              )
+              .toList();
+      await _supabase
+          .from('recipe_diet_programs')
+          .insert(dietProgramAssociations);
     }
 
     // Equipment
     await _supabase.from('recipe_equipment').delete().eq('recipe_id', recipeId);
-    if (recipeModel.selectedEquipmentIds != null && recipeModel.selectedEquipmentIds!.isNotEmpty) {
-      final equipmentAssociations = recipeModel.selectedEquipmentIds!
-          .map((equipmentId) => {'recipe_id': recipeId, 'equipment_id': equipmentId})
-          .toList();
+    if (recipeModel.selectedEquipmentIds != null &&
+        recipeModel.selectedEquipmentIds!.isNotEmpty) {
+      final equipmentAssociations =
+          recipeModel.selectedEquipmentIds!
+              .map(
+                (equipmentId) => {
+                  'recipe_id': recipeId,
+                  'equipment_id': equipmentId,
+                },
+              )
+              .toList();
       await _supabase.from('recipe_equipment').insert(equipmentAssociations);
     }
   }
 
-  Future<RecipeModel> updateRecipe(RecipeModel recipeModel, List<String> newGalleryImageUrls) async {
+  Future<RecipeModel> updateRecipe(
+    RecipeModel recipeModel,
+    List<String> newGalleryImageUrls,
+  ) async {
     final userId = _supabase.auth.currentUser?.id;
     if (userId == null) throw Exception('User not authenticated');
-    if (recipeModel.id == null) throw Exception('Recipe ID is required for update');
+    if (recipeModel.id == null)
+      throw Exception('Recipe ID is required for update');
 
     final Map<String, dynamic> recipeData = recipeModel.toJson();
     recipeData['updated_at'] = DateTime.now().toIso8601String();
     // recipeModel.toJson() already excludes fields not directly in 'recipes' table.
 
-    final updatedRecipeData = await _supabase
-        .from('recipes')
-        .update(recipeData)
-        .eq('id', recipeModel.id!)
-        .select()
-        .single();
+    final updatedRecipeData =
+        await _supabase
+            .from('recipes')
+            .update(recipeData)
+            .eq('id', recipeModel.id!)
+            .select()
+            .single();
 
     // Handle gallery images (delete existing, then add new ones)
-    await _supabase.from('recipe_gallery_images').delete().eq('recipe_id', recipeModel.id!);
+    await _supabase
+        .from('recipe_gallery_images')
+        .delete()
+        .eq('recipe_id', recipeModel.id!);
     if (newGalleryImageUrls.isNotEmpty) {
-      final List<Map<String, dynamic>> galleryImagesData = newGalleryImageUrls
-          .asMap()
-          .entries
-          .map((entry) => {
-                'recipe_id': recipeModel.id!,
-                'image_url': entry.value,
-                'order_index': entry.key,
-              })
-          .toList();
+      final List<Map<String, dynamic>> galleryImagesData =
+          newGalleryImageUrls
+              .asMap()
+              .entries
+              .map(
+                (entry) => {
+                  'recipe_id': recipeModel.id!,
+                  'image_url': entry.value,
+                  'order_index': entry.key,
+                },
+              )
+              .toList();
       await _supabase.from('recipe_gallery_images').insert(galleryImagesData);
     }
-    updatedRecipeData['gallery_image_urls'] = newGalleryImageUrls; // For returning complete model
+    updatedRecipeData['gallery_image_urls'] =
+        newGalleryImageUrls; // For returning complete model
 
     // Handle ingredients (delete existing, then add new ones)
-    await _supabase.from('recipe_ingredients').delete().eq('recipe_id', recipeModel.id!);
-    if (recipeModel.ingredients != null && recipeModel.ingredients!.isNotEmpty) {
-      final List<Map<String, dynamic>> recipeIngredientsData = recipeModel.ingredients!
-          .map((ingModel) {
+    await _supabase
+        .from('recipe_ingredients')
+        .delete()
+        .eq('recipe_id', recipeModel.id!);
+    if (recipeModel.ingredients != null &&
+        recipeModel.ingredients!.isNotEmpty) {
+      final List<Map<String, dynamic>> recipeIngredientsData =
+          recipeModel.ingredients!.map((ingModel) {
             Map<String, dynamic> ingData = ingModel.toJson();
             ingData['recipe_id'] = recipeModel.id!;
             return ingData;
-          })
-          .toList();
-      if(recipeIngredientsData.isNotEmpty) {
-        await _supabase.from('recipe_ingredients').insert(recipeIngredientsData);
+          }).toList();
+      if (recipeIngredientsData.isNotEmpty) {
+        await _supabase
+            .from('recipe_ingredients')
+            .insert(recipeIngredientsData);
       }
-      updatedRecipeData['recipe_ingredients'] = recipeModel.ingredients!.map((e) => e.toJson()).toList();
+      updatedRecipeData['recipe_ingredients'] =
+          recipeModel.ingredients!.map((e) => e.toJson()).toList();
     }
 
     // Handle instructions (delete existing, then add new ones)
-    await _supabase.from('recipe_instructions').delete().eq('recipe_id', recipeModel.id!);
-    if (recipeModel.instructions != null && recipeModel.instructions!.isNotEmpty) {
-      final List<Map<String, dynamic>> recipeInstructionsData = recipeModel.instructions!
-          .map((instrModel) {
+    await _supabase
+        .from('recipe_instructions')
+        .delete()
+        .eq('recipe_id', recipeModel.id!);
+    if (recipeModel.instructions != null &&
+        recipeModel.instructions!.isNotEmpty) {
+      final List<Map<String, dynamic>> recipeInstructionsData =
+          recipeModel.instructions!.map((instrModel) {
             Map<String, dynamic> instrData = instrModel.toJson();
             instrData['recipe_id'] = recipeModel.id!;
             return instrData;
-          })
-          .toList();
+          }).toList();
       if (recipeInstructionsData.isNotEmpty) {
-        await _supabase.from('recipe_instructions').insert(recipeInstructionsData);
+        await _supabase
+            .from('recipe_instructions')
+            .insert(recipeInstructionsData);
       }
-      updatedRecipeData['recipe_instructions'] = recipeModel.instructions!.map((e) => e.toJson()).toList();
+      updatedRecipeData['recipe_instructions'] =
+          recipeModel.instructions!.map((e) => e.toJson()).toList();
     }
 
     // Handle Tags using the helper function
     await _updateRecipeTags(recipeModel.id!, recipeModel);
 
     // Add tag data to updatedRecipeData for the returned model
-    updatedRecipeData['allergens'] = recipeModel.selectedAllergenIds != null
-        ? await _fetchFullTagObjects('allergens', recipeModel.selectedAllergenIds!)
-        : [];
-    updatedRecipeData['diet_programs'] = recipeModel.selectedDietProgramIds != null
-        ? await _fetchFullTagObjects('diet_programs', recipeModel.selectedDietProgramIds!)
-        : [];
-    updatedRecipeData['equipment'] = recipeModel.selectedEquipmentIds != null
-        ? await _fetchFullTagObjects('equipment', recipeModel.selectedEquipmentIds!)
-        : [];
+    updatedRecipeData['allergens'] =
+        recipeModel.selectedAllergenIds != null
+            ? await _fetchFullTagObjects(
+              'allergens',
+              recipeModel.selectedAllergenIds!,
+            )
+            : [];
+    updatedRecipeData['diet_programs'] =
+        recipeModel.selectedDietProgramIds != null
+            ? await _fetchFullTagObjects(
+              'diet_programs',
+              recipeModel.selectedDietProgramIds!,
+            )
+            : [];
+    updatedRecipeData['equipment'] =
+        recipeModel.selectedEquipmentIds != null
+            ? await _fetchFullTagObjects(
+              'equipment',
+              recipeModel.selectedEquipmentIds!,
+            )
+            : [];
 
     return RecipeModel.fromJson(updatedRecipeData);
   }
-  
+
   Future<void> deleteRecipe(int recipeId) async {
     final userId = _supabase.auth.currentUser?.id;
     if (userId == null) throw Exception('User not authenticated');
@@ -394,18 +536,19 @@ class RecipeService {
       });
   }
   */
-  
+
   Future<void> toggleLikeRecipe(int recipeId) async {
     final userId = _supabase.auth.currentUser?.id;
     if (userId == null) throw Exception('User not authenticated');
-    
-    final likes = await _supabase
-      .from('recipe_likes')
-      .select('id')
-      .eq('user_id', userId)
-      .eq('recipe_id', recipeId)
-      .maybeSingle();
-      
+
+    final likes =
+        await _supabase
+            .from('recipe_likes')
+            .select('id')
+            .eq('user_id', userId)
+            .eq('recipe_id', recipeId)
+            .maybeSingle();
+
     if (likes == null) {
       await _supabase.from('recipe_likes').insert({
         'user_id': userId,
@@ -413,10 +556,10 @@ class RecipeService {
       });
     } else {
       await _supabase
-        .from('recipe_likes')
-        .delete()
-        .eq('user_id', userId)
-        .eq('recipe_id', recipeId);
+          .from('recipe_likes')
+          .delete()
+          .eq('user_id', userId)
+          .eq('recipe_id', recipeId);
     }
   }
 
@@ -425,7 +568,7 @@ class RecipeService {
         .from('recipe_likes')
         .select('id') // Select a minimal field, e.g., 'id'
         .eq('recipe_id', recipeId);
-      
+
     // The result is a list of Maps, e.g., List<Map<String, dynamic>>
     // The length of this list is the count of likes.
     return result.length;
@@ -436,20 +579,25 @@ class RecipeService {
     if (userId == null) {
       return false; // Or throw an exception, depending on desired behavior for non-logged-in users
     }
-    
-    final like = await _supabase
-        .from('recipe_likes')
-        .select('id')
-        .eq('user_id', userId)
-        .eq('recipe_id', recipeId)
-        .maybeSingle();
-        
+
+    final like =
+        await _supabase
+            .from('recipe_likes')
+            .select('id')
+            .eq('user_id', userId)
+            .eq('recipe_id', recipeId)
+            .maybeSingle();
+
     return like != null;
   }
 
   /// Adds a comment to a recipe.
   /// Returns the newly created comment data including its ID and timestamps.
-  Future<Map<String, dynamic>> addComment(int recipeId, String text, {int? parentCommentId}) async {
+  Future<Map<String, dynamic>> addComment(
+    int recipeId,
+    String text, {
+    int? parentCommentId,
+  }) async {
     final userId = _supabase.auth.currentUser?.id;
     if (userId == null) {
       throw Exception('User not authenticated. Please log in to comment.');
@@ -459,19 +607,22 @@ class RecipeService {
       'recipe_id': recipeId,
       'user_id': userId, // Use the authenticated user's ID
       'comment': text,
-      'parent_comment_id': parentCommentId, // This will be null if not provided, which is fine
+      'parent_comment_id':
+          parentCommentId, // This will be null if not provided, which is fine
     };
     // Clean up null parent_comment_id if it wasn't provided, to avoid sending 'parent_comment_id': null
     if (parentCommentId == null) {
       commentData.remove('parent_comment_id');
     }
 
-
-    final response = await _supabase
-        .from('recipe_comments')
-        .insert(commentData)
-        .select('*, users (id, username, profile_picture)') // Also fetch user data for the new comment
-        .single();
+    final response =
+        await _supabase
+            .from('recipe_comments')
+            .insert(commentData)
+            .select(
+              '*, users (id, username, profile_picture)',
+            ) // Also fetch user data for the new comment
+            .single();
 
     return response;
   }
@@ -479,15 +630,21 @@ class RecipeService {
   Future<void> toggleCommentLike(String commentId) async {
     final userId = _supabase.auth.currentUser?.id;
     if (userId == null) {
-      throw Exception('User not authenticated. Please log in to like comments.');
+      throw Exception(
+        'User not authenticated. Please log in to like comments.',
+      );
     }
     // Check if the like already exists
-    final existingLike = await _supabase
-        .from('comment_likes')
-        .select('id')
-        .eq('comment_id', int.parse(commentId)) // Assuming commentId in table is int
-        .eq('user_id', userId) // Use the authenticated user's ID
-        .maybeSingle();
+    final existingLike =
+        await _supabase
+            .from('comment_likes')
+            .select('id')
+            .eq(
+              'comment_id',
+              int.parse(commentId),
+            ) // Assuming commentId in table is int
+            .eq('user_id', userId) // Use the authenticated user's ID
+            .maybeSingle();
 
     if (existingLike != null) {
       // Like exists, so delete it (unlike)

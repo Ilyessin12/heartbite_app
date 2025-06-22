@@ -25,7 +25,8 @@ class DisplayRecipeItem {
   final int id;
   final String name;
   final double rating;
-  final int reviewCount;
+  final int reviewCount; // Comment count
+  final int likeCount; // Like count for heart icon
   final int? calories;
   final String servings;
   final int cookingTimeMinutes;
@@ -41,6 +42,7 @@ class DisplayRecipeItem {
     required this.name,
     this.rating = 0.0,
     this.reviewCount = 0,
+    this.likeCount = 0,
     this.calories,
     required this.servings,
     required this.cookingTimeMinutes,
@@ -55,7 +57,11 @@ class DisplayRecipeItem {
       id: data['id'] as int,
       name: data['title'] as String? ?? 'No Title',
       rating: (data['rating'] as num?)?.toDouble() ?? 0.0,
-      reviewCount: data['review_count'] as int? ?? 0,
+      reviewCount:
+          data['comment_count'] ??
+          data['review_count'] ??
+          0, // Use comment_count for actual comments
+      likeCount: data['like_count'] ?? 0, // Use like_count for actual likes
       calories: data['calories'] as int?,
       servings: "${data['servings'] as int? ?? 1} Porsi",
       cookingTimeMinutes: data['cooking_time_minutes'] as int? ?? 0,
@@ -1653,7 +1659,7 @@ class RecipeCard extends StatelessWidget {
                       const Icon(Icons.favorite, size: 16, color: Colors.red),
                       const SizedBox(width: 4),
                       Text(
-                        '${recipe.rating.toInt()} (${recipe.reviewCount} ulasan)',
+                        '${recipe.likeCount} (${recipe.reviewCount} ulasan)',
                         style: GoogleFonts.dmSans(
                           fontSize: 12,
                           color: Colors.white,

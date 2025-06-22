@@ -18,17 +18,17 @@ import '../../bookmark/models/recipe_item.dart';
 import '../../bookmark/widgets/recipe_card.dart';
 import '../../recipe_detail/screens/recipe_detail_screen.dart';
 
-
 class ProfileScreenWithBackend extends StatefulWidget {
   final String? userId; // null = current user, otherwise specific user
-  
+
   const ProfileScreenWithBackend({super.key, this.userId});
 
   @override
-  State<ProfileScreenWithBackend> createState() => _ProfileScreenWithBackendState();
+  State<ProfileScreenWithBackend> createState() =>
+      _ProfileScreenWithBackendState();
 }
 
-class _ProfileScreenWithBackendState extends State<ProfileScreenWithBackend> 
+class _ProfileScreenWithBackendState extends State<ProfileScreenWithBackend>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
   final List<String> _tabs = ['Terbaru', 'Terpopuler', 'Waktu Memasak'];
@@ -54,7 +54,8 @@ class _ProfileScreenWithBackendState extends State<ProfileScreenWithBackend>
       }
     });
 
-    _isCurrentUser = widget.userId == null || widget.userId == SupabaseService.currentUserId;
+    _isCurrentUser =
+        widget.userId == null || widget.userId == SupabaseService.currentUserId;
     _loadProfileData();
 
     SystemChrome.setSystemUIOverlayStyle(
@@ -135,19 +136,11 @@ class _ProfileScreenWithBackendState extends State<ProfileScreenWithBackend>
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
-      return const Scaffold(
-        body: Center(
-          child: CircularProgressIndicator(),
-        ),
-      );
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
     if (_user == null) {
-      return const Scaffold(
-        body: Center(
-          child: Text('User not found'),
-        ),
-      );
+      return const Scaffold(body: Center(child: Text('User not found')));
     }
 
     return Scaffold(
@@ -163,9 +156,14 @@ class _ProfileScreenWithBackendState extends State<ProfileScreenWithBackend>
                     width: double.infinity,
                     decoration: BoxDecoration(
                       image: DecorationImage(
-                        image: _user?.coverPicture != null && _user!.coverPicture!.isNotEmpty
-                          ? NetworkImage(_user!.coverPicture!)
-                          : const AssetImage('assets/images/bg_welcome.png') as ImageProvider,
+                        image:
+                            _user?.coverPicture != null &&
+                                    _user!.coverPicture!.isNotEmpty
+                                ? NetworkImage(_user!.coverPicture!)
+                                : const AssetImage(
+                                      'assets/images/bg_welcome.png',
+                                    )
+                                    as ImageProvider,
                         fit: BoxFit.cover,
                       ),
                     ),
@@ -198,26 +196,27 @@ class _ProfileScreenWithBackendState extends State<ProfileScreenWithBackend>
                   ),
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(16),
-                    child: _user!.profilePicture != null
-                        ? Image.network(
-                            _user!.profilePicture!,
-                            fit: BoxFit.cover,
-                          )
-                        : Container(
-                            color: AppColors.primary,
-                            child: Center(
-                              child: Text(
-                                _user!.fullName.isNotEmpty 
-                                    ? _user!.fullName[0].toUpperCase()
-                                    : 'U',
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 36,
-                                  fontWeight: FontWeight.bold,
+                    child:
+                        _user!.profilePicture != null
+                            ? Image.network(
+                              _user!.profilePicture!,
+                              fit: BoxFit.cover,
+                            )
+                            : Container(
+                              color: AppColors.primary,
+                              child: Center(
+                                child: Text(
+                                  _user!.fullName.isNotEmpty
+                                      ? _user!.fullName[0].toUpperCase()
+                                      : 'U',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 36,
+                                    fontWeight: FontWeight.bold,
+                                  ),
                                 ),
                               ),
                             ),
-                          ),
                   ),
                 ),
               ),
@@ -235,9 +234,7 @@ class _ProfileScreenWithBackendState extends State<ProfileScreenWithBackend>
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          CustomBackButton(
-            onPressed: () => Navigator.pop(context),
-          ),
+          CustomBackButton(onPressed: () => Navigator.pop(context)),
           if (_isCurrentUser)
             Row(
               children: [
@@ -246,7 +243,9 @@ class _ProfileScreenWithBackendState extends State<ProfileScreenWithBackend>
                     // Navigate to edit profile
                     Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (context) => const EditProfileScreen()),
+                      MaterialPageRoute(
+                        builder: (context) => const EditProfileScreen(),
+                      ),
                     );
                   },
                   child: _buildIconButton(Icons.edit),
@@ -287,10 +286,7 @@ class _ProfileScreenWithBackendState extends State<ProfileScreenWithBackend>
           const SizedBox(height: 4),
           Text(
             '@${_user!.username}',
-            style: const TextStyle(
-              fontSize: 14,
-              color: Colors.grey,
-            ),
+            style: const TextStyle(fontSize: 14, color: Colors.grey),
           ),
           const SizedBox(height: 16),
           Container(
@@ -305,15 +301,21 @@ class _ProfileScreenWithBackendState extends State<ProfileScreenWithBackend>
               following: _userStats?.followingCount ?? 0,
               followers: _userStats?.followersCount ?? 0,
               // FOLLOWING
-              onFollowingTap: () => Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const FollowingScreen()),
-              ),
+              onFollowingTap:
+                  () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const FollowingScreen(),
+                    ),
+                  ),
               // FOLLOWERS
-              onFollowersTap: () => Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const FollowersScreen()),
-              ),
+              onFollowersTap:
+                  () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const FollowersScreen(),
+                    ),
+                  ),
             ),
           ),
         ],
@@ -329,10 +331,7 @@ class _ProfileScreenWithBackendState extends State<ProfileScreenWithBackend>
         children: [
           const Text(
             'Resep yang Dibuat',
-            style: TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 18,
-            ),
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
           ),
           if (_isCurrentUser)
             GestureDetector(
@@ -351,11 +350,7 @@ class _ProfileScreenWithBackendState extends State<ProfileScreenWithBackend>
                   color: AppColors.primary,
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(
-                  Icons.add,
-                  color: Colors.white,
-                  size: 20,
-                ),
+                child: const Icon(Icons.add, color: Colors.white, size: 20),
               ),
             ),
         ],
@@ -380,19 +375,34 @@ class _ProfileScreenWithBackendState extends State<ProfileScreenWithBackend>
               },
               child: Container(
                 margin: const EdgeInsets.only(right: 8),
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
                 decoration: BoxDecoration(
-                  color: _selectedTabIndex == index ? Colors.white : Colors.transparent,
+                  color:
+                      _selectedTabIndex == index
+                          ? Colors.white
+                          : Colors.transparent,
                   borderRadius: BorderRadius.circular(20),
                   border: Border.all(
-                    color: _selectedTabIndex == index ? Colors.grey.shade300 : Colors.grey.shade400,
+                    color:
+                        _selectedTabIndex == index
+                            ? Colors.grey.shade300
+                            : Colors.grey.shade400,
                   ),
                 ),
                 child: Text(
                   _tabs[index],
                   style: TextStyle(
-                    color: _selectedTabIndex == index ? Colors.black : AppColors.tabInactive,
-                    fontWeight: _selectedTabIndex == index ? FontWeight.w500 : FontWeight.normal,
+                    color:
+                        _selectedTabIndex == index
+                            ? Colors.black
+                            : AppColors.tabInactive,
+                    fontWeight:
+                        _selectedTabIndex == index
+                            ? FontWeight.w500
+                            : FontWeight.normal,
                     fontSize: 14,
                   ),
                 ),
@@ -411,10 +421,7 @@ class _ProfileScreenWithBackendState extends State<ProfileScreenWithBackend>
         child: Center(
           child: Text(
             'Belum ada resep',
-            style: TextStyle(
-              color: Colors.grey,
-              fontSize: 16,
-            ),
+            style: TextStyle(color: Colors.grey, fontSize: 16),
           ),
         ),
       );
@@ -443,29 +450,31 @@ class _ProfileScreenWithBackendState extends State<ProfileScreenWithBackend>
     );
   }
 
-    Widget _buildRecipeCard(RecipeModel recipe) {
-  return GestureDetector(
-    onTap: () {
-      // Navigate to recipe detail
+  Widget _buildRecipeCard(RecipeModel recipe) {
+    return GestureDetector(
+      onTap: () {
+        // Navigate to recipe detail
         Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => RecipeDetailScreen(recipeId: recipe.id as int),
+          context,
+          MaterialPageRoute(
+            builder: (context) => RecipeDetailScreen(recipeId: recipe.id),
+          ),
+        );
+      },
+      child: RecipeCard(
+        recipe: RecipeItem(
+          id: recipe.id,
+          name: recipe.title,
+          imageUrl: recipe.imageUrl ?? '',
+          rating: recipe.rating,
+          reviewCount:
+              recipe.reviewCount, // This should represent comment count
+          likeCount: 0, // TODO: Fetch actual like count from database
+          calories: 0, // Default value karena tidak ada di RecipeModel
+          prepTime: recipe.servings, // Use servings as prep "portions"
+          cookTime: recipe.cookingTimeMinutes,
         ),
-      );
-    },
-    child: RecipeCard(
-      recipe: RecipeItem(
-        id: recipe.id as int?,
-        name: recipe.title,
-        imageUrl: recipe.imageUrl ?? '',
-        rating: recipe.rating,
-        reviewCount: recipe.reviewCount,
-        calories: 0, // Default value karena tidak ada di RecipeModel
-        prepTime: 1,  // Default value karena tidak ada di RecipeModel
-        cookTime: recipe.cookingTimeMinutes ?? 0,
       ),
-    ),
-  );
-}
+    );
+  }
 }

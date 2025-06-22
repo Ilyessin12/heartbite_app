@@ -114,7 +114,7 @@ class RecipeCard extends StatelessWidget {
                     const Icon(Icons.favorite, size: 16, color: Colors.red),
                     const SizedBox(width: 4),
                     Text(
-                      '${recipe.rating.toInt()} (${recipe.reviewCount} ulasan)',
+                      '${recipe.likeCount} (${recipe.reviewCount} ulasan)',
                       style: GoogleFonts.dmSans(
                         fontSize: 12,
                         color: Colors.white,

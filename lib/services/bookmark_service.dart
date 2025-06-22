@@ -45,18 +45,43 @@ class BookmarkService {
 
     final savedFolderId = await ensureSavedFolderExists();
 
-    return await _supabase
+    final result = await _supabase
         .from('recipe_bookmarks')
         .select('''
         *,
         recipes(
           id, title, description, image_url, cooking_time_minutes, 
-          difficulty_level, rating, users(id, username, profile_picture)
+          difficulty_level, rating, calories, servings,
+          users(id, username, profile_picture)
         )
       ''')
         .eq('user_id', userId)
         .eq('folder_id', savedFolderId)
         .order('created_at', ascending: false);
+
+    // Enhance each recipe with like count and comment count
+    for (var bookmark in result) {
+      if (bookmark['recipes'] != null) {
+        final recipeId = bookmark['recipes']['id'];
+
+        // Get like count
+        final likeResult = await _supabase
+            .from('recipe_likes')
+            .select('id')
+            .eq('recipe_id', recipeId);
+
+        // Get comment count
+        final commentResult = await _supabase
+            .from('recipe_comments')
+            .select('id')
+            .eq('recipe_id', recipeId);
+
+        bookmark['recipes']['like_count'] = likeResult.length;
+        bookmark['recipes']['comment_count'] = commentResult.length;
+      }
+    }
+
+    return result;
   }
 
   /// Check if user has custom bookmark folders (excluding default "Saved")
@@ -101,7 +126,9 @@ class BookmarkService {
             .eq('user_id', userId);
       }
     }
-  }  /// Get user's bookmark folders with recipe counts
+  }
+
+  /// Get user's bookmark folders with recipe counts
   Future<List<Map<String, dynamic>>> getBookmarkFolders() async {
     final userId = _supabase.auth.currentUser?.id;
     if (userId == null) throw Exception('User not authenticated');
@@ -118,18 +145,18 @@ class BookmarkService {
 
     // Then get recipe counts for each folder
     final processedFolders = <Map<String, dynamic>>[];
-    
+
     for (final folder in folders) {
       final folderId = folder['id'];
-      
+
       // Count recipes in this folder
       final countResult = await _supabase
           .from('recipe_bookmarks')
           .select('id')
           .match({'folder_id': folderId, 'user_id': userId});
-      
+
       final recipeCount = countResult.length;
-      
+
       // Add recipe count to folder data
       final processedFolder = Map<String, dynamic>.from(folder);
       processedFolder['recipe_count'] = recipeCount;
@@ -243,17 +270,42 @@ class BookmarkService {
     final userId = _supabase.auth.currentUser?.id;
     if (userId == null) throw Exception('User not authenticated');
 
-    return await _supabase
+    final result = await _supabase
         .from('recipe_bookmarks')
         .select('''
         *,
         recipes(
           id, title, description, image_url, cooking_time_minutes, 
-          difficulty_level, rating, users(id, username, profile_picture)
+          difficulty_level, rating, calories, servings,
+          users(id, username, profile_picture)
         )
       ''')
         .match({'folder_id': folderId, 'user_id': userId})
         .order('created_at', ascending: false);
+
+    // Enhance each recipe with like count and comment count
+    for (var bookmark in result) {
+      if (bookmark['recipes'] != null) {
+        final recipeId = bookmark['recipes']['id'];
+
+        // Get like count
+        final likeResult = await _supabase
+            .from('recipe_likes')
+            .select('id')
+            .eq('recipe_id', recipeId);
+
+        // Get comment count
+        final commentResult = await _supabase
+            .from('recipe_comments')
+            .select('id')
+            .eq('recipe_id', recipeId);
+
+        bookmark['recipes']['like_count'] = likeResult.length;
+        bookmark['recipes']['comment_count'] = commentResult.length;
+      }
+    }
+
+    return result;
   }
 
   /// Add bookmark to folder (Instagram-like behavior)
