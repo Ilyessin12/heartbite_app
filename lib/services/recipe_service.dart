@@ -103,9 +103,12 @@ class RecipeService {
   // _getOrCreateIngredientId is no longer needed as ingredient name is stored directly.
 
   Future<RecipeModel> createRecipe(RecipeModel recipeModel, List<String> galleryImageUrls) async {
-    if (recipeModel.user_id.isEmpty) {
-      throw Exception('User ID is missing in the recipe model.');
+    final userId = _supabase.auth.currentUser?.id;
+    if (userId == null) {
+      throw Exception('User not authenticated. Please log in to create a recipe.');
     }
+    // Update the recipeModel with the correct user_id before converting to JSON
+    recipeModel.user_id = userId;
 
     final Map<String, dynamic> recipeData = recipeModel.toJson();
     recipeData.remove('id');
@@ -326,15 +329,23 @@ class RecipeService {
 
   /// Adds a comment to a recipe.
   /// Returns the newly created comment data including its ID and timestamps.
-  Future<Map<String, dynamic>> addComment(int recipeId, String userId, String text, {int? parentCommentId}) async {
+  Future<Map<String, dynamic>> addComment(int recipeId, String text, {int? parentCommentId}) async {
+    final userId = _supabase.auth.currentUser?.id;
+    if (userId == null) {
+      throw Exception('User not authenticated. Please log in to comment.');
+    }
+
     final commentData = {
       'recipe_id': recipeId,
-      'user_id': userId,
+      'user_id': userId, // Use the authenticated user's ID
       'comment': text,
+      'parent_comment_id': parentCommentId, // This will be null if not provided, which is fine
     };
-    if (parentCommentId != null) {
-      commentData['parent_comment_id'] = parentCommentId;
+    // Clean up null parent_comment_id if it wasn't provided, to avoid sending 'parent_comment_id': null
+    if (parentCommentId == null) {
+      commentData.remove('parent_comment_id');
     }
+
 
     final response = await _supabase
         .from('recipe_comments')
@@ -345,13 +356,17 @@ class RecipeService {
     return response;
   }
 
-  Future<void> toggleCommentLike(String commentId, String userId) async {
+  Future<void> toggleCommentLike(String commentId) async {
+    final userId = _supabase.auth.currentUser?.id;
+    if (userId == null) {
+      throw Exception('User not authenticated. Please log in to like comments.');
+    }
     // Check if the like already exists
     final existingLike = await _supabase
         .from('comment_likes')
         .select('id')
         .eq('comment_id', int.parse(commentId)) // Assuming commentId in table is int
-        .eq('user_id', userId)
+        .eq('user_id', userId) // Use the authenticated user's ID
         .maybeSingle();
 
     if (existingLike != null) {
