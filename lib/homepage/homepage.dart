@@ -6,6 +6,8 @@ import 'package:iconoir_flutter/iconoir_flutter.dart'
     hide Key, Text, Navigator, List, Map, Drawer;
 import 'dart:ui';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:convert';
 
 import '../bottomnavbar/bottom-navbar.dart';
 import 'homepage-detail.dart';
@@ -93,14 +95,11 @@ class _HomePageState extends State<HomePage> {
   List<DisplayRecipeItem> _searchResults = [];
   List<DisplayRecipeItem> _randomBreakfastRecipes = [];
   bool _isLoading = true;
-  String _loadingError = '';
-
-  List<String> _searchHistory = [
-    "Resep ayam bumbu kuning",
-    "Ayam geprek",
-    "kue nastar",
-    "jus alpukat segar bergizi",
-  ];
+  String _loadingError = ''; // New state variables for improved search
+  bool _isSearching = false;
+  bool _isSearchLoading = false;
+  String _currentSearchQuery = '';
+  List<String> _searchHistory = [];
 
   List<String> _selectedAllergens = [];
   List<String> _selectedDietTypes = [];
@@ -163,22 +162,103 @@ class _HomePageState extends State<HomePage> {
     ) {
       // Update foto profil saat status autentikasi berubah
       _fetchUserProfilePicture();
-    });
 
-    _searchController.addListener(() {
-      if (_searchController.text.isNotEmpty) {
-        _updateSearchResults();
-      } else {
+      // Handle auth state changes for search history
+      if (event.event == AuthChangeEvent.signedOut) {
+        // Clear search history when user logs out
         setState(() {
-          _showSearchResults = true;
-          _searchResults = [];
+          _searchHistory = [];
         });
+      } else if (event.event == AuthChangeEvent.signedIn) {
+        // Load search history when user logs in
+        _loadUserSearchHistory();
       }
     });
+
+    // Add listener for real-time search with debouncing
+    _searchController.addListener(() {
+      if (_searchController.text != _currentSearchQuery) {
+        _currentSearchQuery = _searchController.text;
+        _debounceSearch();
+      }
+    });
+
+    // Load user-specific search history
+    _loadUserSearchHistory();
+  } // Add debounced search for better UX
+
+  void _debounceSearch() {
+    // Simple approach - search immediately for now
+    if (_currentSearchQuery.isNotEmpty) {
+      _performSearchImproved(_currentSearchQuery);
+    } else {
+      _exitSearchMode();
+    }
   }
+
+  // Update the search method
+  Future<void> _performSearchImproved(String query) async {
+    if (!mounted) return;
+
+    setState(() {
+      _isSearchLoading = true;
+      _isSearching = true;
+      _showSearchResults = true;
+      _showFilters = false;
+    });
+
+    try {
+      await _fetchRecipes(
+        searchQuery: query,
+      ); // Add to search history only if query is not empty, not already in history, and user is logged in
+      if (query.isNotEmpty &&
+          !_searchHistory.contains(query) &&
+          AuthService.isUserLoggedIn()) {
+        setState(() {
+          _searchHistory.insert(0, query);
+          if (_searchHistory.length > 5) {
+            _searchHistory.removeLast();
+          }
+        });
+        // Save updated search history
+        _saveUserSearchHistory();
+      }
+    } catch (e) {
+      print('Search error: $e');
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSearchLoading = false;
+        });
+      }
+    }
+  }
+
+  // Add method to exit search mode
+  void _exitSearchMode() {
+    setState(() {
+      _isSearching = false;
+      _showSearchResults = false;
+      _showFilters = false;
+      _searchController.clear();
+      _currentSearchQuery = '';
+      _searchResults.clear();
+    });
+    // Optionally refetch original recipes
+    _fetchRecipes();
+  }
+
+  // Add method to check if filters are active
+  bool _hasActiveFilters() {
+    return _selectedAllergens.isNotEmpty ||
+        _selectedDietTypes.isNotEmpty ||
+        _selectedAppliances.isNotEmpty ||
+        _selectedCookingTimeOption != null;
+  }
+
   Future<void> _fetchRecipes({String? searchQuery}) async {
     if (!mounted) return;
-    
+
     setState(() {
       _isLoading = true;
       _loadingError = '';
@@ -205,7 +285,7 @@ class _HomePageState extends State<HomePage> {
             print('Error checking bookmark status for recipe ${recipe.id}: $e');
           }
         }
-      }      // Generate random breakfast recipes
+      } // Generate random breakfast recipes
       final shuffledRecipes = List<DisplayRecipeItem>.from(recipes);
       shuffledRecipes.shuffle();
 
@@ -221,7 +301,8 @@ class _HomePageState extends State<HomePage> {
             _searchResults = [];
           }
         });
-      }    } catch (e) {
+      }
+    } catch (e) {
       print("Error fetching recipes: $e");
       if (mounted) {
         setState(() {
@@ -269,11 +350,7 @@ class _HomePageState extends State<HomePage> {
     if (index == 0) {
       // Home button pressed - reset search/filters if any
       if (_showSearchResults || _showFilters) {
-        setState(() {
-          _showSearchResults = false;
-          _showFilters = false;
-          _searchController.clear();
-        });
+        _exitSearchMode();
       }
     } else if (index == 1) {
       // Navigate to Bookmark screen
@@ -332,12 +409,12 @@ class _HomePageState extends State<HomePage> {
                 await _bookmarkService.addBookmarkToFolder(
                   recipeId: recipeId,
                   folderId: int.parse(folderId),
-                );                // Update UI if widget is still mounted
+                ); // Update UI if widget is still mounted
                 if (mounted) {
                   setState(() {
                     _updateRecipeBookmarkStatus(recipeId, true);
                   });
-                  
+
                   Navigator.pop(context);
                 }
                 if (mounted) {
@@ -368,7 +445,8 @@ class _HomePageState extends State<HomePage> {
   Future<void> _showRemoveBookmarkDialog(int recipeId) async {
     try {
       // Get folders where this recipe is bookmarked
-      final folders = await _bookmarkService.getRecipeBookmarkFolders(recipeId);      if (folders.isEmpty) {
+      final folders = await _bookmarkService.getRecipeBookmarkFolders(recipeId);
+      if (folders.isEmpty) {
         if (mounted) {
           setState(() {
             _updateRecipeBookmarkStatus(recipeId, false);
@@ -404,7 +482,9 @@ class _HomePageState extends State<HomePage> {
                                 recipeId: recipeId,
                                 folderId: folder['folder_id'],
                               );
-                              Navigator.pop(context);                              // Check if recipe is still bookmarked in any folder
+                              Navigator.pop(
+                                context,
+                              ); // Check if recipe is still bookmarked in any folder
                               final stillBookmarked = await _bookmarkService
                                   .isRecipeBookmarked(recipeId);
                               if (mounted) {
@@ -520,26 +600,12 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
-  void _performSearch(String query) {
-    if (query.isNotEmpty && !_searchHistory.contains(query)) {
-      setState(() {
-        _searchHistory.insert(0, query);
-        if (_searchHistory.length > 5) {
-          _searchHistory.removeLast();
-        }
-      });
-    }
-    _fetchRecipes(searchQuery: query);
-    setState(() {
-      _showSearchResults = true;
-      _showFilters = false;
-    });
-  }
-
   void _removeFromHistory(String item) {
     setState(() {
       _searchHistory.remove(item);
     });
+    // Save updated search history
+    _saveUserSearchHistory();
   }
 
   void _toggleFilters() {
@@ -554,6 +620,7 @@ class _HomePageState extends State<HomePage> {
     setState(() {
       _showSearchResults = true;
       _showFilters = false;
+      _isSearching = true; // Mark as searching since filters are applied
     });
   }
 
@@ -611,7 +678,144 @@ class _HomePageState extends State<HomePage> {
 
     setState(() {
       _searchResults = filtered;
+      // Update search state
+      _isSearching = query.isNotEmpty || _hasActiveFilters();
+      _currentSearchQuery = query;
     });
+  }
+
+  // User-specific search history management
+  Future<void> _loadUserSearchHistory() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final userId = AuthService.getCurrentUserId();
+
+      if (userId != null) {
+        // Load search history for this specific user
+        final userSearchHistoryKey = 'search_history_$userId';
+        final historyJson = prefs.getString(userSearchHistoryKey);
+
+        if (historyJson != null) {
+          final List<dynamic> historyList = json.decode(historyJson);
+          setState(() {
+            _searchHistory = historyList.cast<String>();
+          });
+        }
+      } else {
+        // If no user is logged in, clear search history
+        setState(() {
+          _searchHistory = [];
+        });
+      }
+    } catch (e) {
+      print('Error loading user search history: $e');
+    }
+  }
+
+  Future<void> _saveUserSearchHistory() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final userId = AuthService.getCurrentUserId();
+
+      if (userId != null) {
+        // Save search history for this specific user
+        final userSearchHistoryKey = 'search_history_$userId';
+        final historyJson = json.encode(_searchHistory);
+        await prefs.setString(userSearchHistoryKey, historyJson);
+      }
+    } catch (e) {
+      print('Error saving user search history: $e');
+    }
+  }
+
+  // Add search history widget
+  Widget _buildSearchHistory() {
+    // Only show search history if user is logged in
+    if (!AuthService.isUserLoggedIn()) {
+      return Expanded(
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.search, size: 64, color: Colors.grey),
+              SizedBox(height: 16),
+              Text(
+                "Start typing to search for recipes",
+                style: GoogleFonts.dmSans(fontSize: 16, color: Colors.grey),
+              ),
+              SizedBox(height: 8),
+              Text(
+                "Login to save your search history",
+                style: GoogleFonts.dmSans(
+                  fontSize: 14,
+                  color: Colors.grey[600],
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    if (_searchHistory.isEmpty) {
+      return Expanded(
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.history, size: 64, color: Colors.grey),
+              SizedBox(height: 16),
+              Text(
+                "Start typing to search for recipes",
+                style: GoogleFonts.dmSans(fontSize: 16, color: Colors.grey),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return Expanded(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16.0),
+            child: Text(
+              "Recent Searches",
+              style: GoogleFonts.dmSans(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: Colors.black,
+              ),
+            ),
+          ),
+          Expanded(
+            child: ListView.builder(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0),
+              itemCount: _searchHistory.length,
+              itemBuilder: (context, index) {
+                return ListTile(
+                  leading: Icon(Icons.history, color: Colors.grey),
+                  title: Text(
+                    _searchHistory[index],
+                    style: GoogleFonts.dmSans(fontSize: 16),
+                  ),
+                  trailing: IconButton(
+                    icon: Icon(Icons.close, size: 18, color: Colors.grey),
+                    onPressed: () => _removeFromHistory(_searchHistory[index]),
+                  ),
+                  onTap: () {
+                    _searchController.text = _searchHistory[index];
+                    _performSearchImproved(_searchHistory[index]);
+                  },
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -635,14 +839,13 @@ class _HomePageState extends State<HomePage> {
                   // Buka sidebar dari kiri
                   Scaffold.of(context).openDrawer();
                 },
-                child: CircleAvatar(                backgroundImage:
+                child: CircleAvatar(
+                  backgroundImage:
                       _userProfilePictureUrl != null &&
                               _userProfilePictureUrl!.isNotEmpty
                           ? NetworkImage(_userProfilePictureUrl!)
                               as ImageProvider
-                          : AssetImage(
-                            "assets/images/default_profile.png",
-                          ),
+                          : AssetImage("assets/images/default_profile.png"),
                 ),
               );
             },
@@ -660,12 +863,31 @@ class _HomePageState extends State<HomePage> {
               hintText: 'Search recipe',
               hintStyle: GoogleFonts.dmSans(color: Colors.grey[600]),
               prefixIcon: Icon(Icons.search, color: Colors.grey[600]),
-              suffixIcon: IconButton(
-                icon: Icon(
-                  SolarIconsOutline.tuningSquare,
-                  color: Colors.grey[600],
-                ),
-                onPressed: _toggleFilters,
+              suffixIcon: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Show clear button when searching
+                  if (_isSearching)
+                    IconButton(
+                      icon: Icon(
+                        Icons.clear,
+                        color: Colors.grey[600],
+                        size: 20,
+                      ),
+                      onPressed: _exitSearchMode,
+                    ),
+                  // Filter button
+                  IconButton(
+                    icon: Icon(
+                      SolarIconsOutline.tuningSquare,
+                      color:
+                          _hasActiveFilters()
+                              ? Colors.red[700]
+                              : Colors.grey[600],
+                    ),
+                    onPressed: _toggleFilters,
+                  ),
+                ],
               ),
               border: InputBorder.none,
               contentPadding: EdgeInsets.symmetric(
@@ -674,21 +896,17 @@ class _HomePageState extends State<HomePage> {
               ),
             ),
             style: GoogleFonts.dmSans(color: Colors.black),
-            onSubmitted: _performSearch,
-            onTap: () {
-              setState(() {
-                _showSearchResults = true;
-                _showFilters = false;
-              });
-            },
+            // Remove onSubmitted since search happens automatically via listener
+            // Remove onTap that immediately shows search results
           ),
-        ),        actions: [
+        ),
+        actions: [
           IconButton(
             icon: Icon(SolarIconsOutline.bell, color: Colors.black),
             onPressed: () {
               // Navigate to notification page
               Navigator.push(
-                context, 
+                context,
                 MaterialPageRoute(builder: (context) => NotificationPage()),
               );
             },
@@ -842,43 +1060,61 @@ class _HomePageState extends State<HomePage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        if (_searchController.text.isEmpty) ...[
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Text(
-              "Riwayat Pencarian",
-              style: GoogleFonts.dmSans(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: Colors.black,
+        // Search header with active filters indicator
+        Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      _currentSearchQuery.isEmpty
+                          ? "Search Results"
+                          : "Results for '${_currentSearchQuery}'",
+                      style: GoogleFonts.dmSans(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black,
+                      ),
+                    ),
+                  ),
+                  if (_hasActiveFilters())
+                    Container(
+                      padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Colors.red[50],
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.red[200]!),
+                      ),
+                      child: Text(
+                        "Filtered",
+                        style: GoogleFonts.dmSans(
+                          fontSize: 12,
+                          color: Colors.red[700],
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                ],
               ),
-            ),
-          ),
-          Expanded(
-            child: ListView.builder(
-              itemCount: _searchHistory.length,
-              itemBuilder: (context, index) {
-                return ListTile(
-                  title: Text(
-                    _searchHistory[index],
-                    style: GoogleFonts.dmSans(fontSize: 16),
+              if (_isSearchLoading)
+                Padding(
+                  padding: const EdgeInsets.only(top: 8.0),
+                  child: LinearProgressIndicator(
+                    backgroundColor: Colors.grey[300],
+                    valueColor: AlwaysStoppedAnimation<Color>(Colors.red[700]!),
                   ),
-                  trailing: IconButton(
-                    icon: Icon(Icons.close, size: 18),
-                    onPressed: () => _removeFromHistory(_searchHistory[index]),
-                  ),
-                  onTap: () {
-                    _searchController.text = _searchHistory[index];
-                    _searchController.selection = TextSelection.fromPosition(
-                      TextPosition(offset: _searchController.text.length),
-                    );
-                    _performSearch(_searchHistory[index]);
-                  },
-                );
-              },
-            ),
+                ),
+            ],
           ),
-        ] else if (_searchResults.isEmpty) ...[
+        ),
+
+        // Results or empty state
+        if (_isSearchLoading)
+          Expanded(child: Center(child: CircularProgressIndicator()))
+        else if (_searchResults.isEmpty && _currentSearchQuery.isNotEmpty)
           Expanded(
             child: Center(
               child: Column(
@@ -887,40 +1123,34 @@ class _HomePageState extends State<HomePage> {
                   Icon(Icons.search_off, size: 64, color: Colors.grey),
                   SizedBox(height: 16),
                   Text(
-                    "Tidak ada hasil untuk '${_searchController.text}'",
+                    "No results found for '${_currentSearchQuery}'",
                     textAlign: TextAlign.center,
                     style: GoogleFonts.dmSans(fontSize: 16),
                   ),
-                  if (_selectedAllergens.isNotEmpty ||
-                      _selectedDietTypes.isNotEmpty ||
-                      _selectedAppliances.isNotEmpty ||
-                      _selectedCookingTimeOption != null)
+                  if (_hasActiveFilters())
                     Padding(
                       padding: const EdgeInsets.only(top: 8.0),
-                      child: Text(
-                        "Coba sesuaikan filter Anda.",
-                        style: GoogleFonts.dmSans(
-                          fontSize: 14,
-                          color: Colors.grey,
+                      child: TextButton(
+                        onPressed: () {
+                          _resetFilters();
+                          _performSearchImproved(_currentSearchQuery);
+                        },
+                        child: Text(
+                          "Try removing filters",
+                          style: GoogleFonts.dmSans(
+                            fontSize: 14,
+                            color: Colors.red[700],
+                          ),
                         ),
                       ),
                     ),
                 ],
               ),
             ),
-          ),
-        ] else ...[
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Text(
-              "Hasil Pencarian (${_searchResults.length})",
-              style: GoogleFonts.dmSans(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: Colors.black,
-              ),
-            ),
-          ),
+          )
+        else if (_searchResults.isEmpty && _currentSearchQuery.isEmpty)
+          _buildSearchHistory()
+        else
           Expanded(
             child: GridView.builder(
               padding: const EdgeInsets.symmetric(horizontal: 16.0),
@@ -941,7 +1171,6 @@ class _HomePageState extends State<HomePage> {
               },
             ),
           ),
-        ],
       ],
     );
   }
