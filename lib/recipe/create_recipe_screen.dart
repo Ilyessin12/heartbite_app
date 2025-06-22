@@ -5,6 +5,7 @@ import 'package:image_picker/image_picker.dart';
 import '../services/image_upload_service.dart';
 import '../services/recipe_service.dart';
 import '../models/recipe_model.dart';
+import '../models/tag_models.dart'; // Added import for tag models
 import '../services/auth_service.dart'; // Added import
 
 class InstructionStepData {
@@ -52,11 +53,48 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
   final _ingredientsController = TextEditingController();
   List<InstructionStepData> _instructionSteps = [];
 
+  // State for tags
+  List<Allergen> _availableAllergens = [];
+  List<DietProgram> _availableDietPrograms = [];
+  List<Equipment> _availableEquipment = [];
+
+  Set<int> _selectedAllergenIds = {};
+  Set<int> _selectedDietProgramIds = {};
+  Set<int> _selectedEquipmentIds = {};
+
+  bool _isLoadingTags = true;
+
   @override
   void initState() {
     super.initState();
     if (_instructionSteps.isEmpty) {
       _instructionSteps.add(InstructionStepData());
+    }
+    _fetchTags();
+  }
+
+  Future<void> _fetchTags() async {
+    try {
+      final allergens = await _recipeService.getAllergens();
+      final dietPrograms = await _recipeService.getDietPrograms();
+      final equipment = await _recipeService.getEquipment();
+      if (mounted) {
+        setState(() {
+          _availableAllergens = allergens;
+          _availableDietPrograms = dietPrograms;
+          _availableEquipment = equipment;
+          _isLoadingTags = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to load tags: $e')),
+        );
+        setState(() {
+          _isLoadingTags = false;
+        });
+      }
     }
   }
 
@@ -321,6 +359,9 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
       ingredients: ingredients,
       instructions: finalInstructions.isNotEmpty ? finalInstructions : null,
       gallery_image_urls: galleryImageUrls,
+      selectedAllergenIds: _selectedAllergenIds.toList(),
+      selectedDietProgramIds: _selectedDietProgramIds.toList(),
+      selectedEquipmentIds: _selectedEquipmentIds.toList(),
     );
 
     try {
@@ -601,7 +642,59 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
                   label: const Text('Add Instruction Step'),
                   style: ElevatedButton.styleFrom(backgroundColor: Colors.teal[100], foregroundColor: Colors.teal[900]),
                 ),
+                const SizedBox(height: 24),
+
+                // Tags Section
+                if (_isLoadingTags)
+                  const Center(child: CircularProgressIndicator())
+                else ...[
+                  _buildTagSelectionSection<Allergen>(
+                    title: 'Allergens (Select any that apply)',
+                    availableTags: _availableAllergens,
+                    selectedTagIds: _selectedAllergenIds,
+                    onSelected: (selected, tagId) {
+                      setState(() {
+                        if (selected) {
+                          _selectedAllergenIds.add(tagId);
+                        } else {
+                          _selectedAllergenIds.remove(tagId);
+                        }
+                      });
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                  _buildTagSelectionSection<DietProgram>(
+                    title: 'Dietary Programs (Select any that apply)',
+                    availableTags: _availableDietPrograms,
+                    selectedTagIds: _selectedDietProgramIds,
+                    onSelected: (selected, tagId) {
+                      setState(() {
+                        if (selected) {
+                          _selectedDietProgramIds.add(tagId);
+                        } else {
+                          _selectedDietProgramIds.remove(tagId);
+                        }
+                      });
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                  _buildTagSelectionSection<Equipment>(
+                    title: 'Equipment Needed (Select any that apply)',
+                    availableTags: _availableEquipment,
+                    selectedTagIds: _selectedEquipmentIds,
+                    onSelected: (selected, tagId) {
+                      setState(() {
+                        if (selected) {
+                          _selectedEquipmentIds.add(tagId);
+                        } else {
+                          _selectedEquipmentIds.remove(tagId);
+                        }
+                      });
+                    },
+                  ),
+                ],
                 const SizedBox(height: 16),
+
                 Padding(
                   padding: const EdgeInsets.symmetric(vertical: 16.0),
                   child: Column(
@@ -678,6 +771,53 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
           ),
         ),
       ),
+    );
+  }
+
+  // Helper widget to build a section for selecting tags
+  Widget _buildTagSelectionSection<T>({
+    required String title,
+    required List<T> availableTags,
+    required Set<int> selectedTagIds,
+    required Function(bool, int) onSelected,
+  }) {
+    final labelStyle = GoogleFonts.dmSans(fontSize: 14, color: Colors.grey[700]);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(title, style: GoogleFonts.dmSans(fontSize: 16, fontWeight: FontWeight.bold)),
+        const SizedBox(height: 8),
+        if (availableTags.isEmpty && !_isLoadingTags)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8.0),
+            child: Text("No ${title.toLowerCase().split(' ')[0]} available.", style: labelStyle),
+          )
+        else
+          Wrap(
+            spacing: 8.0,
+            runSpacing: 4.0,
+            children: availableTags.map((tag) {
+              // Assuming tag objects have 'id' and 'name' properties
+              final tagId = (tag as dynamic).id as int;
+              final tagName = (tag as dynamic).name as String;
+              return ChoiceChip(
+                label: Text(tagName, style: GoogleFonts.dmSans(fontSize: 13)),
+                selected: selectedTagIds.contains(tagId),
+                onSelected: (selected) {
+                  onSelected(selected, tagId);
+                },
+                selectedColor: Colors.teal[100],
+                backgroundColor: Colors.grey[200],
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  side: BorderSide(
+                    color: selectedTagIds.contains(tagId) ? Colors.teal : Colors.grey[400]!,
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+      ],
     );
   }
 }

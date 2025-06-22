@@ -293,6 +293,17 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
       directions: directions,
       galleryImages: galleryImages,
       comments: topLevelComments, // Pass the structured, top-level comments
+
+      // Extract tag names
+      allergenTags: (data['allergens'] as List<dynamic>?)
+          ?.map((tag) => (tag as Map<String, dynamic>)['name'] as String)
+          .toList() ?? [],
+      dietProgramTags: (data['diet_programs'] as List<dynamic>?)
+          ?.map((tag) => (tag as Map<String, dynamic>)['name'] as String)
+          .toList() ?? [],
+      equipmentTags: (data['equipment'] as List<dynamic>?)
+          ?.map((tag) => (tag as Map<String, dynamic>)['name'] as String)
+          .toList() ?? [],
     );
   }
 
@@ -782,6 +793,11 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
                     ),
                     const SizedBox(height: 16),
 
+                    // Display Tags
+                    _buildTagsSection("Allergens", _recipe!.allergenTags),
+                    _buildTagsSection("Dietary Programs", _recipe!.dietProgramTags),
+                    _buildTagsSection("Equipment Needed", _recipe!.equipmentTags),
+                    
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton(
@@ -1063,6 +1079,33 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
               }
             },
           ),
+    );
+  }
+
+  Widget _buildTagsSection(String title, List<String> tags) {
+    if (tags.isEmpty) {
+      return const SizedBox.shrink(); // Don't show section if no tags
+    }
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(title, style: AppTextStyles.subheading),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8.0,
+            runSpacing: 4.0,
+            children: tags.map((tag) => Chip(
+              label: Text(tag),
+              backgroundColor: Colors.teal[50],
+              labelStyle: TextStyle(color: Colors.teal[800], fontSize: 13),
+              padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 2.0),
+            )).toList(),
+          ),
+          const SizedBox(height: 8), // Add some space after the tags section
+        ],
+      ),
     );
   }
 }
