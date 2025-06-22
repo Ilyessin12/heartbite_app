@@ -1,9 +1,11 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:solar_icons/solar_icons.dart';
 import 'package:iconoir_flutter/iconoir_flutter.dart'
     hide Key, Text, Navigator, List, Map, Drawer;
 import 'dart:ui';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../sidebar/screens/profile_screen.dart';
 import '../bottomnavbar/bottom-navbar.dart';
@@ -83,6 +85,12 @@ class _HomePageState extends State<HomePage> {
   double _dragCurrentX = 0.0;
   bool _isDragging = false;
   bool _isSwipeFromEdge = false; // Flag untuk memastikan swipe dari tepi
+  
+  // Variabel untuk foto profil pengguna
+  String? _userProfilePictureUrl;
+  
+  // Subscription untuk perubahan autentikasi
+  StreamSubscription<AuthState>? _authSubscription;
 
   final RecipeService _recipeService = RecipeService();
   List<DisplayRecipeItem> _allFetchedRecipes = [];
@@ -137,12 +145,18 @@ class _HomePageState extends State<HomePage> {
   List<DisplayRecipeItem> get _popularRecipes =>
       _allFetchedRecipes.skip(3).take(4).toList();
   List<DisplayRecipeItem> get _breakfastRecipes =>
-      _allFetchedRecipes.skip(7).take(4).toList();
-
-  @override
+      _allFetchedRecipes.skip(7).take(4).toList();  @override
   void initState() {
     super.initState();
     _fetchRecipes();
+    _fetchUserProfilePicture(); // Ambil foto profil dari Supabase
+    
+    // Dengarkan perubahan status autentikasi
+    _authSubscription = Supabase.instance.client.auth.onAuthStateChange.listen((event) {
+      // Update foto profil saat status autentikasi berubah
+      _fetchUserProfilePicture();
+    });
+    
     _searchController.addListener(() {
       if (_searchController.text.isNotEmpty) {
         _updateSearchResults();
@@ -184,10 +198,32 @@ class _HomePageState extends State<HomePage> {
       });
     }
   }
-
+  // Fungsi untuk mengambil foto profil dari Supabase
+  Future<void> _fetchUserProfilePicture() async {
+    if (AuthService.isUserLoggedIn()) {
+      try {
+        final profilePicUrl = await AuthService.getUserProfilePicture();
+        if (mounted) {
+          setState(() {
+            _userProfilePictureUrl = profilePicUrl;
+          });
+        }
+      } catch (e) {
+        print("Error mengambil foto profil: $e");
+      }
+    } else {
+      // Reset profile picture jika tidak login
+      if (mounted) {
+        setState(() {
+          _userProfilePictureUrl = null;
+        });
+      }
+    }
+  }
   @override
   void dispose() {
     _searchController.dispose();
+    _authSubscription?.cancel(); // Batalkan subscription saat widget di-dispose
     super.dispose();
   }
 
@@ -377,11 +413,10 @@ class _HomePageState extends State<HomePage> {
                 onTap: () {
                   // Buka sidebar dari kiri
                   Scaffold.of(context).openDrawer();
-                },
-                child: CircleAvatar(
-                  backgroundImage: AssetImage(
-                    "assets/images/homepage/placeholder_profile.jpg",
-                  ),
+                },                child: CircleAvatar(
+                  backgroundImage: _userProfilePictureUrl != null && _userProfilePictureUrl!.isNotEmpty
+                    ? NetworkImage(_userProfilePictureUrl!) as ImageProvider
+                    : AssetImage("assets/images/homepage/placeholder_profile.jpg"),
                 ),
               );
             },
