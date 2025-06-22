@@ -7,6 +7,8 @@ import 'bookmark/screens/bookmark_screen.dart';
 import 'test/test_login.dart';
 import 'screens/test_supabase.dart'; // Tambahkan import ini
 import 'package:timeago/timeago.dart' as timeago;
+import 'sidebar/screens/profile_screen.dart';
+
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -112,6 +114,20 @@ class HomeScreenWrapper extends StatelessWidget {
             child: const Icon(Icons.science, color: Colors.white),
             heroTag: "test",
             tooltip: 'Test Supabase',
+          ),
+          const SizedBox(height: 10),
+          // ✅ Floating Action Button untuk ProfileScreen
+          FloatingActionButton(
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const ProfileScreen()),
+              );
+            },
+            backgroundColor: Colors.deepPurple,
+            child: const Icon(Icons.person, color: Colors.white),
+            heroTag: "profile",
+            tooltip: 'Profile Page', 
           ),
         ],
       ),
