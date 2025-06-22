@@ -105,4 +105,53 @@ class ProfileService {
       return false;
     }
   }
+  
+  // Check if username is available
+  static Future<bool> isUsernameAvailable(String username, String currentUserId) async {
+    try {
+      final response = await _client
+          .from('users')
+          .select('id')
+          .eq('username', username)
+          .neq('id', currentUserId);
+    
+    return response.isEmpty;
+  } catch (e) {
+    print('Error checking username availability: $e');
+    return false;
+  }
+}
+
+// Update profile images
+static Future<bool> updateProfileImages({
+  required String userId,
+  String? profilePictureUrl,
+  String? coverPictureUrl,
+}) async {
+  try {
+    final updates = <String, dynamic>{};
+    
+    if (profilePictureUrl != null) {
+      updates['profile_picture'] = profilePictureUrl;
+    }
+    
+    if (coverPictureUrl != null) {
+      updates['cover_picture'] = coverPictureUrl;
+    }
+    
+    if (updates.isNotEmpty) {
+      updates['updated_at'] = DateTime.now().toIso8601String();
+      
+      await _client
+          .from('users')
+          .update(updates)
+          .eq('id', userId);
+    }
+    
+    return true;
+  } catch (e) {
+    print('Error updating profile images: $e');
+    return false;
+  }
+}
 }

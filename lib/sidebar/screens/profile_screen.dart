@@ -157,9 +157,11 @@ class _ProfileScreenWithBackendState extends State<ProfileScreenWithBackend>
                   Container(
                     height: 180,
                     width: double.infinity,
-                    decoration: const BoxDecoration(
+                    decoration: BoxDecoration(
                       image: DecorationImage(
-                        image: AssetImage('assets/images/bg_welcome.png'),
+                        image: _user?.coverPicture != null && _user!.coverPicture!.isNotEmpty
+                          ? NetworkImage(_user!.coverPicture!)
+                          : const AssetImage('assets/images/bg_welcome.png') as ImageProvider,
                         fit: BoxFit.cover,
                       ),
                     ),
