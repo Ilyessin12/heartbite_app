@@ -9,6 +9,8 @@ import 'bookmark/screens/bookmark_screen.dart';
 import 'test/test_login.dart';
 import 'services/auth_service.dart'; // Import untuk sign out
 import 'services/supabase_client.dart'; // Import untuk akses database
+import 'homepage/homepage.dart';
+import 'sidebar/screens/profile_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -289,6 +291,34 @@ class _HomeScreenWrapperState extends State<HomeScreenWrapper> {
             child: const Icon(Icons.science, color: Colors.white),
             heroTag: "test",
             tooltip: 'Test Supabase',
+          ),
+          const SizedBox(height: 10),
+          // ✅ Floating Action Button untuk ProfileScreen
+          FloatingActionButton(
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const ProfileScreen()),
+              );
+            },
+            backgroundColor: Colors.deepPurple,
+            child: const Icon(Icons.person, color: Colors.white),
+            heroTag: "profile",
+            tooltip: 'Profile Page', 
+          ),
+          const SizedBox(height: 10),
+          // ✅ Floating Action Button untuk ProfileScreen
+          FloatingActionButton(
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const HomePage()),
+              );
+            },
+            backgroundColor: const Color.fromARGB(255, 200, 128, 13),
+            child: const Icon(Icons.person, color: Colors.white),
+            heroTag: "homepage",
+            tooltip: 'Home Page', 
           ),
         ],
       ),

@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:solar_icons/solar_icons.dart';
 import 'package:iconoir_flutter/iconoir_flutter.dart'
-    hide Key, Text, Navigator, List, Map;
+    hide Key, Text, Navigator, List, Map, Drawer;
 import 'dart:ui';
 
 import '../sidebar/screens/profile_screen.dart';
@@ -18,6 +18,7 @@ import '../recipe_detail/models/ingredient.dart' as DetailIngredientModel;
 import '../recipe_detail/models/direction.dart' as DetailDirectionModel;
 import '../recipe_detail/models/comment.dart' as DetailCommentModel;
 import '../services/auth_service.dart'; // Added import
+import '../sidebar/screens/sidebar_screen.dart';
 
 // DisplayRecipeItem is the primary model for recipe cards in this file.
 class DisplayRecipeItem {
@@ -76,6 +77,12 @@ class _HomePageState extends State<HomePage> {
   bool _showSearchResults = false;
   bool _showFilters = false;
   final TextEditingController _searchController = TextEditingController();
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
+  // Variabel untuk gesture tracking
+  double _dragStartX = 0.0;
+  double _dragCurrentX = 0.0;
+  bool _isDragging = false;
+  bool _isSwipeFromEdge = false; // Flag untuk memastikan swipe dari tepi
 
   final RecipeService _recipeService = RecipeService();
   List<DisplayRecipeItem> _allFetchedRecipes = [];
@@ -351,32 +358,33 @@ class _HomePageState extends State<HomePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      key: _scaffoldKey,
       backgroundColor: Colors.white,
+      // Tambahkan drawer untuk sidebar dari kiri
+      drawer: Drawer(
+        child: SidebarScreen(),
+      ),
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
         leadingWidth: 60,
-        // leading: Padding(
-        //   padding: const EdgeInsets.only(left: 16.0),
-        //   child: CircleAvatar(
-        //     backgroundImage: AssetImage(
-        //       "assets/images/homepage/placeholder_profile.jpg",
-        //     ),
-        //   ),
-        // ),
+        // Ubah leading menjadi seperti ini
         leading: Padding(
           padding: const EdgeInsets.only(left: 16.0),
-          child: GestureDetector(
-            onTap: () {
-              // Navigator.pushNamed(context, '/profile');
-              // Or, if you use MaterialPageRoute:
-              Navigator.push(context, MaterialPageRoute(builder: (context) => ProfileScreen()));
+          child: Builder( 
+            builder: (BuildContext context) {
+              return GestureDetector(
+                onTap: () {
+                  // Buka sidebar dari kiri
+                  Scaffold.of(context).openDrawer();
+                },
+                child: CircleAvatar(
+                  backgroundImage: AssetImage(
+                    "assets/images/homepage/placeholder_profile.jpg",
+                  ),
+                ),
+              );
             },
-            child: CircleAvatar(
-              backgroundImage: AssetImage(
-                "assets/images/homepage/placeholder_profile.jpg",
-              ),
-            ),
           ),
         ),
         title: Container(
@@ -423,24 +431,104 @@ class _HomePageState extends State<HomePage> {
           ),
           const SizedBox(width: 8),
         ],
+        // Hilangkan automaticallyImplyLeading untuk menghindari konflik
+        automaticallyImplyLeading: false,
       ),
-      body: SafeArea(
-        child:
-            _isLoading
-                ? Center(child: CircularProgressIndicator())
-                : _loadingError.isNotEmpty
-                ? Center(
-                  child: Text(
-                    _loadingError,
-                    style: TextStyle(color: Colors.red),
-                  ),
-                )
-                : _showSearchResults
-                ? _buildSearchResultsView()
-                : _showFilters
-                ? _buildFiltersView()
-                : _buildHomeContent(),
+
+      // LANGKAH 2: Wrap body dengan GestureDetector
+      body: GestureDetector(
+        // onPanStart: Dipanggil saat user mulai menyentuh layar
+        onPanStart: (DragStartDetails details) {
+          print("🟢 Pan Start - Position: ${details.localPosition.dx}");
+          
+          // Reset semua state
+          _isDragging = false;
+          _isSwipeFromEdge = false;
+          
+          // Cek apakah sentuhan dimulai dari tepi kiri (60px dari kiri)
+          if (details.localPosition.dx <= 60) {
+            _isDragging = true;
+            _isSwipeFromEdge = true;
+            _dragStartX = details.localPosition.dx;
+            _dragCurrentX = details.localPosition.dx;
+            
+            print("✅ Swipe dari tepi kiri terdeteksi!");
+          }
+        },
+
+        // onPanUpdate: Dipanggil saat user menggerakkan jari
+        onPanUpdate: (DragUpdateDetails details) {
+          if (_isDragging && _isSwipeFromEdge) {
+            _dragCurrentX = details.localPosition.dx;
+            double dragDistance = _dragCurrentX - _dragStartX;
+            
+            print("🔄 Pan Update - Current: ${_dragCurrentX}, Distance: $dragDistance");
+            
+            // Optional: Bisa tambahkan visual feedback di sini
+            // Misalnya, ubah opacity sidebar atau animasi
+          }
+        },
+
+        // onPanEnd: Dipanggil saat user mengangkat jari
+        onPanEnd: (DragEndDetails details) {
+          print("🔴 Pan End");
+          
+          if (_isDragging && _isSwipeFromEdge) {
+            // Hitung jarak total drag
+            double totalDragDistance = _dragCurrentX - _dragStartX;
+            
+            // Hitung velocity (kecepatan) drag
+            double velocityX = details.velocity.pixelsPerSecond.dx;
+            
+            print("📊 Total Distance: $totalDragDistance");
+            print("🚀 Velocity X: $velocityX");
+            
+            // KONDISI UNTUK MEMBUKA SIDEBAR:
+            // 1. Velocity ke kanan > 500 pixels/second (swipe cepat)
+            // 2. ATAU drag distance > 100 pixels (drag jauh)
+            if (velocityX > 500 || totalDragDistance > 100) {
+              print("🎉 Membuka sidebar!");
+              _scaffoldKey.currentState?.openDrawer();
+            } else {
+              print("❌ Kondisi tidak terpenuhi untuk membuka sidebar");
+            }
+          }
+          
+          // Reset state
+          _isDragging = false;
+          _isSwipeFromEdge = false;
+          _dragStartX = 0.0;
+          _dragCurrentX = 0.0;
+        },
+
+        // onPanCancel: Dipanggil jika gesture dibatalkan
+        onPanCancel: () {
+          print("🚫 Pan Cancelled");
+          _isDragging = false;
+          _isSwipeFromEdge = false;
+          _dragStartX = 0.0;
+          _dragCurrentX = 0.0;
+        },
+
+        // Child: Konten utama
+        child: SafeArea(
+          child: _isLoading
+              ? Center(child: CircularProgressIndicator())
+              : _loadingError.isNotEmpty
+                  ? Center(
+                    child: Text(
+                      _loadingError,
+                      style: TextStyle(color: Colors.red),
+                    ),
+                  )
+                  : _showSearchResults
+                  ? _buildSearchResultsView()
+                  : _showFilters
+                  ? _buildFiltersView()
+                  : _buildHomeContent(),
+        ),
       ),
+
       bottomNavigationBar: BottomNavBar(
         currentIndex: _currentIndex,
         onTap: _onBottomNavTapped,
@@ -1143,3 +1231,4 @@ class RecipeCard extends StatelessWidget {
     );
   }
 }
+

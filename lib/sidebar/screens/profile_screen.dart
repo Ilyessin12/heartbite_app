@@ -7,6 +7,7 @@ import '../widgets/recipe_card.dart';
 import '../screens/edit_profile_screen.dart';
 import '../screens/following_screen.dart';
 import '../screens/followers_screen.dart';
+import '../../bookmark/models/recipe_item.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -311,35 +312,47 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
   }
 
   Widget _buildRecipeGridList() {
-    final List<Map<String, dynamic>> recipes = [
-      {
-        'title': 'Sandwich with boiled egg',
-        'imageUrl': 'https://images.unsplash.com/photo-1525351484163-7529414344d8',
-        'isSaved': true,
-        'time': '29 min',
-      },
-      {
-        'title': 'Fruity blueberry toast',
-        'imageUrl': 'https://images.unsplash.com/photo-1484723091739-30a097e8f929',
-        'isSaved': false,
-        'time': '8 min',
-      },
-      {
-        'title': 'Avocado Toast',
-        'imageUrl': 'https://images.unsplash.com/photo-1588137378633-dea1336ce1e2',
-        'isSaved': true,
-        'time': '15 min',
-      },
-      {
-        'title': 'Pancakes with Berries',
-        'imageUrl': 'https://images.unsplash.com/photo-1506084868230-bb9d95c24759',
-        'isSaved': false,
-        'time': '20 min',
-      },
-    ];
+    final List<RecipeItem> recipes = [
+    RecipeItem(
+      name: 'Sandwich with boiled egg',
+      imageUrl: 'https://images.unsplash.com/photo-1525351484163-7529414344d8',
+      rating: 4.5,
+      reviewCount: 120,
+      calories: 350,
+      prepTime: 1,
+      cookTime: 29,
+    ),
+    RecipeItem(
+      name: 'Fruity blueberry toast',
+      imageUrl: 'https://images.unsplash.com/photo-1484723091739-30a097e8f929',
+      rating: 4.2,
+      reviewCount: 98,
+      calories: 280,
+      prepTime: 1,
+      cookTime: 8,
+    ),
+    RecipeItem(
+      name: 'Avocado Toast',
+      imageUrl: 'https://images.unsplash.com/photo-1588137378633-dea1336ce1e2',
+      rating: 4.8,
+      reviewCount: 210,
+      calories: 310,
+      prepTime: 1,
+      cookTime: 15,
+    ),
+    RecipeItem(
+      name: 'Pancakes with Berries',
+      imageUrl: 'https://images.unsplash.com/photo-1506084868230-bb9d95c24759',
+      rating: 4.7,
+      reviewCount: 180,
+      calories: 420,
+      prepTime: 2,
+      cookTime: 20,
+    ),
+  ];
 
     return SizedBox(
-      height: 600, // Sesuaikan tinggi agar cukup menampung konten grid
+      height: 600,
       child: TabBarView(
         controller: _tabController,
         children: _tabs.map((_) {
@@ -356,14 +369,8 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
                 mainAxisSpacing: 16,
               ),
               itemBuilder: (context, index) {
-                final recipe = recipes[index];
                 return RecipeCard(
-                  title: recipe['title'],
-                  imageUrl: recipe['imageUrl'],
-                  isSaved: recipe['isSaved'],
-                  cookTime: recipe['time'],
-                  onSaveTap: () {},
-                  onTap: () {},
+                  recipe: recipes[index],
                 );
               },
             ),
