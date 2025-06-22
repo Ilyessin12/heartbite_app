@@ -47,7 +47,6 @@ dependencies:
   sqflite: ^2.3.0 
   path: ^1.8.3    
   path_provider: ^2.1.1 
-
   supabase_flutter: ^2.0.0
 
   #CLOUDINARYYYYY
@@ -61,6 +60,7 @@ dependencies:
 
   http: ^1.1.0
   cached_network_image: ^3.3.0
+  shared_preferences: ^2.2.2
 
 dev_dependencies:
   flutter_test:
