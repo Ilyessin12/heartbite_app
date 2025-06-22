@@ -12,20 +12,14 @@ class NotificationPage extends StatefulWidget {
 
 class _NotificationPageState extends State<NotificationPage> {
   int _selectedIndex = 3; // Karena ini halaman notifikasi, index 3 dipilih
-
   void _onItemTapped(int index) {
     setState(() {
       _selectedIndex = index;
     });
     
-    // Navigasi ke halaman lain berdasarkan index yang dipilih
-    // Ini hanya contoh, Anda perlu menyesuaikan dengan navigasi aplikasi Anda
     if (index != 3) { // Jika bukan halaman notifikasi
-      // Contoh navigasi ke halaman lain
-      // Navigator.pushReplacement(
-      //   context,
-      //   MaterialPageRoute(builder: (context) => halamanTujuan),
-      // );
+      // Kembali ke halaman sebelumnya jika menekan tombol lain
+      Navigator.pop(context);
     }
   }
 
@@ -91,11 +85,10 @@ class _NotificationPageState extends State<NotificationPage> {
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
               child: Row(
-                children: [
-                  // Tombol kembali dalam lingkaran merah
+                children: [                  // Tombol kembali dalam lingkaran merah
                   GestureDetector(
                     onTap: () {
-                      Navigator.pop(context);
+                      Navigator.pop(context); // Kembali ke halaman sebelumnya
                     },
                     child: Container(
                       width: 32,
@@ -171,10 +164,15 @@ class _NotificationPageState extends State<NotificationPage> {
             ),
           ],
         ),
-      ),
-      bottomNavigationBar: BottomNavBar(
-        currentIndex: _selectedIndex, // Ubah dari selectedIndex menjadi currentIndex
-        onTap: _onItemTapped, // Ubah dari onItemTapped menjadi onTap
+      ),      bottomNavigationBar: BottomNavBar(
+        currentIndex: _selectedIndex,
+        onTap: _onItemTapped,
+        onFabPressed: () {
+          // Handle the FAB button press (create recipe)
+          // If needed, navigate to create recipe page
+          Navigator.pop(context); // First go back to homepage
+          // Then the homepage can handle the navigation to create recipe
+        },
       ),
     );
   }

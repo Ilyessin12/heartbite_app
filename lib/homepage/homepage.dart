@@ -16,6 +16,7 @@ import '../services/auth_service.dart'; // Added import
 import '../sidebar/screens/sidebar_screen.dart';
 import '../services/bookmark_service.dart';
 import '../recipe_detail/screens/bookmark_modal.dart';
+import '../notification_pages/notification.dart';
 
 // DisplayRecipeItem is the primary model for recipe cards in this file.
 class DisplayRecipeItem {
@@ -175,8 +176,9 @@ class _HomePageState extends State<HomePage> {
       }
     });
   }
-
   Future<void> _fetchRecipes({String? searchQuery}) async {
+    if (!mounted) return;
+    
     setState(() {
       _isLoading = true;
       _loadingError = '';
@@ -203,28 +205,30 @@ class _HomePageState extends State<HomePage> {
             print('Error checking bookmark status for recipe ${recipe.id}: $e');
           }
         }
-      }
-
-      // Generate random breakfast recipes
+      }      // Generate random breakfast recipes
       final shuffledRecipes = List<DisplayRecipeItem>.from(recipes);
       shuffledRecipes.shuffle();
 
-      setState(() {
-        _allFetchedRecipes = recipes;
-        _randomBreakfastRecipes = shuffledRecipes.take(10).toList();
-        _isLoading = false;
-        if (searchQuery != null && searchQuery.isNotEmpty) {
-          _searchResults = List.from(_allFetchedRecipes);
-        } else {
-          _searchResults = [];
-        }
-      });
-    } catch (e) {
+      // Check if widget is still mounted before updating state
+      if (mounted) {
+        setState(() {
+          _allFetchedRecipes = recipes;
+          _randomBreakfastRecipes = shuffledRecipes.take(10).toList();
+          _isLoading = false;
+          if (searchQuery != null && searchQuery.isNotEmpty) {
+            _searchResults = List.from(_allFetchedRecipes);
+          } else {
+            _searchResults = [];
+          }
+        });
+      }    } catch (e) {
       print("Error fetching recipes: $e");
-      setState(() {
-        _isLoading = false;
-        _loadingError = "Gagal memuat resep: ${e.toString()}";
-      });
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _loadingError = "Gagal memuat resep: ${e.toString()}";
+        });
+      }
     }
   }
 
@@ -328,14 +332,14 @@ class _HomePageState extends State<HomePage> {
                 await _bookmarkService.addBookmarkToFolder(
                   recipeId: recipeId,
                   folderId: int.parse(folderId),
-                );
-
-                // Update UI
-                setState(() {
-                  _updateRecipeBookmarkStatus(recipeId, true);
-                });
-
-                Navigator.pop(context);
+                );                // Update UI if widget is still mounted
+                if (mounted) {
+                  setState(() {
+                    _updateRecipeBookmarkStatus(recipeId, true);
+                  });
+                  
+                  Navigator.pop(context);
+                }
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
@@ -364,12 +368,12 @@ class _HomePageState extends State<HomePage> {
   Future<void> _showRemoveBookmarkDialog(int recipeId) async {
     try {
       // Get folders where this recipe is bookmarked
-      final folders = await _bookmarkService.getRecipeBookmarkFolders(recipeId);
-
-      if (folders.isEmpty) {
-        setState(() {
-          _updateRecipeBookmarkStatus(recipeId, false);
-        });
+      final folders = await _bookmarkService.getRecipeBookmarkFolders(recipeId);      if (folders.isEmpty) {
+        if (mounted) {
+          setState(() {
+            _updateRecipeBookmarkStatus(recipeId, false);
+          });
+        }
         return;
       }
 
@@ -400,17 +404,17 @@ class _HomePageState extends State<HomePage> {
                                 recipeId: recipeId,
                                 folderId: folder['folder_id'],
                               );
-                              Navigator.pop(context);
-
-                              // Check if recipe is still bookmarked in any folder
+                              Navigator.pop(context);                              // Check if recipe is still bookmarked in any folder
                               final stillBookmarked = await _bookmarkService
                                   .isRecipeBookmarked(recipeId);
-                              setState(() {
-                                _updateRecipeBookmarkStatus(
-                                  recipeId,
-                                  stillBookmarked,
-                                );
-                              });
+                              if (mounted) {
+                                setState(() {
+                                  _updateRecipeBookmarkStatus(
+                                    recipeId,
+                                    stillBookmarked,
+                                  );
+                                });
+                              }
 
                               if (mounted) {
                                 ScaffoldMessenger.of(context).showSnackBar(
@@ -631,14 +635,13 @@ class _HomePageState extends State<HomePage> {
                   // Buka sidebar dari kiri
                   Scaffold.of(context).openDrawer();
                 },
-                child: CircleAvatar(
-                  backgroundImage:
+                child: CircleAvatar(                backgroundImage:
                       _userProfilePictureUrl != null &&
                               _userProfilePictureUrl!.isNotEmpty
                           ? NetworkImage(_userProfilePictureUrl!)
                               as ImageProvider
                           : AssetImage(
-                            "assets/images/homepage/placeholder_profile.jpg",
+                            "assets/images/default_profile.png",
                           ),
                 ),
               );
@@ -679,12 +682,15 @@ class _HomePageState extends State<HomePage> {
               });
             },
           ),
-        ),
-        actions: [
+        ),        actions: [
           IconButton(
             icon: Icon(SolarIconsOutline.bell, color: Colors.black),
             onPressed: () {
-              // Handle notification tap
+              // Navigate to notification page
+              Navigator.push(
+                context, 
+                MaterialPageRoute(builder: (context) => NotificationPage()),
+              );
             },
           ),
           const SizedBox(width: 8),
@@ -704,7 +710,7 @@ class _HomePageState extends State<HomePage> {
           _isSwipeFromEdge = false;
 
           // Cek apakah sentuhan dimulai dari tepi kiri (60px dari kiri)
-          if (details.localPosition.dx <= 60) {
+          if (details.localPosition.dx <= 150) {
             _isDragging = true;
             _isSwipeFromEdge = true;
             _dragStartX = details.localPosition.dx;
