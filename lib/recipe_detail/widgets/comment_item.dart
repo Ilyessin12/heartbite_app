@@ -64,14 +64,18 @@ class _CommentItemState extends State<CommentItem> {
                   children: [
                     Row(
                       children: [
-                        Text(
-                          widget.comment.userName,
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
+                        Flexible( // Use Flexible for the username
+                          child: Text(
+                            widget.comment.userName,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                            ),
+                            overflow: TextOverflow.ellipsis, // Handle long usernames
+                            softWrap: true, // Allow wrapping
                           ),
                         ),
-                        const Spacer(),
-                        Text(
+                        const Spacer(), // Reinstate Spacer to push timeAgo to the right
+                        Text( 
                           widget.comment.timeAgo,
                           style: AppTextStyles.caption,
                         ),

@@ -162,11 +162,12 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
       _loadingError = '';
     });
     try {
-      // Use the hardcoded currentUserId for now, this should be dynamic in a real app
-      final String currentUserId = "325c40cc-d255-4f93-bf5f-40bc196ca093";
+      // Dynamically get the current user's ID. It can be null if no user is logged in.
+      final String? currentUserId = SupabaseClientWrapper().client.auth.currentUser?.id;
+      
       final recipeData = await _recipeService.getRecipeDetailsById(
         widget.recipeId,
-        currentUserId: currentUserId,
+        currentUserId: currentUserId, // Pass the dynamic (possibly null) user ID
       );
       // Adapt recipeData (Map<String, dynamic>) to DetailModel.Recipe
       // This is a complex mapping due to different structures and related tables
@@ -876,16 +877,32 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
                             Navigator.push(
                               context,
                               MaterialPageRoute(
-                                builder:
-                                    (context) => DiscussionScreen(
-                                      comments: _comments,
-                                      onCommentsUpdated: (updatedComments) {
-                                        // Update comments when returning from discussion screen
-                                        setState(() {
-                                          _comments = updatedComments;
-                                        });
-                                      },
-                                    ),
+                                builder: (context) {
+                                  // Ensure _recipe and _recipe.id are not null and _recipe.id is parseable to int
+                                  if (_recipe == null || _recipe!.id.isEmpty) {
+                                    // Handle error case, maybe show a dialog or return an error widget
+                                    return Scaffold(
+                                      appBar: AppBar(title: const Text("Error")),
+                                      body: const Center(child: Text("Recipe ID is invalid.")),
+                                    );
+                                  }
+                                  final recipeId = int.tryParse(_recipe!.id);
+                                  if (recipeId == null) {
+                                    return Scaffold(
+                                      appBar: AppBar(title: const Text("Error")),
+                                      body: const Center(child: Text("Recipe ID is not a valid number.")),
+                                    );
+                                  }
+                                  return DiscussionScreen(
+                                    comments: _comments,
+                                    recipeId: recipeId, // Pass the recipeId
+                                    onCommentsUpdated: (updatedComments) {
+                                      setState(() {
+                                        _comments = updatedComments;
+                                      });
+                                    },
+                                  );
+                                },
                               ),
                             );
                           },
