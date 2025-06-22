@@ -220,7 +220,7 @@ class _BookmarkModalState extends State<BookmarkModal> {
                     id: folderId,
                     name: folder['name'] ?? 'Unnamed Folder',
                     imageUrl: _getValidImageUrl(folder['image_url']),
-                    recipeCount: 0, // We could fetch this separately if needed
+                    recipeCount: folder['recipe_count'] ?? 0,
                   );
 
                   return Container(

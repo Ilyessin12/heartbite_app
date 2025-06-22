@@ -103,7 +103,7 @@ class BookmarkService {
     }
   }
 
-  /// Get user's bookmark folders
+  /// Get user's bookmark folders with recipe counts
   Future<List<Map<String, dynamic>>> getBookmarkFolders() async {
     final userId = _supabase.auth.currentUser?.id;
     if (userId == null) throw Exception('User not authenticated');
@@ -111,20 +111,38 @@ class BookmarkService {
     // Ensure "Saved" folder exists
     await ensureSavedFolderExists();
 
+    // Get folders with recipe counts in a single query
     final folders = await _supabase
         .from('bookmark_folders')
-        .select('*')
+        .select('''
+          *,
+          recipe_bookmarks(count)
+        ''')
         .eq('user_id', userId)
         .order('created_at', ascending: false);
 
+    // Process the results to extract recipe counts
+    final processedFolders =
+        folders.map((folder) {
+          final recipeBookmarks = folder['recipe_bookmarks'] as List?;
+          final recipeCount = recipeBookmarks?.length ?? 0;
+
+          // Remove the nested recipe_bookmarks and add recipe_count
+          final processedFolder = Map<String, dynamic>.from(folder);
+          processedFolder.remove('recipe_bookmarks');
+          processedFolder['recipe_count'] = recipeCount;
+
+          return processedFolder;
+        }).toList();
+
     // Sort folders: "Saved" first, then others
-    folders.sort((a, b) {
+    processedFolders.sort((a, b) {
       if (a['is_default'] == true) return -1;
       if (b['is_default'] == true) return 1;
       return a['name'].toString().compareTo(b['name'].toString());
     });
 
-    return folders;
+    return processedFolders;
   }
 
   /// Create a new bookmark folder
@@ -403,5 +421,18 @@ class BookmarkService {
         bookmark_folders(id, name)
       ''')
         .match({'recipe_id': recipeId, 'user_id': userId});
+  }
+
+  /// Get the count of recipes in a specific folder
+  Future<int> getRecipeCountInFolder(int folderId) async {
+    final userId = _supabase.auth.currentUser?.id;
+    if (userId == null) throw Exception('User not authenticated');
+
+    final result = await _supabase.from('recipe_bookmarks').select('id').match({
+      'folder_id': folderId,
+      'user_id': userId,
+    });
+
+    return result.length;
   }
 }
