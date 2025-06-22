@@ -7,8 +7,15 @@ import '../utils/constants.dart';
 
 class DirectionsScreen extends StatefulWidget {
   final Recipe recipe;
+  final int likeCount;
+  final bool isFavorite;
 
-  const DirectionsScreen({super.key, required this.recipe});
+  const DirectionsScreen({
+    super.key, 
+    required this.recipe,
+    required this.likeCount,
+    required this.isFavorite,
+  });
 
   @override
   State<DirectionsScreen> createState() => _DirectionsScreenState();
@@ -32,7 +39,12 @@ class _DirectionsScreenState extends State<DirectionsScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        RecipeHeader(recipe: widget.recipe, showAuthor: false),
+                        RecipeHeader(
+                          recipe: widget.recipe, 
+                          showAuthor: false,
+                          likeCount: widget.likeCount, // Use passed-in value
+                          isFavorite: widget.isFavorite, // Use passed-in value
+                        ),
                         const SizedBox(height: 24),
 
                         // Directions section header

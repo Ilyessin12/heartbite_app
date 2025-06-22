@@ -8,10 +8,14 @@ import 'directions_screen.dart';
 
 class IngredientsScreen extends StatefulWidget {
   final Recipe recipe;
+  final int likeCount;
+  final bool isFavorite;
   
   const IngredientsScreen({
     super.key,
     required this.recipe,
+    required this.likeCount,
+    required this.isFavorite,
   });
 
   @override
@@ -39,6 +43,8 @@ class _IngredientsScreenState extends State<IngredientsScreen> {
                         RecipeHeader(
                           recipe: widget.recipe,
                           showAuthor: false,
+                          likeCount: widget.likeCount, // Use passed-in value
+                          isFavorite: widget.isFavorite, // Use passed-in value
                         ),
                         const SizedBox(height: 24),
                         
@@ -116,7 +122,11 @@ class _IngredientsScreenState extends State<IngredientsScreen> {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (context) => DirectionsScreen(recipe: widget.recipe),
+                          builder: (context) => DirectionsScreen(
+                            recipe: widget.recipe,
+                            likeCount: widget.likeCount,
+                            isFavorite: widget.isFavorite,
+                          ),
                         ),
                       );
                     },
