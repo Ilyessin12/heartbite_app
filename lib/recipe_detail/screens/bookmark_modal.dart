@@ -90,6 +90,25 @@ class _BookmarkModalState extends State<BookmarkModal> {
     }
   }
 
+  String _getValidImageUrl(String? imageUrl) {
+    if (imageUrl == null || imageUrl.isEmpty) {
+      return 'assets/images/default_food.png';
+    }
+
+    // If it's already an asset path, return as is
+    if (imageUrl.startsWith('assets/')) {
+      return imageUrl;
+    }
+
+    // If it's a network URL, validate it
+    if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) {
+      return imageUrl;
+    }
+
+    // If it's neither asset nor valid URL, return placeholder
+    return 'assets/images/default_food.png';
+  }
+
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -194,15 +213,13 @@ class _BookmarkModalState extends State<BookmarkModal> {
                 itemBuilder: (context, index) {
                   final folder = folders[index];
                   final folderId = folder['id'].toString();
-                  final isDefaultFolder = folder['is_default'] == true;
-
-                  // Create Cookbook object from folder data for compatibility with CookbookItem
+                  final isDefaultFolder =
+                      folder['is_default'] ==
+                      true; // Create Cookbook object from folder data for compatibility with CookbookItem
                   final cookbook = Cookbook(
                     id: folderId,
                     name: folder['name'] ?? 'Unnamed Folder',
-                    imageUrl:
-                        folder['image_url'] ??
-                        'assets/images/cookbooks/placeholder_image.jpg',
+                    imageUrl: _getValidImageUrl(folder['image_url']),
                     recipeCount: 0, // We could fetch this separately if needed
                   );
 
