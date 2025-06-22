@@ -8,6 +8,8 @@ import 'dart:ui';
 // Changed RecipeItem to DisplayRecipeItem
 import 'homepage.dart' show DisplayRecipeItem, RecipeCard;
 import '../recipe_detail/screens/recipe_detail_screen.dart'; // Import RecipeDetailScreen for onTap navigation
+import '../recipe_detail/screens/bookmark_modal.dart'; // Add this import
+import '../services/bookmark_service.dart'; // Add this import
 // Import bottom navigation bar
 import '../bottomnavbar/bottom-navbar.dart';
 
@@ -63,16 +65,120 @@ class _HomePageDetailScreenState extends State<HomePageDetailScreen> {
   }
 
   void _toggleBookmark(int recipeId) {
-    // Changed to int recipeId
-    setState(() {
-      final index = _currentRecipes.indexWhere(
-        (recipe) => recipe.id == recipeId,
-      );
-      if (index != -1) {
-        _currentRecipes[index].isBookmarked =
-            !_currentRecipes[index].isBookmarked;
-      }
-    });
+    // Find the recipe
+    final recipe = _currentRecipes.firstWhere(
+      (r) => r.id == recipeId,
+      orElse: () => _currentRecipes.first, // fallback, should not happen
+    );
+
+    if (recipe.isBookmarked) {
+      // Show remove bookmark dialog
+      _showRemoveBookmarkDialog(recipeId);
+    } else {
+      // Show bookmark modal
+      _showBookmarkModal(recipeId);
+    }
+  }
+
+  void _showBookmarkModal(int recipeId) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder:
+          (context) => BookmarkModal(
+            onSave: (folderId) async {
+              try {
+                final bookmarkService = BookmarkService();
+                await bookmarkService.addBookmarkToFolder(
+                  recipeId: recipeId,
+                  folderId: int.parse(folderId),
+                );
+
+                // Update UI
+                setState(() {
+                  final index = _currentRecipes.indexWhere(
+                    (recipe) => recipe.id == recipeId,
+                  );
+                  if (index != -1) {
+                    _currentRecipes[index].isBookmarked = true;
+                  }
+                });
+
+                Navigator.pop(context);
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Recipe bookmarked successfully!'),
+                      backgroundColor: Colors.green,
+                    ),
+                  );
+                }
+              } catch (e) {
+                print('Error bookmarking recipe: $e');
+                Navigator.pop(context);
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Error bookmarking recipe: $e'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
+              }
+            },
+          ),
+    );
+  }
+
+  Future<void> _showRemoveBookmarkDialog(int recipeId) async {
+    showDialog(
+      context: context,
+      builder:
+          (context) => AlertDialog(
+            title: const Text('Remove Bookmark'),
+            content: const Text(
+              'Are you sure you want to remove this bookmark?',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Cancel'),
+              ),
+              TextButton(
+                onPressed: () async {
+                  try {
+                    // Handle bookmark removal
+                    setState(() {
+                      final index = _currentRecipes.indexWhere(
+                        (recipe) => recipe.id == recipeId,
+                      );
+                      if (index != -1) {
+                        _currentRecipes[index].isBookmarked = false;
+                      }
+                    });
+                    Navigator.pop(context);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Bookmark removed successfully!'),
+                        backgroundColor: Colors.orange,
+                      ),
+                    );
+                  } catch (e) {
+                    Navigator.pop(context);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Error removing bookmark: $e'),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                  }
+                },
+                child: const Text('Remove'),
+              ),
+            ],
+          ),
+    );
   }
 
   void _onBottomNavTapped(int index) {
