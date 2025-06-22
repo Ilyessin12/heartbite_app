@@ -8,6 +8,8 @@ import '../screens/edit_profile_screen.dart';
 import '../screens/following_screen.dart';
 import '../screens/followers_screen.dart';
 import '../../bookmark/models/recipe_item.dart';
+import '../../recipe/create_recipe_screen.dart';
+
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -252,7 +254,16 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
               fontSize: 18,
             ),
           ),
-          Container(
+        GestureDetector(
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const CreateRecipeScreen(),
+              ),
+            );
+          },
+          child: Container(
             width: 32,
             height: 32,
             decoration: const BoxDecoration(
@@ -263,6 +274,7 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
               Icons.add,
               color: Colors.white,
               size: 20,
+              ),
             ),
           ),
         ],

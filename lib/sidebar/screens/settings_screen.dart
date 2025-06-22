@@ -3,6 +3,10 @@ import '../theme/app_theme.dart';
 import '../widgets/custom_back_button.dart';
 import '../widgets/setting_item.dart';
 
+import 'country_screen.dart';
+import 'notification_preferences_screen.dart';
+import '../screens/about_screen.dart';
+
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
 
@@ -25,15 +29,30 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 children: [
                   SettingItem(
                     title: 'Negara',
-                    onTap: () => Navigator.pushNamed(context, '/settings/country'),
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const CountryScreen(),
+                      ),
+                    ),
                   ),
                   SettingItem(
                     title: 'Preferensi Notifikasi',
-                    onTap: () => Navigator.pushNamed(context, '/settings/notifications'),
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const NotificationPreferencesScreen(),
+                      ),
+                    ),
                   ),
                   SettingItem(
                     title: 'Tentang Aplikasi',
-                    onTap: () => Navigator.pushNamed(context, '/about'),
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const AboutScreen(),
+                      ),
+                    ),
                   ),
                 ],
               ),
@@ -43,10 +62,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
               child: SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
-                  onPressed: () {},
+                  onPressed: () {
+                    // TODO: implement logout
+                  },
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary, // Merah sesuai theme
-                    foregroundColor: Colors.white,      // Warna teks putih
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: Colors.white,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(8),
                     ),
@@ -81,7 +102,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
             ),
           ),
-          const SizedBox(width: 32), // For balance
+          const SizedBox(width: 32),
         ],
       ),
     );
