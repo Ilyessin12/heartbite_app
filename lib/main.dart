@@ -5,6 +5,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'screens/test_supabase.dart'; 
 import 'bookmark/screens/bookmark_screen.dart';
 import 'test/test_login.dart';
+import 'screens/test_supabase.dart'; // Tambahkan import ini
+import 'package:timeago/timeago.dart' as timeago;
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -20,6 +22,9 @@ void main() async {
     url: dotenv.env['SUPABASE_URL'] ?? '',
     anonKey: dotenv.env['SUPABASE_ANON_KEY'] ?? '',
   );
+
+  timeago.setLocaleMessages('id', timeago.IdMessages());
+
   runApp(const MyApp());
 }
 
