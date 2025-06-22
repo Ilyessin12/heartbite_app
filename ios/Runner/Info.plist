@@ -49,5 +49,14 @@
 	<string>This app needs camera access to take photos for bookmark covers</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>This app needs photos access to let you select bookmark cover images</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+	  <dict>
+		<key>CFBundleURLSchemes</key>
+		<array>
+		  <string>com.example.heartbite_tubesprovis</string>
+		</array>
+	  </dict>
+	</array>
 </dict>
 </plist>

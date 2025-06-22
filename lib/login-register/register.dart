@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'login.dart';
+import '../services/user_service.dart';
+import '../setup_pages/setupallergies.dart';
 
 class RegisterPage extends StatefulWidget {
   const RegisterPage({super.key});
@@ -12,6 +14,17 @@ class RegisterPage extends StatefulWidget {
 class _RegisterPageState extends State<RegisterPage> {
   // Variabel untuk mengatur apakah password terlihat atau tidak
   bool _isPasswordVisible = false;
+
+  // Status message for registration feedback
+  String _statusMessage = '';
+
+  // Tambahkan controller di sini
+  final _emailController = TextEditingController();
+  final _fullNameController = TextEditingController();
+  final _usernameController = TextEditingController();
+  final _passwordController = TextEditingController();
+  final _confirmPasswordController = TextEditingController();
+  final _phoneController = TextEditingController();
 
   @override
   Widget build(BuildContext context) {
@@ -113,6 +126,7 @@ class _RegisterPageState extends State<RegisterPage> {
                               children: [
                                 // Teks deskripsi rata kiri
                                 TextField(
+                                  controller: _emailController, // Tambahkan ini
                                   style: GoogleFonts.dmSans(),
                                   decoration: InputDecoration(
                                     hintText: 'Email',
@@ -130,83 +144,29 @@ class _RegisterPageState extends State<RegisterPage> {
                                   ),
                                 ),
                                 SizedBox(height: 12),
-                                Container(
-                                  decoration: BoxDecoration(
-                                    color: Color.fromARGB(13, 0, 0, 0),
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                  child: Row(
-                                    children: [
-                                      // Kode Telepon
-                                      SizedBox(
-                                        width:
-                                            MediaQuery.of(context).size.width *
-                                            0.25,
-                                        child: DropdownButtonHideUnderline(
-                                          child: DropdownButtonFormField<
-                                            String
-                                          >(
-                                            value: '+62',
-                                            style: GoogleFonts.dmSans(),
-                                            decoration: InputDecoration(
-                                              contentPadding:
-                                                  EdgeInsets.symmetric(
-                                                    horizontal: 16,
-                                                    vertical: 18,
-                                                  ),
-                                              border: InputBorder.none,
-                                            ),
-                                            items:
-                                                ['+62', '+1', '+44', '+91']
-                                                    .map(
-                                                      (
-                                                        code,
-                                                      ) => DropdownMenuItem(
-                                                        value: code,
-                                                        child: Text(
-                                                          code,
-                                                          style:
-                                                              GoogleFonts.dmSans(),
-                                                        ),
-                                                      ),
-                                                    )
-                                                    .toList(),
-                                            onChanged: (value) {
-                                              // TODO
-                                            },
-                                          ),
-                                        ),
-                                      ),
-
-                                      // Garis pemisah
-                                      Container(
-                                        height: 36,
-                                        width: 1,
-                                        color: Colors.grey.shade400,
-                                      ),
-
-                                      // Nomor Telepon
-                                      Expanded(
-                                        child: TextField(
-                                          style: GoogleFonts.dmSans(),
-                                          keyboardType: TextInputType.phone,
-                                          decoration: InputDecoration(
-                                            hintText: 'Nomor Telepon',
-                                            hintStyle: GoogleFonts.dmSans(),
-                                            contentPadding:
-                                                EdgeInsets.symmetric(
-                                                  horizontal: 16,
-                                                  vertical: 18,
-                                                ),
-                                            border: InputBorder.none,
-                                          ),
-                                        ),
-                                      ),
-                                    ],
+                                TextField(
+                                  controller: _phoneController,
+                                  style: GoogleFonts.dmSans(),
+                                  keyboardType: TextInputType.phone,
+                                  decoration: InputDecoration(
+                                    hintText: 'Nomor Telepon',
+                                    hintStyle: GoogleFonts.dmSans(),
+                                    contentPadding: EdgeInsets.symmetric(
+                                      horizontal: 16,
+                                      vertical: 18,
+                                    ),
+                                    border: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(8),
+                                      borderSide: BorderSide.none,
+                                    ),
+                                    filled: true,
+                                    fillColor: Color.fromARGB(13, 0, 0, 0),
                                   ),
                                 ),
                                 SizedBox(height: 12),
                                 TextField(
+                                  controller:
+                                      _fullNameController, // Tambahkan ini
                                   style: GoogleFonts.dmSans(),
                                   decoration: InputDecoration(
                                     hintText: 'Nama Lengkap',
@@ -225,6 +185,8 @@ class _RegisterPageState extends State<RegisterPage> {
                                 ),
                                 SizedBox(height: 12),
                                 TextField(
+                                  controller:
+                                      _usernameController, // Tambahkan ini
                                   style: GoogleFonts.dmSans(),
                                   decoration: InputDecoration(
                                     hintText: 'Username',
@@ -243,6 +205,8 @@ class _RegisterPageState extends State<RegisterPage> {
                                 ),
                                 SizedBox(height: 12),
                                 TextField(
+                                  controller:
+                                      _passwordController, // Tambahkan ini
                                   style: GoogleFonts.dmSans(),
                                   obscureText:
                                       !_isPasswordVisible, // Menyembunyikan atau menampilkan password
@@ -276,6 +240,8 @@ class _RegisterPageState extends State<RegisterPage> {
                                 ),
                                 SizedBox(height: 12),
                                 TextField(
+                                  controller:
+                                      _confirmPasswordController, // Tambahkan ini
                                   style: GoogleFonts.dmSans(),
                                   obscureText:
                                       !_isPasswordVisible, // Menyembunyikan atau menampilkan password
@@ -330,12 +296,79 @@ class _RegisterPageState extends State<RegisterPage> {
                               ),
                             ),
                             SizedBox(height: 12),
+                            // ...existing code sebelum tombol daftar...
+                            if (_statusMessage.isNotEmpty)
+                              Padding(
+                                padding: const EdgeInsets.only(bottom: 8.0),
+                                child: Text(
+                                  _statusMessage,
+                                  style: TextStyle(
+                                    color:
+                                        _statusMessage.contains('berhasil')
+                                            ? Colors.green
+                                            : Colors.red,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                              ),
+                            // ...existing code tombol daftar...
                             SizedBox(
                               width: double.infinity,
                               height: 52,
                               child: ElevatedButton(
-                                onPressed: () {
-                                  // Aksi daftar
+                                onPressed: () async {
+                                  setState(() {
+                                    _statusMessage = '';
+                                  });
+
+                                  // Validasi sederhana
+                                  if (_emailController.text.isEmpty ||
+                                      _fullNameController.text.isEmpty ||
+                                      _usernameController.text.isEmpty ||
+                                      _passwordController.text.isEmpty ||
+                                      _phoneController.text.isEmpty) {
+                                    setState(() {
+                                      _statusMessage =
+                                          'Semua field wajib diisi!';
+                                    });
+                                    return;
+                                  }
+                                  
+                                  if (_passwordController.text !=
+                                      _confirmPasswordController.text) {
+                                    setState(() {
+                                      _statusMessage =
+                                          'Kata sandi tidak cocok!';
+                                    });
+                                    return;
+                                  }
+
+                                  try {
+                                    final userService = UserService();
+                                    final res = await userService.signUp(
+                                      email: _emailController.text.trim(),
+                                      password: _passwordController.text,
+                                      username: _usernameController.text.trim(),
+                                      fullName: _fullNameController.text.trim(),
+                                      phone: _phoneController.text.trim(),
+                                    );
+                                    setState(() {
+                                      _statusMessage =
+                                          'Registrasi berhasil! Silakan login.';
+                                    });
+                                    // Redirect ke SetupAllergiesPage
+                                    Navigator.pushReplacement(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder:
+                                            (_) => const SetupAllergiesPage(),
+                                      ),
+                                    );
+                                  } catch (e) {
+                                    setState(() {
+                                      _statusMessage = 'Registrasi gagal: $e';
+                                    });
+                                  }
                                 },
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: Color(0xFF8E1616),

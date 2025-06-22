@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import '../homepage/homepage.dart';
+import '../services/user_service.dart';
 import 'register.dart';
 import 'forgotPass.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -12,6 +14,10 @@ class LoginPage extends StatefulWidget {
 
 class _LoginPageState extends State<LoginPage> {
   bool _isPasswordVisible = false;
+
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
+  String _statusMessage = '';
 
   @override
   Widget build(BuildContext context) {
@@ -103,6 +109,7 @@ class _LoginPageState extends State<LoginPage> {
                             child: Column(
                               children: [
                                 TextField(
+                                  controller: _emailController,
                                   style: GoogleFonts.dmSans(),
                                   decoration: InputDecoration(
                                     hintText: 'Email',
@@ -121,6 +128,7 @@ class _LoginPageState extends State<LoginPage> {
                                 ),
                                 SizedBox(height: 12),
                                 TextField(
+                                  controller: _passwordController,
                                   style: GoogleFonts.dmSans(),
                                   obscureText: !_isPasswordVisible,
                                   decoration: InputDecoration(
@@ -242,12 +250,67 @@ class _LoginPageState extends State<LoginPage> {
                               ],
                             ),
                             SizedBox(height: 6),
+                            if (_statusMessage.isNotEmpty)
+                              Padding(
+                                padding: const EdgeInsets.only(bottom: 8.0),
+                                child: Text(
+                                  _statusMessage,
+                                  style: TextStyle(
+                                    color:
+                                        _statusMessage.contains('berhasil')
+                                            ? Colors.green
+                                            : Colors.red,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                              ),
                             SizedBox(
                               width: double.infinity,
                               height: 52,
                               child: ElevatedButton(
-                                onPressed: () {
-                                  // Aksi masuk
+                                onPressed: () async {
+                                  setState(() {
+                                    _statusMessage = '';
+                                  });
+
+                                  if (_emailController.text.isEmpty ||
+                                      _passwordController.text.isEmpty) {
+                                    setState(() {
+                                      _statusMessage =
+                                          'Email dan password wajib diisi!';
+                                    });
+                                    return;
+                                  }
+
+                                  try {
+                                    final userService = UserService();
+                                    final res = await userService.signIn(
+                                      email: _emailController.text.trim(),
+                                      password: _passwordController.text,
+                                    );
+
+                                    if (res.user != null) {
+                                      setState(() {
+                                        _statusMessage = 'Login berhasil!';
+                                      });
+                                      // Redirect ke HomePage
+                                      Navigator.pushReplacement(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (_) => const HomePage(),
+                                        ),
+                                      );
+                                    } else {
+                                      setState(() {
+                                        _statusMessage =
+                                            'Login gagal: User tidak ditemukan.';
+                                      });
+                                    }
+                                  } catch (e) {
+                                    setState(() {
+                                      _statusMessage = 'Login gagal: $e';
+                                    });
+                                  }
                                 },
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: Color(0xFF8E1616),
