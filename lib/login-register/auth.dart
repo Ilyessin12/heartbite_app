@@ -22,7 +22,8 @@ class AuthPage extends State<Auth> {
       title: 'Auth Page',
       debugShowCheckedModeBanner: false,
       home: Scaffold(
-        body: SingleChildScrollView(
+        body: SizedBox(
+          height: MediaQuery.of(context).size.height,
           child: Column(
             children: [
               Stack(
@@ -59,7 +60,7 @@ class AuthPage extends State<Auth> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Buat Akun',
+                          'Mulai',
                           style: GoogleFonts.dmSans(
                             color: Colors.white,
                             fontSize: 28,
@@ -79,152 +80,99 @@ class AuthPage extends State<Auth> {
                   ),
                 ],
               ),
-              // Add space to center the buttons between image bottom and screen bottom
-              SizedBox(height: screenHeight * 0.05),
-              Padding(
-                padding: EdgeInsets.symmetric(horizontal: 28),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    SizedBox(
-                      width: double.infinity,
-                      height: 56,
-                      child: ElevatedButton(
-                        onPressed: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => const RegisterPage(),
-                            ),
-                          );
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Color(0xFF8E1616),
-                          foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(Icons.mail_outlined),
-                            SizedBox(width: 8),
-                            Text(
-                              'Daftar dengan email',
-                              style: GoogleFonts.dmSans(),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                    SizedBox(height: 6),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              // Spacer agar tombol rata bawah
+              Expanded(
+                child: Align(
+                  alignment: Alignment.bottomCenter,
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 28),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
                       children: [
-                        Expanded(
-                          child: SizedBox(
-                            width: double.infinity,
-                            height: 56,
-                            child: ElevatedButton(
-                              onPressed: () {},
-                              style: ElevatedButton.styleFrom(
-                                // 8E1616 with 20% opacity
-                                backgroundColor: Color(
-                                  0xFF8E1616,
-                                ).withOpacity(0.2),
-                                foregroundColor: Colors.white,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(8),
+                        SizedBox(
+                          width: double.infinity,
+                          height: 56,
+                          child: ElevatedButton(
+                            onPressed: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => const RegisterPage(),
                                 ),
+                              );
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Color(0xFF8E1616),
+                              foregroundColor: Colors.white,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
                               ),
-                              child: Ink.image(
-                                image: AssetImage(
-                                  'assets/images/login/google.png',
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.mail_outlined),
+                                SizedBox(width: 8),
+                                Text(
+                                  'Daftar dengan email',
+                                  style: GoogleFonts.dmSans(),
                                 ),
-                                fit: BoxFit.cover,
-                                height: 25,
-                                width: 25,
-                              ),
+                              ],
                             ),
                           ),
                         ),
-                        SizedBox(width: 6),
-                        Expanded(
-                          child: SizedBox(
-                            width: double.infinity,
-                            height: 56,
-                            child: ElevatedButton(
-                              onPressed: () {},
-                              style: ElevatedButton.styleFrom(
-                                // 8E1616 with 20% opacity
-                                backgroundColor: Color(
-                                  0xFF8E1616,
-                                ).withOpacity(0.2),
-                                foregroundColor: Colors.white,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                              ),
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: const [Icon(Icons.apple, size: 32)],
+                        SizedBox(height: 6),
+                        SizedBox(
+                          width: double.infinity,
+                          height: 56,
+                          child: ElevatedButton(
+                            onPressed: () async {
+                              final prefs = await SharedPreferences.getInstance();
+                              await prefs.setBool('isGuest', true);
+                              Navigator.pushAndRemoveUntil(
+                                context,
+                                MaterialPageRoute(builder: (_) => HomePage()),
+                                (route) => false,
+                              );
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Color(0xFF8E1616),
+                              foregroundColor: Colors.white,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
                               ),
                             ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.person),
+                                SizedBox(width: 8),
+                                Text(
+                                  'Lanjutkan sebagai Guest',
+                                  style: GoogleFonts.dmSans(),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        SizedBox(height: 16),
+                        GestureDetector(
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(builder: (context) => LoginPage()),
+                            );
+                          },
+                          child: Text(
+                            'Punya akun? Login',
+                            style: GoogleFonts.dmSans(fontSize: 12),
                           ),
                         ),
                       ],
                     ),
-                    SizedBox(height: 6),
-                    SizedBox(
-                      width: double.infinity,
-                      height: 56,
-                      child: ElevatedButton(
-                        onPressed: () async {
-                          final prefs = await SharedPreferences.getInstance();
-                          await prefs.setBool('isGuest', true);
-                          Navigator.pushAndRemoveUntil(
-                            context,
-                            MaterialPageRoute(builder: (_) => HomePage()),
-                            (route) => false, // Remove all previous routes
-                          );
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Color(0xFF8E1616),
-                          foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(Icons.person),
-                            SizedBox(width: 8),
-                            Text(
-                              'Lanjutkan sebagai Guest',
-                              style: GoogleFonts.dmSans(),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                    SizedBox(height: 16),
-                    GestureDetector(
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(builder: (context) => LoginPage()),
-                        );
-                      },
-                      child: Text(
-                        'Punya akun? Login',
-                        style: GoogleFonts.dmSans(fontSize: 12),
-                      ),
-                    ),
-                  ],
+                  ),
                 ),
               ),
             ],

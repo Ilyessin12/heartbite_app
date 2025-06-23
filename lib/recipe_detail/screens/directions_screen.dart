@@ -157,20 +157,9 @@ class _DirectionsScreenState extends State<DirectionsScreen> {
           (context) => AlertDialog(
             title: const Text("Selamat!"),
             content: const Text(
-              "Anda telah berhasil menyelesaikan resep ini. Apakah Anda ingin berbagi pengalaman Anda?",
+              "Anda telah berhasil menyelesaikan resep ini. Selamat menikmati hidangan Anda!",
             ),
             actions: [
-              TextButton(
-                onPressed: () {
-                  Navigator.pop(context); // Close dialog
-                  Navigator.pushNamedAndRemoveUntil(
-                    context,
-                    '/home',
-                    ModalRoute.withName('/'),
-                  ); // Go back to home screen
-                },
-                child: const Text("Nanti Saja"),
-              ),
               ElevatedButton(
                 onPressed: () {
                   Navigator.pop(context); // Close dialog
@@ -181,7 +170,7 @@ class _DirectionsScreenState extends State<DirectionsScreen> {
                   ); // Go back to home screen
                   // Show share options or comment section
                 },
-                child: const Text("Bagikan"),
+                child: const Text("Selesai"),
               ),
             ],
           ),
