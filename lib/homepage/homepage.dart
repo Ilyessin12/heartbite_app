@@ -1946,6 +1946,18 @@ class _HomePageState extends State<HomePage> {
       }
     }
   }
+
+  // Tambahkan fungsi logout guest
+  Future<void> _logoutAndSetGuest(BuildContext context) async {
+    await AuthService.signOut();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('isGuest', true);
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(builder: (_) => HomePage()),
+      (route) => false,
+    );
+  }
 }
 
 class RecipeCard extends StatelessWidget {

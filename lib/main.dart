@@ -8,6 +8,7 @@ import 'homepage/homepage.dart';
 import 'sidebar/screens/profile_screen.dart';
 import 'recipe_detail/screens/recipe_detail_screen.dart';
 import 'services/auth_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -93,31 +94,34 @@ class _HomeScreenWrapperState extends State<HomeScreenWrapper> {
   @override
   void initState() {
     super.initState();
-    // Check login status after widget is built with slight delay
-    // to avoid flash of welcome screen
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _checkLoginStatus();
     });
   }
   Future<void> _checkLoginStatus() async {
-    // Short delay to allow smooth transitions
     await Future.delayed(const Duration(milliseconds: 300));
-    
+    final prefs = await SharedPreferences.getInstance();
+    final isGuest = prefs.getBool('isGuest') ?? false;
+
     if (mounted && AuthService.isUserLoggedIn()) {
-      // If user is already logged in, redirect to homepage
       Navigator.of(context).pushReplacementNamed('/home');
+      return;
     }
-    
+    if (mounted && isGuest) {
+      Navigator.of(context).pushReplacementNamed('/home');
+      return;
+    }
     if (mounted) {
       setState(() {
         _isLoading = false;
       });
     }
   }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: _isLoading 
+      body: _isLoading
           ? const Center(
               child: CircularProgressIndicator(
                 color: Color(0xFF8E1616),
