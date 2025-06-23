@@ -5,6 +5,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../bottomnavbar/bottom-navbar.dart';
 import '../services/notification_service.dart';
 import '../services/supabase_client.dart';
+import 'model/notification_model.dart';
 
 class NotificationPage extends StatefulWidget {
   const NotificationPage({Key? key}) : super(key: key);
@@ -31,8 +32,7 @@ class _NotificationPageState extends State<NotificationPage> {
   void dispose() {
     _notificationService.unsubscribeFromUserNotifications();
     super.dispose();
-  }
-  Future<void> _fetchNotifications() async {
+  }  Future<void> _fetchNotifications() async {
     setState(() {
       _isLoading = true;
     });
@@ -40,10 +40,14 @@ class _NotificationPageState extends State<NotificationPage> {
     try {
       // Ambil ID pengguna yang sedang login
       final User? currentUser = SupabaseClientWrapper().auth.currentUser;
+      print('Current user: ${currentUser?.id}');
       
       if (currentUser != null) {
+        print('Fetching notifications for user: ${currentUser.id}');
+        
         // Ambil notifikasi dari Supabase
         final notifications = await _notificationService.fetchUserNotifications(currentUser.id);
+        print('Fetched ${notifications.length} notifications');
         
         // Kelompokkan notifikasi berdasarkan status dibaca
         final groupedNotifications = _notificationService.groupNotificationsByReadStatus(notifications);
@@ -51,29 +55,38 @@ class _NotificationPageState extends State<NotificationPage> {
         setState(() {
           _notifikasiBelumDibaca.clear();
           _notifikasiSudahDibaca.clear();
-          
-          _notifikasiBelumDibaca.addAll(groupedNotifications['unread']!);
-          _notifikasiSudahDibaca.addAll(groupedNotifications['read']!);
-          
-          _hasNotifications = _notifikasiBelumDibaca.isNotEmpty || _notifikasiSudahDibaca.isNotEmpty;
+            // Use null check operator with empty list fallback
+          _notifikasiBelumDibaca.addAll(groupedNotifications['unread'] ?? []);
+          _notifikasiSudahDibaca.addAll(groupedNotifications['read'] ?? []);
+            // For debugging, always show notifications UI
+          _hasNotifications = true; 
           _isLoading = false;
+          
+          // If no notifications were found, add test data
+          if (_notifikasiBelumDibaca.isEmpty && _notifikasiSudahDibaca.isEmpty) {
+            _addTestNotificationData();
+          }
+          
+          print('UI updated with ${_notifikasiBelumDibaca.length} unread and ${_notifikasiSudahDibaca.length} read notifications');
+          print('_hasNotifications set to: $_hasNotifications');
         });
         
         // Subscribe untuk pembaruan realtime
         _notificationService.subscribeToUserNotifications(currentUser.id, (updatedNotifications) {
-          final groupedUpdated = _notificationService.groupNotificationsByReadStatus(
-              updatedNotifications as List<Map<String, dynamic>>);
+          final groupedUpdated = _notificationService.groupNotificationsByReadStatus(updatedNotifications);
               
           setState(() {
             _notifikasiBelumDibaca.clear();
             _notifikasiSudahDibaca.clear();
+              _notifikasiBelumDibaca.addAll(groupedUpdated['unread'] ?? []);
+            _notifikasiSudahDibaca.addAll(groupedUpdated['read'] ?? []);
             
-            _notifikasiBelumDibaca.addAll(groupedUpdated['unread']!);
-            _notifikasiSudahDibaca.addAll(groupedUpdated['read']!);
-            
-            _hasNotifications = _notifikasiBelumDibaca.isNotEmpty || _notifikasiSudahDibaca.isNotEmpty;
+            // For debugging, always show notifications UI
+            _hasNotifications = true;
           });
         });
+      } else {
+        print('No current user found');
       }
     } catch (e) {
       print('Error fetching notifications: $e');
@@ -83,8 +96,7 @@ class _NotificationPageState extends State<NotificationPage> {
       });
     }
   }
-  
-  // Menangani ketika notifikasi diklik
+    // Menangani ketika notifikasi diklik
   void _handleNotificationTap(Map<String, dynamic> notification) async {
     // Tandai notifikasi sebagai sudah dibaca jika belum
     if (notification['dibaca'] == false) {
@@ -99,7 +111,16 @@ class _NotificationPageState extends State<NotificationPage> {
     }
     
     // Navigate berdasarkan tipe notifikasi
-    // TODO: Implementasi navigasi ke halaman yang sesuai
+    final bool canNavigate = notification['canNavigate'] ?? false;
+    if (canNavigate) {
+      final String? route = notification['navigationRoute'];
+      final Map<String, dynamic>? args = notification['navigationArgs'];
+      
+      if (route != null) {
+        // Navigate to the appropriate page
+        Navigator.of(context).pushNamed(route, arguments: args);
+      }
+    }
   }
   
   // Function to debug time format of notifications
@@ -259,17 +280,14 @@ class _NotificationPageState extends State<NotificationPage> {
                 ],
               ),
             ),
-            
-            // Konten: Tampilkan loading indicator, notifikasi atau tampilan kosong
+              // Konten: Tampilkan loading indicator, notifikasi atau tampilan kosong
             Expanded(
-              child: _isLoading 
-              ? _buildLoadingView()
-              : _hasNotifications && 
-                    (_notifikasiBelumDibaca.isNotEmpty || _notifikasiSudahDibaca.isNotEmpty) ? 
-                // Tampilan dengan notifikasi
-                _buildNotificationListView(_notifikasiBelumDibaca, _notifikasiSudahDibaca) : 
-                // Tampilan kosong
-                _buildEmptyNotificationView(),
+              child: _isLoading ? _buildLoadingView() :
+                (_notifikasiBelumDibaca.isNotEmpty || _notifikasiSudahDibaca.isNotEmpty) ? 
+                  // Tampilan dengan notifikasi
+                  _buildNotificationListView(_notifikasiBelumDibaca, _notifikasiSudahDibaca) : 
+                  // Tampilan kosong
+                  _buildEmptyNotificationView(),
             ),
           ],
         ),
@@ -421,12 +439,17 @@ class _NotificationPageState extends State<NotificationPage> {
       return const Color(0xFF9E9E9E); // Abu-abu untuk lainnya
     }
   }  Widget _buildNotificationItem(Map<String, dynamic> notifikasi, bool dibaca) {
+    // Debug info
+    print('Building notification item: ${notifikasi['id']} (${notifikasi['tipe']})');
+    
     // Warna latar belakang untuk notifikasi yang belum dibaca
     final Color bgColor = dibaca ? Colors.white : const Color(0xFFFFF2F2);
-    
-    // Mendapatkan icon berdasarkan tipe notifikasi
+      // Mendapatkan icon berdasarkan tipe notifikasi
     IconData? iconTipe;
-    switch (notifikasi['tipe']) {
+    final String notificationType = notifikasi['tipe'] ?? 'other';
+    print('Notification type: $notificationType');
+    
+    switch (notificationType) {
       case 'like_resep':
         iconTipe = Icons.favorite;
         break;
@@ -666,5 +689,76 @@ class _NotificationPageState extends State<NotificationPage> {
         ),
       ),
     );
+  }
+    // Debug function to add test notification data
+  void _addTestNotificationData() {
+    print('Adding test notification data');
+    
+    // Test like_recipe notification (basic)
+    _notifikasiSudahDibaca.add({
+      'id': 9999,
+      'nama': 'Test User',
+      'waktu': '23/06/2025 14:30',
+      'gambarProfil': 'assets/images/default_profile.png',
+      'dibaca': true,
+      'tipe': 'like_resep',
+      'aksi': 'menyukai resep Anda',
+      'adaGambar': true,
+      'targetNama': 'Test Recipe',
+      'gambarKonten': 'assets/images/default_food.png',
+      'canNavigate': false,
+      'recipeId': 12345,
+    });
+    
+    // Test like_recipe notification with network image
+    _notifikasiSudahDibaca.add({
+      'id': 9997,
+      'nama': 'Network User',
+      'waktu': '22/06/2025 12:30',
+      'gambarProfil': 'assets/images/default_profile.png',
+      'dibaca': true,
+      'tipe': 'like_resep',
+      'aksi': 'menyukai resep Anda',
+      'adaGambar': true,
+      'targetNama': 'Recipe With Network Image',
+      // Use a placeholder image URL that will likely fail to load, triggering the error handler
+      'gambarKonten': 'https://example.com/nonexistent-image.jpg',
+      'canNavigate': false,
+      'recipeId': 67890,
+    });
+    
+    // Test follow notification
+    _notifikasiBelumDibaca.add({
+      'id': 9998,
+      'nama': 'Follow User',
+      'waktu': '22/06/2025 10:15',
+      'gambarProfil': 'assets/images/default_profile.png',
+      'dibaca': false,
+      'tipe': 'follow',
+      'aksi': 'telah mengikuti Anda',
+      'adaGambar': false,
+      'adaTombolIkuti': true,
+      'isFollowingYou': false,
+      'canNavigate': false,
+    });
+    
+    // Test comment notification
+    _notifikasiBelumDibaca.add({
+      'id': 9996,
+      'nama': 'Comment User',
+      'waktu': '21/06/2025 09:45',
+      'gambarProfil': 'assets/images/default_profile.png',
+      'dibaca': false,
+      'tipe': 'komentar_resep',
+      'aksi': 'mengomentari resep Anda:',
+      'adaGambar': true,
+      'targetNama': 'Target Recipe',
+      'gambarKonten': 'assets/images/default_food.png',
+      'subteks': 'Ini komentar pengujian untuk memastikan notifikasi komentar berfungsi dengan baik!',
+      'canNavigate': false,
+      'recipeId': 54321,
+    });
+    
+    print('Added ${_notifikasiSudahDibaca.length} read and ${_notifikasiBelumDibaca.length} unread test notifications');
   }
 }

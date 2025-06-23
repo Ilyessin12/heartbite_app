@@ -1,15 +1,13 @@
-import 'dart:convert';
 import 'package:heartbite_tubesprovis/services/supabase_client.dart';
+import 'package:heartbite_tubesprovis/notification_pages/model/notification_model.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:timeago/timeago.dart' as timeago;
 
 class NotificationService {
   final SupabaseClient _client = SupabaseClientWrapper().client;
   RealtimeChannel? _notificationChannel;
   
-  NotificationService();
-  // Subscribe to realtime notifications for a specific user
-  void subscribeToUserNotifications(String userId, Function(List<dynamic>) onNotification) {
+  NotificationService();  // Subscribe to realtime notifications for a specific user
+  void subscribeToUserNotifications(String userId, Function(List<NotificationModel>) onNotification) {
     // First unsubscribe any existing subscription
     unsubscribeFromUserNotifications();
     
@@ -43,9 +41,9 @@ class NotificationService {
       _notificationChannel = null;
     }
   }  // Fetch all notifications for a user
-  Future<List<Map<String, dynamic>>> fetchUserNotifications(String userId) async {
+  Future<List<NotificationModel>> fetchUserNotifications(String userId) async {
     try {
-      // Query that doesn't try to join on related_id since it might not be a valid foreign key reference
+      // First get basic notification data with sender info
       final response = await _client
         .from('notifications')
         .select('''
@@ -56,20 +54,66 @@ class NotificationService {
         .order('created_at', ascending: false);
       
       final notifications = response as List<dynamic>;
-      
-      // Format the data for our UI
-      final formattedNotifications = notifications.map<Map<String, dynamic>>((item) {
-        // Parse the date from database
-        final DateTime createdAt = DateTime.parse(item['created_at']).toLocal();
+      print('Found ${notifications.length} notifications for user $userId');
+        // Process notifications to add related data based on type
+      final processedNotifications = await Future.wait(notifications.map((item) async {
+        // If this is a like_recipe notification, fetch the recipe data
+        if (item['type'] == 'like_recipe') {
+          try {
+            final recipeId = int.tryParse(item['related_id']);
+            if (recipeId != null) {
+              print('Fetching recipe data for notification ${item['id']}, recipe $recipeId');
+              
+              final recipeData = await _client
+                .from('recipes')
+                .select('id, title, image_url, description')
+                .eq('id', recipeId)
+                .maybeSingle();
+              
+              if (recipeData != null) {
+                // Store recipe data in the 'recipe' field expected by NotificationModel.fromSupabase
+                item['recipe'] = recipeData;
+                print('Found recipe: ${recipeData['title']}');
+              } else {
+                print('Recipe $recipeId not found');
+              }
+            }
+          } catch (e) {
+            print('Error fetching recipe data: $e');
+          }
+        }
         
-        // Format the date to show actual timestamp instead of relative time
-        final String formattedTime = '${createdAt.day}/${createdAt.month}/${createdAt.year} ${createdAt.hour.toString().padLeft(2, '0')}:${createdAt.minute.toString().padLeft(2, '0')}';
+        // Similar handling could be added for other types like comment
+        // that might need extra data
         
-        // Build a notification object that matches our UI format
-        return _formatNotificationForUI(item, formattedTime);
+        return item;
+      }));
+        // Convert to notification models
+      final notificationModels = processedNotifications.map<NotificationModel>((item) {
+        // Debug the recipe data
+        if (item['type'] == 'like_recipe') {
+          print('Converting notification ${item['id']} with recipe data:');
+          if (item.containsKey('recipe')) {
+            print('  Recipe found: ${item['recipe']['title'] ?? 'No title'}, ${item['recipe']['image_url'] ?? 'No image'}');
+          } else {
+            print('  No recipe data found for this notification');
+          }
+        }
+        
+        return NotificationModel.fromSupabase(item);
       }).toList();
       
-      return formattedNotifications;
+      // Debug the final notification models
+      for (final model in notificationModels) {
+        if (model.type == 'like_recipe') {
+          print('Final notification model ${model.id}:');
+          print('  recipeId: ${model.recipeId}');
+          print('  recipeTitle: ${model.recipeTitle}');
+          print('  imageUrl: ${model.imageUrl}');
+        }
+      }
+      
+      return notificationModels;
     } catch (e) {
       print('Error fetching notifications: $e');
       return [];
@@ -98,110 +142,32 @@ class NotificationService {
     } catch (e) {
       print('Error marking all notifications as read: $e');
     }
-  }// Format notification from Supabase to match our UI
-  Map<String, dynamic> _formatNotificationForUI(Map<String, dynamic> item, String formattedTime) {
-    // Extract sender and user profile info
-    final sender = item['sender'] ?? {};
-    
-    final String senderName = sender['username'] ?? 'Unknown User';
-    final String profileImageUrl = sender['avatar_url'] ?? '';
-    // Default profile image if no URL is available
-    final String profileImage = profileImageUrl.isEmpty 
-        ? 'assets/images/default_profile.png' 
-        : profileImageUrl;
-    
-    // Initialize notification object with common fields
-    final Map<String, dynamic> notification = {
-      'id': item['id'],
-      'nama': senderName,
-      'waktu': formattedTime,
-      'gambarProfil': profileImage,
-      'dibaca': item['is_read'] ?? false,
-    };
-    
-    // Try to parse related_data if it's a string, or use direct fields if available
-    Map<String, dynamic> relatedData = {};
-    
-    if (item['related_data'] != null) {
-      if (item['related_data'] is Map) {
-        relatedData = item['related_data'] as Map<String, dynamic>;
-      } else if (item['related_data'] is String) {
-        try {
-          // Try to parse JSON string
-          relatedData = Map<String, dynamic>.from(jsonDecode(item['related_data']));
-        } catch (e) {
-          // If parsing fails, we'll use the direct fields
-        }
-      }
-    }
-    
-    // Get notification type
-    final String type = item['type'] ?? '';
-    
-    // Get content and recipe_title from direct fields if available
-    final String content = item['content'] ?? relatedData['content'] ?? '';
-    final String recipeTitle = item['recipe_title'] ?? relatedData['recipe_title'] ?? 'Resep';
-    
-    // Determine the notification type and format accordingly
-    switch (type) {
-      case 'like_recipe':
-        notification['tipe'] = 'like_resep';
-        notification['aksi'] = 'menyukai resep Anda';
-        notification['adaGambar'] = true;
-        notification['targetNama'] = relatedData['title'] ?? recipeTitle;
-        notification['gambarKonten'] = relatedData['image_url'] ?? 'assets/images/default_food.png';
-        break;
-        
-      case 'like_comment':
-        notification['tipe'] = 'like_komentar';
-        notification['aksi'] = 'menyukai komentar Anda';
-        notification['adaGambar'] = false;
-        notification['targetNama'] = content.isEmpty ? 'Komentar Anda' : content;
-        notification['subteks'] = 'pada resep $recipeTitle';
-        break;
-
-      case 'follow':
-        notification['tipe'] = 'follow';
-        // Check if this is a mutual follow based on if the sender is following the receiver
-        final bool isMutual = relatedData['is_mutual'] ?? false;
-        notification['aksi'] = isMutual 
-            ? 'telah mengikuti Anda kembali' 
-            : 'telah mengikuti Anda';
-        notification['adaGambar'] = false;
-        notification['adaTombolIkuti'] = !isMutual;
-        notification['isFollowingYou'] = isMutual;        break;
-
-      case 'comment':
-        notification['tipe'] = 'komentar_resep';
-        notification['aksi'] = 'mengomentari resep Anda:';
-        notification['adaGambar'] = true;
-        notification['subteks'] = content;
-        notification['gambarKonten'] = relatedData['image_url'] ?? 'assets/images/default_food.png';
-        notification['targetNama'] = relatedData['title'] ?? recipeTitle;
-        break;
-
-      default:
-        notification['tipe'] = 'other';
-        notification['aksi'] = 'berinteraksi dengan Anda';
-        notification['adaGambar'] = false;
-    }
-    
-    return notification;
   }
-  
   // Helper method to group notifications by read/unread status
   Map<String, List<Map<String, dynamic>>> groupNotificationsByReadStatus(
-      List<Map<String, dynamic>> notifications) {
+      List<NotificationModel> notifications) {
     final unreadNotifications = <Map<String, dynamic>>[];
     final readNotifications = <Map<String, dynamic>>[];
     
+    print('Grouping ${notifications.length} notifications');
+    
     for (final notification in notifications) {
-      if (notification['dibaca'] == true) {
-        readNotifications.add(notification);
-      } else {
-        unreadNotifications.add(notification);
+      try {
+        final notificationMap = notification.toUiMap();
+        
+        if (notification.isRead) {
+          readNotifications.add(notificationMap);
+          print('Added read notification: ${notification.id}');
+        } else {
+          unreadNotifications.add(notificationMap);
+          print('Added unread notification: ${notification.id}');
+        }
+      } catch (e) {
+        print('Error converting notification ${notification.id} to UI map: $e');
       }
     }
+    
+    print('Grouped ${unreadNotifications.length} unread and ${readNotifications.length} read notifications');
     
     return {
       'unread': unreadNotifications,
