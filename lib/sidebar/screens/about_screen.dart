@@ -95,7 +95,7 @@ class AboutScreen extends StatelessWidget {
                     ? () async {
                         await AuthService.signOut();
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('You have been signed out')),
+                          const SnackBar(content: Text('Berhasil Keluar')),
                         );
                         Navigator.pop(context); // Close the current screen/dialog
                       }
@@ -108,7 +108,7 @@ class AboutScreen extends StatelessWidget {
                     ),
                     padding: const EdgeInsets.symmetric(vertical: 12),
                   ),
-                  child: const Text('Logout Akun'),
+                  child: const Text('Keluar Akun'),
                 ),
               ),
             ),
@@ -129,7 +129,7 @@ class AboutScreen extends StatelessWidget {
           const Expanded(
             child: Center(
               child: Text(
-                'About',
+                'Tentang',
                 style: TextStyle(
                   fontWeight: FontWeight.bold,
                   fontSize: 18,
