@@ -3,20 +3,24 @@ import 'package:flutter/services.dart';
 import '../theme/app_theme.dart';
 import '../widgets/custom_back_button.dart';
 import '../widgets/profile_stats.dart';
-// import '../widgets/recipe_card.dart';
+import '../widgets/preferences_section.dart';
 import '../models/user_model.dart';
 import '../models/user_stats_model.dart';
 import '../models/recipe_model.dart';
+import '../models/allergen_model.dart';
+import '../models/diet_program_model.dart';
 import '../services/profile_service.dart';
+import '../services/user_preferences_service.dart';
 import '../services/supabase_service.dart';
 import '../../recipe/create_recipe_screen.dart';
-// import '../../bookmark/models/recipe_item.dart';
 import '../screens/edit_profile_screen.dart';
 import '../screens/following_screen.dart';
 import '../screens/followers_screen.dart';
 import '../../bookmark/models/recipe_item.dart';
 import '../../bookmark/widgets/recipe_card.dart';
 import '../../recipe_detail/screens/recipe_detail_screen.dart';
+import '../screens/edit_preferences_screen.dart';
+import '../screens/quick_preferences_screen.dart';
 
 class ProfileScreenWithBackend extends StatefulWidget {
   final String? userId; // null = current user, otherwise specific user
@@ -38,6 +42,8 @@ class _ProfileScreenWithBackendState extends State<ProfileScreenWithBackend>
   UserModel? _user;
   UserStatsModel? _userStats;
   List<RecipeModel> _recipes = [];
+  List<AllergenModel> _allergens = [];
+  List<DietProgramModel> _dietPrograms = [];
   bool _isLoading = true;
   bool _isCurrentUser = false;
 
@@ -79,14 +85,18 @@ class _ProfileScreenWithBackendState extends State<ProfileScreenWithBackend>
       final userId = widget.userId ?? SupabaseService.currentUserId;
       if (userId == null) return;
 
-      // Load user profile and stats in parallel
+      // Load all data in parallel
       final results = await Future.wait([
         ProfileService.getUserProfile(userId),
         ProfileService.getUserStats(userId),
+        UserPreferencesService.getUserAllergens(userId),
+        UserPreferencesService.getUserDietPrograms(userId),
       ]);
 
       _user = results[0] as UserModel?;
       _userStats = results[1] as UserStatsModel;
+      _allergens = results[2] as List<AllergenModel>;
+      _dietPrograms = results[3] as List<DietProgramModel>;
 
       // Load initial recipes
       await _loadRecipes();
@@ -133,6 +143,57 @@ class _ProfileScreenWithBackendState extends State<ProfileScreenWithBackend>
     });
   }
 
+  void _navigateToEditPreferences() {
+  // Show options: Quick setup or Full edit
+    showModalBottomSheet(
+      context: context,
+      builder: (BuildContext context) {
+        return SafeArea(
+          child: Wrap(
+            children: [
+              ListTile(
+                leading: const Icon(Icons.flash_on, color: AppColors.primary),
+                title: const Text('Setup Cepat'),
+                subtitle: const Text('Pilih preferensi populer'),
+                onTap: () {
+                  Navigator.pop(context);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const QuickPreferencesScreen(),
+                    ),
+                  ).then((result) {
+                    if (result == true) {
+                      _loadProfileData(); // Refresh data
+                    }
+                  });
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.tune, color: AppColors.primary),
+                title: const Text('Edit Lengkap'),
+                subtitle: const Text('Lihat semua opsi yang tersedia'),
+                onTap: () {
+                  Navigator.pop(context);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const EditPreferencesScreen(),
+                    ),
+                  ).then((result) {
+                    if (result == true) {
+                      _loadProfileData(); // Refresh data
+                    }
+                  });
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
@@ -156,21 +217,28 @@ class _ProfileScreenWithBackendState extends State<ProfileScreenWithBackend>
                     width: double.infinity,
                     decoration: BoxDecoration(
                       image: DecorationImage(
-                        image:
-                            _user?.coverPicture != null &&
-                                    _user!.coverPicture!.isNotEmpty
-                                ? NetworkImage(_user!.coverPicture!)
-                                : const AssetImage(
-                                      'assets/images/bg_welcome.png',
-                                    )
-                                    as ImageProvider,
+                        image: _user?.coverPicture != null &&
+                                _user!.coverPicture!.isNotEmpty
+                            ? NetworkImage(_user!.coverPicture!)
+                            : const AssetImage('assets/images/bg_welcome.png')
+                                as ImageProvider,
                         fit: BoxFit.cover,
                       ),
                     ),
                   ),
                   const SizedBox(height: 60),
                   _buildProfileInfo(),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 16),
+                  
+                  // Preferences Section
+                  PreferencesSection(
+                    allergens: _allergens,
+                    dietPrograms: _dietPrograms,
+                    isCurrentUser: _isCurrentUser,
+                    onEditTap: _isCurrentUser ? _navigateToEditPreferences : null,
+                  ),
+                  
+                  const SizedBox(height: 16),
                   _buildRecipeSection(),
                   _buildTabBar(),
                   const SizedBox(height: 16),
@@ -196,27 +264,26 @@ class _ProfileScreenWithBackendState extends State<ProfileScreenWithBackend>
                   ),
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(16),
-                    child:
-                        _user!.profilePicture != null
-                            ? Image.network(
-                              _user!.profilePicture!,
-                              fit: BoxFit.cover,
-                            )
-                            : Container(
-                              color: AppColors.primary,
-                              child: Center(
-                                child: Text(
-                                  _user!.fullName.isNotEmpty
-                                      ? _user!.fullName[0].toUpperCase()
-                                      : 'U',
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 36,
-                                    fontWeight: FontWeight.bold,
-                                  ),
+                    child: _user!.profilePicture != null
+                        ? Image.network(
+                            _user!.profilePicture!,
+                            fit: BoxFit.cover,
+                          )
+                        : Container(
+                            color: AppColors.primary,
+                            child: Center(
+                              child: Text(
+                                _user!.fullName.isNotEmpty
+                                    ? _user!.fullName[0].toUpperCase()
+                                    : 'U',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 36,
+                                  fontWeight: FontWeight.bold,
                                 ),
                               ),
                             ),
+                          ),
                   ),
                 ),
               ),
@@ -240,7 +307,6 @@ class _ProfileScreenWithBackendState extends State<ProfileScreenWithBackend>
               children: [
                 GestureDetector(
                   onTap: () {
-                    // Navigate to edit profile
                     Navigator.push(
                       context,
                       MaterialPageRoute(
@@ -300,22 +366,18 @@ class _ProfileScreenWithBackendState extends State<ProfileScreenWithBackend>
               recipes: _userStats?.recipesCount ?? 0,
               following: _userStats?.followingCount ?? 0,
               followers: _userStats?.followersCount ?? 0,
-              // FOLLOWING
-              onFollowingTap:
-                  () => Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const FollowingScreen(),
-                    ),
-                  ),
-              // FOLLOWERS
-              onFollowersTap:
-                  () => Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const FollowersScreen(),
-                    ),
-                  ),
+              onFollowingTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const FollowingScreen(),
+                ),
+              ),
+              onFollowersTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const FollowersScreen(),
+                ),
+              ),
             ),
           ),
         ],
@@ -380,29 +442,25 @@ class _ProfileScreenWithBackendState extends State<ProfileScreenWithBackend>
                   vertical: 8,
                 ),
                 decoration: BoxDecoration(
-                  color:
-                      _selectedTabIndex == index
-                          ? Colors.white
-                          : Colors.transparent,
+                  color: _selectedTabIndex == index
+                      ? Colors.white
+                      : Colors.transparent,
                   borderRadius: BorderRadius.circular(20),
                   border: Border.all(
-                    color:
-                        _selectedTabIndex == index
-                            ? Colors.grey.shade300
-                            : Colors.grey.shade400,
+                    color: _selectedTabIndex == index
+                        ? Colors.grey.shade300
+                        : Colors.grey.shade400,
                   ),
                 ),
                 child: Text(
                   _tabs[index],
                   style: TextStyle(
-                    color:
-                        _selectedTabIndex == index
-                            ? Colors.black
-                            : AppColors.tabInactive,
-                    fontWeight:
-                        _selectedTabIndex == index
-                            ? FontWeight.w500
-                            : FontWeight.normal,
+                    color: _selectedTabIndex == index
+                        ? Colors.black
+                        : AppColors.tabInactive,
+                    fontWeight: _selectedTabIndex == index
+                        ? FontWeight.w500
+                        : FontWeight.normal,
                     fontSize: 14,
                   ),
                 ),
@@ -431,7 +489,7 @@ class _ProfileScreenWithBackendState extends State<ProfileScreenWithBackend>
       padding: const EdgeInsets.symmetric(horizontal: 16.0),
       child: GridView.builder(
         physics: const NeverScrollableScrollPhysics(),
-        shrinkWrap: true, // Ini yang membuat height responsive
+        shrinkWrap: true,
         itemCount: _recipes.length,
         gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
           crossAxisCount: 2,
@@ -450,7 +508,6 @@ class _ProfileScreenWithBackendState extends State<ProfileScreenWithBackend>
   Widget _buildRecipeCard(RecipeModel recipe) {
     return GestureDetector(
       onTap: () {
-        // Navigate to recipe detail
         Navigator.push(
           context,
           MaterialPageRoute(
@@ -464,11 +521,11 @@ class _ProfileScreenWithBackendState extends State<ProfileScreenWithBackend>
           name: recipe.title,
           imageUrl: recipe.imageUrl ?? '',
           rating: recipe.rating,
-          reviewCount: recipe.reviewCount, // Comment count from database
-          likeCount: recipe.likeCount ?? 0, // Actual like count from database
-          calories: recipe.calories ?? 0, // Actual calories from database
-          prepTime: recipe.prepTime ?? 0, // Actual prep time from database
-          cookTime: recipe.cookingTimeMinutes ?? 0, // Cooking time in minutes
+          reviewCount: recipe.reviewCount,
+          likeCount: recipe.likeCount ?? 0,
+          calories: recipe.calories ?? 0,
+          prepTime: recipe.prepTime ?? 0,
+          cookTime: recipe.cookingTimeMinutes ?? 0,
         ),
       ),
     );
