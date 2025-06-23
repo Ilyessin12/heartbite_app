@@ -1001,7 +1001,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
 
                     _buildSectionHeader(
                       "Bahan-bahan",
-                      "${_recipe!.ingredients.length} item",
+                      "${_recipe!.ingredients.length} bahan",
                     ),
                     const SizedBox(height: 12),
                     ..._recipe!.ingredients.map(

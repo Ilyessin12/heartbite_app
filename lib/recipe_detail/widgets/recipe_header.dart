@@ -187,7 +187,7 @@ class _RecipeHeaderState extends State<RecipeHeader> {
                           style: const TextStyle(fontWeight: FontWeight.bold),
                         ),
                         Text(
-                          "$_followersCount Followers",
+                          "$_followersCount Pengikut",
                           style: AppTextStyles.caption,
                         ),
                       ],
@@ -210,7 +210,7 @@ class _RecipeHeaderState extends State<RecipeHeader> {
                     textStyle: const TextStyle(fontSize: 12),
                   ),
                   child: Text(
-                    _isFollowing ? 'Unfollow' : 'Follow',
+                    _isFollowing ? 'Batal Ikuti' : 'Ikuti',
                     style: const TextStyle(color: Colors.white),
                   ),
                 )
