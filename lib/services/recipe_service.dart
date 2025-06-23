@@ -36,7 +36,10 @@ class RecipeService {
           *,
           users(id, username, profile_picture),
           recipe_categories(category_id, categories(name)),
-          recipe_gallery_images(id, image_url, caption, order_index)
+          recipe_gallery_images(id, image_url, caption, order_index),
+          recipe_allergens(allergen_id, allergens(id, name, description)),
+          recipe_diet_programs(diet_program_id, diet_programs(id, name, description)),
+          recipe_equipment(equipment_id, equipment(id, name, description))
         ''')
         .eq('is_published', true);
 
@@ -55,7 +58,7 @@ class RecipeService {
     final response = await finalQuery;
     final recipes = List<Map<String, dynamic>>.from(response);
 
-    // Enhance each recipe with like count and comment count
+    // Enhance each recipe with like count, comment count, and process tag data
     for (var recipe in recipes) {
       final recipeId = recipe['id'];
 
@@ -73,6 +76,33 @@ class RecipeService {
 
       recipe['like_count'] = likeResult.length;
       recipe['comment_count'] = commentResult.length;
+
+      // Process and structure tag data similar to getRecipeDetailsById
+      recipe['allergens'] =
+          (recipe['recipe_allergens'] as List<dynamic>?)
+              ?.map((joinRecord) => joinRecord['allergens'])
+              .where((tag) => tag != null)
+              .toList() ??
+          [];
+
+      recipe['diet_programs'] =
+          (recipe['recipe_diet_programs'] as List<dynamic>?)
+              ?.map((joinRecord) => joinRecord['diet_programs'])
+              .where((tag) => tag != null)
+              .toList() ??
+          [];
+
+      recipe['equipment'] =
+          (recipe['recipe_equipment'] as List<dynamic>?)
+              ?.map((joinRecord) => joinRecord['equipment'])
+              .where((tag) => tag != null)
+              .toList() ??
+          [];
+
+      // Clean up the join table data
+      recipe.remove('recipe_allergens');
+      recipe.remove('recipe_diet_programs');
+      recipe.remove('recipe_equipment');
     }
 
     return recipes;
