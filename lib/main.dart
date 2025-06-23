@@ -6,6 +6,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'bookmark/screens/bookmark_screen.dart';
 import 'homepage/homepage.dart';
 import 'sidebar/screens/profile_screen.dart';
+import 'recipe_detail/screens/recipe_detail_screen.dart';
 import 'services/auth_service.dart';
 
 void main() async {
@@ -56,13 +57,24 @@ class MyApp extends StatelessWidget {
           bodyMedium: TextStyle(color: Colors.black87),
           bodySmall: TextStyle(color: Colors.black54),
         ),
-      ),
-      initialRoute: '/',
+      ),      initialRoute: '/',
       routes: {
         '/': (context) => const HomeScreenWrapper(),
         '/home': (context) => const HomePage(),
         '/bookmark': (context) => const BookmarkScreen(),
         '/profile': (context) => const ProfileScreenWithBackend(),
+      },
+      // Handle dynamic routes that need parameters
+      onGenerateRoute: (settings) {
+        if (settings.name == '/recipe-detail') {
+          // Extract recipe ID from arguments
+          final args = settings.arguments as Map<String, dynamic>;
+          final recipeId = args['recipeId'];
+          return MaterialPageRoute(
+            builder: (context) => RecipeDetailScreen(recipeId: recipeId),
+          );
+        }
+        return null;
       },
     );
   }
