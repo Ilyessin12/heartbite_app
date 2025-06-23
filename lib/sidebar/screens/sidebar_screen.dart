@@ -131,7 +131,7 @@ class _SidebarScreenState extends State<SidebarScreen> {
             _buildMenuItem(
               context,
               icon: Icons.info,
-              title: 'About',
+              title: 'Tentang',
               destination: const AboutScreen(),
             ),
             const Spacer(),
@@ -143,7 +143,7 @@ class _SidebarScreenState extends State<SidebarScreen> {
                   if (mounted) {
                     // Show a success message
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('You have been signed out')),
+                      const SnackBar(content: Text('Berhasil Keluar Akun')),
                     );
                     // Close the drawer first
                     Navigator.pop(context);
@@ -190,7 +190,7 @@ class _SidebarScreenState extends State<SidebarScreen> {
                       Icon(Icons.login, size: 20, color: Colors.blue),
                       SizedBox(width: 12),
                       Text(
-                        'Sign In',
+                        'Masuk',
                         style: TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.w500,

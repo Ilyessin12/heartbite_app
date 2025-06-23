@@ -201,7 +201,7 @@ class _ProfileScreenWithBackendState extends State<ProfileScreenWithBackend>
     }
 
     if (_user == null) {
-      return const Scaffold(body: Center(child: Text('User not found')));
+      return const Scaffold(body: Center(child: Text('User tidak ditemukan')));
     }
 
     return Scaffold(
