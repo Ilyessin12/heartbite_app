@@ -10,6 +10,8 @@ class RecipeModel {
   final String difficultyLevel;
   final bool isPublished;
   final double rating;
+  final int prepTime;
+  final int likeCount; // This represents actual like count
   final int reviewCount;
   final DateTime createdAt;
   final DateTime updatedAt;
@@ -26,6 +28,8 @@ class RecipeModel {
     required this.difficultyLevel,
     required this.isPublished,
     required this.rating,
+    required this.prepTime,
+    required this.likeCount,
     required this.reviewCount,
     required this.createdAt,
     required this.updatedAt,
@@ -41,6 +45,8 @@ class RecipeModel {
       calories: json['calories'],
       servings: json['servings'],
       cookingTimeMinutes: json['cooking_time_minutes'],
+      prepTime: json['prep_time'] ?? json['servings'] ?? 0,
+      likeCount: json['like_count'] ?? 0, // Use like_count for actual likes
       difficultyLevel: json['difficulty_level'],
       isPublished: json['is_published'],
       rating: (json['rating'] ?? 0.0).toDouble(),

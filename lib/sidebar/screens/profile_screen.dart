@@ -464,12 +464,11 @@ class _ProfileScreenWithBackendState extends State<ProfileScreenWithBackend>
           name: recipe.title,
           imageUrl: recipe.imageUrl ?? '',
           rating: recipe.rating,
-          reviewCount:
-              recipe.reviewCount, // This should represent comment count
-          likeCount: 0, // TODO: Fetch actual like count from database
-          calories: 0, // Default value karena tidak ada di RecipeModel
-          prepTime: recipe.servings, // Use servings as prep "portions"
-          cookTime: recipe.cookingTimeMinutes,
+          reviewCount: recipe.reviewCount, // Comment count from database
+          likeCount: recipe.likeCount ?? 0, // Actual like count from database
+          calories: recipe.calories ?? 0, // Actual calories from database
+          prepTime: recipe.prepTime ?? 0, // Actual prep time from database
+          cookTime: recipe.cookingTimeMinutes ?? 0, // Cooking time in minutes
         ),
       ),
     );
