@@ -827,7 +827,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     if (title == "Resep Populer") {
       // Show all recipes sorted by popularity (rating + review count)
       recipesToShow = _getPopularRecipes();
-    } else if (title == "Menu Sarapan Mudah") {
+    } else if (title == "Rekomendasi") {
       // Show up to 10 random recipes including the ones shown on homepage
       recipesToShow = _randomBreakfastRecipes;
     } else {
@@ -1087,12 +1087,12 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
               Icon(Icons.search, size: 64, color: Colors.grey),
               SizedBox(height: 16),
               Text(
-                "Start typing to search for recipes",
+                "Mulai mengetik untuk mencari resep",
                 style: GoogleFonts.dmSans(fontSize: 16, color: Colors.grey),
               ),
               SizedBox(height: 8),
               Text(
-                "Login to save your search history",
+                "Masuk untuk menyimpan riwayat pencarian",
                 style: GoogleFonts.dmSans(
                   fontSize: 14,
                   color: Colors.grey[600],
@@ -1113,7 +1113,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
               Icon(Icons.history, size: 64, color: Colors.grey),
               SizedBox(height: 16),
               Text(
-                "Start typing to search for recipes",
+                "Mulai mengetik untuk mencari resep",
                 style: GoogleFonts.dmSans(fontSize: 16, color: Colors.grey),
               ),
             ],
@@ -1129,7 +1129,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16.0),
             child: Text(
-              "Recent Searches",
+              "Pencarian Terbaru",
               style: GoogleFonts.dmSans(
                 fontSize: 16,
                 fontWeight: FontWeight.bold,
@@ -1207,7 +1207,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
           child: TextField(
             controller: _searchController,
             decoration: InputDecoration(
-              hintText: 'Search recipe',
+              hintText: 'Cari Resep atau Orang',
               hintStyle: GoogleFonts.dmSans(color: Colors.grey[600]),
               prefixIcon: Icon(Icons.search, color: Colors.grey[600]),
               suffixIcon: Row(
@@ -1384,15 +1384,11 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                 () => _navigateToGroupDetail("Resep Populer", _popularRecipes),
           ),
           _buildRecipeGrid(_popularRecipes),
-
           _buildSectionTitle(
-            "Menu Sarapan Mudah",
+            "Rekomendasi",
             showViewAll: true,
             onViewAllTap:
-                () => _navigateToGroupDetail(
-                  "Menu Sarapan Mudah",
-                  _breakfastRecipes,
-                ),
+                () => _navigateToGroupDetail("Rekomendasi", _breakfastRecipes),
           ),
           _buildRecipeGrid(_breakfastRecipes),
 
@@ -1417,8 +1413,8 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                   Expanded(
                     child: Text(
                       _currentSearchQuery.isEmpty
-                          ? "Search Results"
-                          : "Results for '${_currentSearchQuery}'",
+                          ? "Hasil Pencarian"
+                          : "Hasil untuk '${_currentSearchQuery}'",
                       style: GoogleFonts.dmSans(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
@@ -1433,11 +1429,11 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                         vertical: 4,
                       ),
                       decoration: BoxDecoration(
-                        color: Colors.blue,
+                        color: const Color(0xFF8E1616),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Text(
-                        "Filtered",
+                        "Terfilter",
                         style: GoogleFonts.dmSans(
                           color: Colors.white,
                           fontSize: 12,
@@ -1453,18 +1449,18 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                 Container(
                   height: 40,
                   decoration: BoxDecoration(
-                    color: Colors.grey[200],
+                    color: Colors.grey[100],
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: TabBar(
                     controller: _searchTabController,
                     indicator: BoxDecoration(
-                      color: Colors.white,
+                      color: const Color(0xFF8E1616),
                       borderRadius: BorderRadius.circular(20),
                     ),
                     indicatorSize: TabBarIndicatorSize.tab,
                     dividerColor: Colors.transparent,
-                    labelColor: Colors.black,
+                    labelColor: Colors.white,
                     unselectedLabelColor: Colors.grey[600],
                     labelStyle: GoogleFonts.dmSans(
                       fontWeight: FontWeight.w500,
@@ -1474,7 +1470,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                       fontWeight: FontWeight.normal,
                       fontSize: 14,
                     ),
-                    tabs: const [Tab(text: "Recipes"), Tab(text: "People")],
+                    tabs: const [Tab(text: "Resep"), Tab(text: "Orang")],
                   ),
                 ),
             ],
@@ -1504,7 +1500,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
             Icon(Icons.search_off, size: 64, color: Colors.grey),
             const SizedBox(height: 16),
             Text(
-              "No recipes found",
+              "Tidak ada resep ditemukan",
               style: GoogleFonts.dmSans(fontSize: 16, color: Colors.grey),
             ),
             if (_hasActiveFilters()) ...[
@@ -1512,8 +1508,8 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
               TextButton(
                 onPressed: _resetFilters,
                 child: Text(
-                  "Clear filters",
-                  style: GoogleFonts.dmSans(color: Colors.blue),
+                  "Hapus filter",
+                  style: GoogleFonts.dmSans(color: const Color(0xFF8E1616)),
                 ),
               ),
             ],
@@ -1531,7 +1527,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
             children: [
               Expanded(
                 child: Text(
-                  "${_searchResults.length} recipes found",
+                  "${_searchResults.length} resep ditemukan",
                   style: GoogleFonts.dmSans(
                     fontSize: 14,
                     color: Colors.grey[600],
@@ -1543,12 +1539,18 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                 icon: Icon(
                   Icons.tune,
                   size: 16,
-                  color: _hasActiveFilters() ? Colors.blue : Colors.grey[600],
+                  color:
+                      _hasActiveFilters()
+                          ? const Color(0xFF8E1616)
+                          : Colors.grey[600],
                 ),
                 label: Text(
-                  "Filters",
+                  "Filter",
                   style: GoogleFonts.dmSans(
-                    color: _hasActiveFilters() ? Colors.blue : Colors.grey[600],
+                    color:
+                        _hasActiveFilters()
+                            ? const Color(0xFF8E1616)
+                            : Colors.grey[600],
                   ),
                 ),
               ),
@@ -1595,7 +1597,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
             Icon(Icons.people_outline, size: 64, color: Colors.grey),
             const SizedBox(height: 16),
             Text(
-              "No people found",
+              "Tidak ada orang ditemukan",
               style: GoogleFonts.dmSans(fontSize: 16, color: Colors.grey),
             ),
           ],
@@ -1610,7 +1612,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
           child: Row(
             children: [
               Text(
-                "${_searchedPeople.length} people found",
+                "${_searchedPeople.length} orang ditemukan",
                 style: GoogleFonts.dmSans(
                   fontSize: 14,
                   color: Colors.grey[600],
@@ -1719,7 +1721,8 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
           child: ElevatedButton(
             onPressed: isLoading ? null : () => _toggleFollowUser(person),
             style: ElevatedButton.styleFrom(
-              backgroundColor: isFollowing ? Colors.grey[300] : Colors.blue,
+              backgroundColor:
+                  isFollowing ? Colors.grey[300] : const Color(0xFF8E1616),
               foregroundColor: isFollowing ? Colors.black : Colors.white,
               elevation: 0,
               shape: RoundedRectangleBorder(
@@ -1743,7 +1746,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                       ),
                     )
                     : Text(
-                      isFollowing ? 'Following' : 'Follow',
+                      isFollowing ? 'Mengikuti' : 'Ikuti',
                       style: GoogleFonts.dmSans(
                         fontSize: 12,
                         fontWeight: FontWeight.w500,

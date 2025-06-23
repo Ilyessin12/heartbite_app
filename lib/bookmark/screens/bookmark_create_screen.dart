@@ -65,7 +65,7 @@ class _BookmarkCreateScreenState extends State<BookmarkCreateScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text(
-              'No saved recipes found. Please save some recipes first.',
+              'Tidak ada resep tersimpan. Silakan simpan beberapa resep terlebih dahulu.',
             ),
             backgroundColor: Colors.orange,
           ),
@@ -102,12 +102,12 @@ class _BookmarkCreateScreenState extends State<BookmarkCreateScreen> {
     if (_titleController.text.trim().isEmpty) {
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('Please enter a title')));
+      ).showSnackBar(const SnackBar(content: Text('Silakan masukkan judul')));
       return;
     }
     if (_selectedRecipes.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select at least one recipe')),
+        const SnackBar(content: Text('Silakan pilih setidaknya satu resep')),
       );
       return;
     }
@@ -120,7 +120,7 @@ class _BookmarkCreateScreenState extends State<BookmarkCreateScreen> {
         if (finalImageUrl == null) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('Image upload failed. Please try again.'),
+              content: Text('Upload gambar gagal. Silakan coba lagi.'),
             ),
           );
           return;
@@ -139,7 +139,7 @@ class _BookmarkCreateScreenState extends State<BookmarkCreateScreen> {
       );
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Bookmark folder created successfully')),
+        const SnackBar(content: Text('Folder bookmark berhasil dibuat')),
       );
 
       Navigator.popUntil(
@@ -149,7 +149,7 @@ class _BookmarkCreateScreenState extends State<BookmarkCreateScreen> {
     } catch (e) {
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text('Error creating bookmark: $e')));
+      ).showSnackBar(SnackBar(content: Text('Error membuat bookmark: $e')));
     }
   }
 
@@ -173,7 +173,7 @@ class _BookmarkCreateScreenState extends State<BookmarkCreateScreen> {
       print('Error picking image: $e');
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text('Error picking image: $e')));
+      ).showSnackBar(SnackBar(content: Text('Error memilih gambar: $e')));
     }
   }
 
@@ -186,7 +186,7 @@ class _BookmarkCreateScreenState extends State<BookmarkCreateScreen> {
             children: [
               ListTile(
                 leading: const Icon(Icons.photo_library),
-                title: Text('Gallery', style: GoogleFonts.dmSans()),
+                title: Text('Galeri', style: GoogleFonts.dmSans()),
                 onTap: () {
                   Navigator.of(context).pop();
                   _pickImage(ImageSource.gallery);
@@ -194,7 +194,7 @@ class _BookmarkCreateScreenState extends State<BookmarkCreateScreen> {
               ),
               ListTile(
                 leading: const Icon(Icons.photo_camera),
-                title: Text('Camera', style: GoogleFonts.dmSans()),
+                title: Text('Kamera', style: GoogleFonts.dmSans()),
                 onTap: () {
                   Navigator.of(context).pop();
                   _pickImage(ImageSource.camera);
@@ -202,10 +202,7 @@ class _BookmarkCreateScreenState extends State<BookmarkCreateScreen> {
               ),
               ListTile(
                 leading: const Icon(Icons.image),
-                title: Text(
-                  'Select from templates',
-                  style: GoogleFonts.dmSans(),
-                ),
+                title: Text('Pilih dari template', style: GoogleFonts.dmSans()),
                 onTap: () {
                   Navigator.of(context).pop();
                   setState(() {
@@ -278,7 +275,7 @@ class _BookmarkCreateScreenState extends State<BookmarkCreateScreen> {
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 Text(
-                  'Create Cookbook',
+                  'Buat Cookbook',
                   style: GoogleFonts.dmSans(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
@@ -327,7 +324,7 @@ class _BookmarkCreateScreenState extends State<BookmarkCreateScreen> {
                   child: Padding(
                     padding: const EdgeInsets.only(top: 8.0, bottom: 24.0),
                     child: Text(
-                      'Change Cover',
+                      'Ubah Cover',
                       style: GoogleFonts.dmSans(
                         fontSize: 16,
                         color: const Color(0xFF8E1616),
@@ -355,7 +352,7 @@ class _BookmarkCreateScreenState extends State<BookmarkCreateScreen> {
                     ),
                     decoration: InputDecoration(
                       border: InputBorder.none,
-                      hintText: 'Title',
+                      hintText: 'Judul',
                       hintStyle: GoogleFonts.dmSans(
                         fontSize: 16,
                         color: Colors.grey.shade500,
@@ -379,7 +376,7 @@ class _BookmarkCreateScreenState extends State<BookmarkCreateScreen> {
                       elevation: 2,
                     ),
                     child: Text(
-                      'Create',
+                      'Buat',
                       style: GoogleFonts.dmSans(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
@@ -562,7 +559,7 @@ class _BookmarkCreateScreenState extends State<BookmarkCreateScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Add From',
+                    'Tambah Dari',
                     style: GoogleFonts.dmSans(
                       fontSize: 20,
                       fontWeight: FontWeight.bold,
@@ -581,7 +578,7 @@ class _BookmarkCreateScreenState extends State<BookmarkCreateScreen> {
                     ),
                   const SizedBox(height: 8),
                   Text(
-                    'Saved',
+                    'Tersimpan',
                     style: GoogleFonts.dmSans(
                       fontSize: 24,
                       fontWeight: FontWeight.bold,

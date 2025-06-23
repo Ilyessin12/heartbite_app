@@ -121,11 +121,11 @@ class _BookmarkModalState extends State<BookmarkModal> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text("Tambahkan ke Buku Resep", style: AppTextStyles.heading),
+          const Text("Tambahkan ke Bookmark", style: AppTextStyles.heading),
           const SizedBox(height: 8),
           Text(
             hasCustomFolders
-                ? "Pilih buku resep untuk menyimpan resep ini"
+                ? "Pilih folder untuk menyimpan resep ini"
                 : "Menyimpan ke 'Saved'...",
             style: AppTextStyles.caption,
           ),
@@ -184,7 +184,7 @@ class _BookmarkModalState extends State<BookmarkModal> {
                     ),
                     SizedBox(height: 10),
                     Text(
-                      'Recipe saved to "Saved" folder!',
+                      'Resep berhasil disimpan ke folder Saved!',
                       style: AppTextStyles.subheading,
                       textAlign: TextAlign.center,
                     ),
@@ -197,7 +197,7 @@ class _BookmarkModalState extends State<BookmarkModal> {
               child: Padding(
                 padding: EdgeInsets.all(20),
                 child: Text(
-                  'No bookmark folders found. Create your first folder!',
+                  'Tidak ada folder bookmark ditemukan. Buat folder pertama Anda!',
                   style: AppTextStyles.caption,
                   textAlign: TextAlign.center,
                 ),

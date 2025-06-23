@@ -60,7 +60,7 @@ class _BookmarkEditScreenState extends State<BookmarkEditScreen> {
     if (widget.category.id == null) {
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('Invalid category ID')));
+      ).showSnackBar(const SnackBar(content: Text('ID Kategori tidak ditemukan')));
       return;
     }
 
@@ -72,7 +72,7 @@ class _BookmarkEditScreenState extends State<BookmarkEditScreen> {
         if (finalImageUrl == null) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('Image upload failed. Please try again.'),
+              content: Text('Gagal mengunggah gambar. Silakan coba lagi.'),
             ),
           );
           return;
@@ -86,14 +86,14 @@ class _BookmarkEditScreenState extends State<BookmarkEditScreen> {
       );
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Bookmark folder updated successfully')),
+        const SnackBar(content: Text('Folder bookmark berhasil diperbarui')),
       );
 
       Navigator.pop(context);
     } catch (e) {
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text('Error updating bookmark: $e')));
+      ).showSnackBar(SnackBar(content: Text('Error mengupdate bookmark: $e')));
     }
   }
 

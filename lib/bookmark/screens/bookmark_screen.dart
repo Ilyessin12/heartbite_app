@@ -37,12 +37,12 @@ class _BookmarkScreenState extends State<BookmarkScreen> {
         selectedCategories.clear();
       });
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Selected folders deleted successfully')),
+        const SnackBar(content: Text('Folder terpilih berhasil dihapus')),
       );
     } catch (e) {
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text('Error deleting folders: $e')));
+      ).showSnackBar(SnackBar(content: Text('Error menghapus folder: $e')));
     }
   }
 
@@ -143,7 +143,7 @@ class _BookmarkScreenState extends State<BookmarkScreen> {
             if (snapshot.hasError) {
               return Center(
                 child: Text(
-                  'Error loading bookmarks: ${snapshot.error}',
+                  'Error memuat bookmark: ${snapshot.error}',
                   style: GoogleFonts.dmSans(color: Colors.red),
                 ),
               );
@@ -154,7 +154,7 @@ class _BookmarkScreenState extends State<BookmarkScreen> {
             if (folders.isEmpty) {
               return Center(
                 child: Text(
-                  'No bookmark folders found',
+                  'Tidak ada folder bookmark ditemukan',
                   style: GoogleFonts.dmSans(fontSize: 16, color: Colors.grey),
                 ),
               );

@@ -32,9 +32,10 @@ class _BookmarkDetailScreenState extends State<BookmarkDetailScreen> {
     super.initState();
     _loadBookmarks();
   }
+
   Future<void> _loadBookmarks() async {
     if (!mounted) return;
-    
+
     try {
       if (mounted) {
         setState(() {
@@ -60,13 +61,14 @@ class _BookmarkDetailScreenState extends State<BookmarkDetailScreen> {
         });
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(SnackBar(content: Text('Error loading bookmarks: $e')));
+        ).showSnackBar(SnackBar(content: Text('Error memuat bookmark: $e')));
       }
     }
   }
+
   void _toggleSelectionMode() {
     if (!mounted) return;
-    
+
     setState(() {
       isSelectionMode = !isSelectionMode;
       selectedRecipeIds.clear();
@@ -75,7 +77,7 @@ class _BookmarkDetailScreenState extends State<BookmarkDetailScreen> {
 
   void _toggleRecipeSelection(int recipeId) {
     if (!mounted) return;
-    
+
     setState(() {
       if (selectedRecipeIds.contains(recipeId)) {
         selectedRecipeIds.remove(recipeId);
@@ -94,25 +96,26 @@ class _BookmarkDetailScreenState extends State<BookmarkDetailScreen> {
         context: context,
         builder:
             (context) => AlertDialog(
-              title: Text('Remove Recipes'),
+              title: Text('Hapus Resep'),
               content: Text(
                 widget.category.name == 'Saved'
-                    ? 'Are you sure you want to remove ${selectedRecipeIds.length} recipe(s)? This will remove them from ALL folders.'
-                    : 'Are you sure you want to remove ${selectedRecipeIds.length} recipe(s) from "${widget.category.name}"?',
+                    ? 'Apakah Anda yakin ingin menghapus ${selectedRecipeIds.length} resep? Ini akan menghapusnya dari SEMUA folder.'
+                    : 'Apakah Anda yakin ingin menghapus ${selectedRecipeIds.length} resep dari "${widget.category.name}"?',
               ),
               actions: [
                 TextButton(
                   onPressed: () => Navigator.pop(context, false),
-                  child: Text('Cancel'),
+                  child: Text('Batal'),
                 ),
                 TextButton(
                   onPressed: () => Navigator.pop(context, true),
                   style: TextButton.styleFrom(foregroundColor: Colors.red),
-                  child: Text('Remove'),
+                  child: Text('Hapus'),
                 ),
               ],
             ),
-      );      if (confirmed == true) {
+      );
+      if (confirmed == true) {
         // Use bulk removal for better performance
         await _bookmarkService.removeMultipleBookmarksFromFolder(
           recipeIds: selectedRecipeIds.toList(),
@@ -126,14 +129,14 @@ class _BookmarkDetailScreenState extends State<BookmarkDetailScreen> {
             isSelectionMode = false;
             selectedRecipeIds.clear();
           });
-          
+
           await _loadBookmarks(); // Refresh the list
         }
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('$removedCount recipe(s) removed successfully'),
+              content: Text('$removedCount resep berhasil dihapus'),
               backgroundColor: Colors.green,
             ),
           );
@@ -143,7 +146,7 @@ class _BookmarkDetailScreenState extends State<BookmarkDetailScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error removing recipes: $e'),
+            content: Text('Error menghapus resep: $e'),
             backgroundColor: Colors.red,
           ),
         );
@@ -159,25 +162,26 @@ class _BookmarkDetailScreenState extends State<BookmarkDetailScreen> {
         context: context,
         builder:
             (context) => AlertDialog(
-              title: Text('Remove Recipe'),
+              title: Text('Hapus Resep'),
               content: Text(
                 widget.category.name == 'Saved'
-                    ? 'Are you sure you want to remove this recipe? This will remove it from ALL folders.'
-                    : 'Are you sure you want to remove this recipe from "${widget.category.name}"?',
+                    ? 'Apakah Anda yakin ingin menghapus resep ini? Ini akan menghapusnya dari SEMUA folder.'
+                    : 'Apakah Anda yakin ingin menghapus resep ini dari "${widget.category.name}"?',
               ),
               actions: [
                 TextButton(
                   onPressed: () => Navigator.pop(context, false),
-                  child: Text('Cancel'),
+                  child: Text('Batal'),
                 ),
                 TextButton(
                   onPressed: () => Navigator.pop(context, true),
                   style: TextButton.styleFrom(foregroundColor: Colors.red),
-                  child: Text('Remove'),
+                  child: Text('Hapus'),
                 ),
               ],
             ),
-      );      if (confirmed == true) {
+      );
+      if (confirmed == true) {
         await _bookmarkService.removeBookmarkFromFolder(
           recipeId: recipeId,
           folderId: widget.category.id!,
@@ -188,7 +192,7 @@ class _BookmarkDetailScreenState extends State<BookmarkDetailScreen> {
 
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Recipe removed successfully'),
+              content: Text('Resep berhasil dihapus'),
               backgroundColor: Colors.green,
             ),
           );
@@ -198,7 +202,7 @@ class _BookmarkDetailScreenState extends State<BookmarkDetailScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error removing recipe: $e'),
+            content: Text('Error menghapus resep: $e'),
             backgroundColor: Colors.red,
           ),
         );
@@ -233,7 +237,7 @@ class _BookmarkDetailScreenState extends State<BookmarkDetailScreen> {
         elevation: 0,
         centerTitle: true,
         title: Text(
-          isSelectionMode ? '${selectedRecipeIds.length} selected' : 'Bookmark',
+          isSelectionMode ? '${selectedRecipeIds.length} terpilih' : 'Bookmark',
           style: GoogleFonts.dmSans(
             fontSize: 24,
             fontWeight: FontWeight.bold,
@@ -279,7 +283,7 @@ class _BookmarkDetailScreenState extends State<BookmarkDetailScreen> {
                         children: [
                           Icon(Icons.checklist, color: Colors.black),
                           SizedBox(width: 8),
-                          Text('Select'),
+                          Text('Pilih'),
                         ],
                       ),
                     ),
@@ -289,7 +293,7 @@ class _BookmarkDetailScreenState extends State<BookmarkDetailScreen> {
                         children: [
                           Icon(Icons.add, color: Colors.black),
                           SizedBox(width: 8),
-                          Text('Add to folder'),
+                          Text('Tambahkan ke folder'),
                         ],
                       ),
                     ),
@@ -335,7 +339,7 @@ class _BookmarkDetailScreenState extends State<BookmarkDetailScreen> {
                   widget.category.id == null
                       ? Center(
                         child: Text(
-                          'Invalid category ID',
+                          'ID kategori tidak valid',
                           style: GoogleFonts.dmSans(
                             fontSize: 16,
                             color: Colors.red,
