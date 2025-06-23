@@ -427,25 +427,22 @@ class _ProfileScreenWithBackendState extends State<ProfileScreenWithBackend>
       );
     }
 
-    return SizedBox(
-      height: 600,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16.0),
-        child: GridView.builder(
-          physics: const NeverScrollableScrollPhysics(),
-          shrinkWrap: true,
-          itemCount: _recipes.length,
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 2,
-            childAspectRatio: 0.7,
-            crossAxisSpacing: 16,
-            mainAxisSpacing: 16,
-          ),
-          itemBuilder: (context, index) {
-            final recipe = _recipes[index];
-            return _buildRecipeCard(recipe);
-          },
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16.0),
+      child: GridView.builder(
+        physics: const NeverScrollableScrollPhysics(),
+        shrinkWrap: true, // Ini yang membuat height responsive
+        itemCount: _recipes.length,
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 2,
+          childAspectRatio: 0.7,
+          crossAxisSpacing: 16,
+          mainAxisSpacing: 16,
         ),
+        itemBuilder: (context, index) {
+          final recipe = _recipes[index];
+          return _buildRecipeCard(recipe);
+        },
       ),
     );
   }

@@ -53,7 +53,87 @@ class DisplayRecipeItem {
     this.requiredAppliances = const [],
   });
   factory DisplayRecipeItem.fromSupabase(Map<String, dynamic> data) {
-    return DisplayRecipeItem(
+    // Debug logging
+    if (_HomePageState._enableDebugLogging) {
+      print('Processing recipe: ${data['title']}');
+      print('Raw allergens data: ${data['allergens']}');
+      print('Raw diet_programs data: ${data['diet_programs']}');
+      print('Raw equipment data: ${data['equipment']}');
+    }
+
+    // Extract allergens from the nested structure with better error handling
+    List<String> allergenNames = [];
+    if (data['allergens'] != null) {
+      try {
+        final allergensList = data['allergens'] as List<dynamic>;
+        allergenNames =
+            allergensList
+                .where((allergen) => allergen != null && allergen is Map)
+                .map((allergen) {
+                  final name = allergen['name'] as String? ?? '';
+                  return name.trim();
+                })
+                .where((name) => name.isNotEmpty)
+                .toList();
+        if (_HomePageState._enableDebugLogging) {
+          print('Extracted allergen names: $allergenNames');
+        }
+      } catch (e) {
+        if (_HomePageState._enableDebugLogging) {
+          print('Error extracting allergens: $e');
+        }
+      }
+    }
+
+    // Extract diet programs from the nested structure with better error handling
+    List<String> dietPrograms = [];
+    if (data['diet_programs'] != null) {
+      try {
+        final dietProgramsList = data['diet_programs'] as List<dynamic>;
+        dietPrograms =
+            dietProgramsList
+                .where((program) => program != null && program is Map)
+                .map((program) {
+                  final name = program['name'] as String? ?? '';
+                  return name.trim();
+                })
+                .where((name) => name.isNotEmpty)
+                .toList();
+        if (_HomePageState._enableDebugLogging) {
+          print('Extracted diet program names: $dietPrograms');
+        }
+      } catch (e) {
+        if (_HomePageState._enableDebugLogging) {
+          print('Error extracting diet programs: $e');
+        }
+      }
+    }
+
+    // Extract equipment from the nested structure with better error handling
+    List<String> equipment = [];
+    if (data['equipment'] != null) {
+      try {
+        final equipmentList = data['equipment'] as List<dynamic>;
+        equipment =
+            equipmentList
+                .where((item) => item != null && item is Map)
+                .map((item) {
+                  final name = item['name'] as String? ?? '';
+                  return name.trim();
+                })
+                .where((name) => name.isNotEmpty)
+                .toList();
+        if (_HomePageState._enableDebugLogging) {
+          print('Extracted equipment names: $equipment');
+        }
+      } catch (e) {
+        if (_HomePageState._enableDebugLogging) {
+          print('Error extracting equipment: $e');
+        }
+      }
+    }
+
+    final result = DisplayRecipeItem(
       id: data['id'] as int,
       name: data['title'] as String? ?? 'No Title',
       rating: (data['rating'] as num?)?.toDouble() ?? 0.0,
@@ -67,7 +147,19 @@ class DisplayRecipeItem {
       cookingTimeMinutes: data['cooking_time_minutes'] as int? ?? 0,
       imageUrl: data['image_url'] as String?,
       isBookmarked: data['is_bookmarked'] as bool? ?? false,
+      allergens: allergenNames,
+      dietTypes: dietPrograms,
+      requiredAppliances: equipment,
     );
+
+    if (_HomePageState._enableDebugLogging) {
+      print(
+        'Created DisplayRecipeItem: ${result.name} with allergens: ${result.allergens}, diet types: ${result.dietTypes}, equipment: ${result.requiredAppliances}',
+      );
+      print('---');
+    }
+
+    return result;
   }
 }
 
@@ -79,6 +171,9 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
+  // Debug flag - set to false to disable debug logging
+  static const bool _enableDebugLogging = true;
+
   int _currentIndex = 0;
   bool _showSearchResults = false;
   bool _showFilters = false;
@@ -106,20 +201,13 @@ class _HomePageState extends State<HomePage> {
   bool _isSearchLoading = false;
   String _currentSearchQuery = '';
   List<String> _searchHistory = [];
-
   List<String> _selectedAllergens = [];
   List<String> _selectedDietTypes = [];
   List<String> _selectedAppliances = [];
   Map<String, Object>? _selectedCookingTimeOption;
 
-  final List<String> _allergenOptions = [
-    "Laktosa",
-    "Gluten",
-    "Kacang",
-    "Seafood",
-    "Telur",
-    "Kerang",
-  ];
+  // Dynamic allergen options fetched from database
+  List<String> _allergenOptions = [];
   final List<String> _dietTypeOptions = [
     "Vegetarian",
     "Vegan",
@@ -160,6 +248,7 @@ class _HomePageState extends State<HomePage> {
   void initState() {
     super.initState();
     _fetchRecipes();
+    _fetchAllergenOptions(); // Fetch dynamic allergen options
     _fetchUserProfilePicture(); // Ambil foto profil dari Supabase
 
     // Dengarkan perubahan status autentikasi
@@ -276,9 +365,11 @@ class _HomePageState extends State<HomePage> {
 
       // Convert to DisplayRecipeItem
       final recipes =
-          recipesData
-              .map((data) => DisplayRecipeItem.fromSupabase(data))
-              .toList();
+          recipesData.map((data) {
+            // Debug logging to verify allergen data
+            print('Recipe: ${data['title']} - Allergens: ${data['allergens']}');
+            return DisplayRecipeItem.fromSupabase(data);
+          }).toList();
 
       // Check bookmark status for each recipe if user is logged in
       if (AuthService.isUserLoggedIn()) {
@@ -647,36 +738,120 @@ class _HomePageState extends State<HomePage> {
 
     final filtered =
         recipesToFilter.where((recipe) {
-          final queryMatch =
-              query.isEmpty || recipe.name.toLowerCase().contains(query);          // Safe way to check cooking time with null handling
-          Map<String, Object>? option = _selectedCookingTimeOption;
-          final cookingTimeMatches = option == null || 
-              (recipe.cookingTimeMinutes >= (option['min'] as int) &&
-               recipe.cookingTimeMinutes <= (option['max'] as int));
+          // Add debug logging for filtering
+          if (_enableDebugLogging &&
+              (_selectedAllergens.isNotEmpty ||
+                  _selectedDietTypes.isNotEmpty ||
+                  _selectedAppliances.isNotEmpty)) {
+            print('Filtering recipe: ${recipe.name}');
+            print('Recipe allergens: ${recipe.allergens}');
+            print('Recipe diet types: ${recipe.dietTypes}');
+            print('Recipe appliances: ${recipe.requiredAppliances}');
+            print('Selected allergens to avoid: $_selectedAllergens');
+            print('Selected diet types: $_selectedDietTypes');
+            print('Selected appliances to avoid: $_selectedAppliances');
+          }
 
+          final queryMatch =
+              query.isEmpty || recipe.name.toLowerCase().contains(query);
+
+          // Safe way to check cooking time with null handling
+          Map<String, Object>? option = _selectedCookingTimeOption;
+          final cookingTimeMatches =
+              option == null ||
+              (recipe.cookingTimeMinutes >= (option['min'] as int) &&
+                  recipe.cookingTimeMinutes <= (option['max'] as int));
+
+          // FIXED: Allergen filtering logic with better string comparison
+          // If user selected allergens to avoid, filter out recipes that contain ANY of those allergens
           final allergensMatch =
               _selectedAllergens.isEmpty ||
-              !_selectedAllergens.any(
-                (allergen) => recipe.allergens.contains(allergen),
-              );
+              !_selectedAllergens.any((selectedAllergen) {
+                return recipe.allergens.any((recipeAllergen) {
+                  // Normalize both strings for comparison
+                  final normalizedSelected =
+                      selectedAllergen.toLowerCase().trim();
+                  final normalizedRecipe = recipeAllergen.toLowerCase().trim();
 
+                  // Check for exact match or partial match
+                  final matches =
+                      normalizedRecipe.contains(normalizedSelected) ||
+                      normalizedSelected.contains(normalizedRecipe) ||
+                      normalizedRecipe == normalizedSelected;
+
+                  if (_enableDebugLogging && matches) {
+                    print(
+                      'Allergen match found: "$normalizedRecipe" matches "$normalizedSelected"',
+                    );
+                  }
+                  return matches;
+                });
+              });
+
+          // FIXED: Diet types filtering with better string comparison
           final dietTypesMatch =
               _selectedDietTypes.isEmpty ||
-              _selectedDietTypes.every(
-                (diet) => recipe.dietTypes.contains(diet),
-              );
+              _selectedDietTypes.every((selectedDiet) {
+                return recipe.dietTypes.any((recipeDiet) {
+                  final normalizedSelected = selectedDiet.toLowerCase().trim();
+                  final normalizedRecipe = recipeDiet.toLowerCase().trim();
 
+                  // Check for exact match or partial match
+                  final matches =
+                      normalizedRecipe.contains(normalizedSelected) ||
+                      normalizedSelected.contains(normalizedRecipe) ||
+                      normalizedRecipe == normalizedSelected;
+
+                  if (_enableDebugLogging && matches) {
+                    print(
+                      'Diet type match found: "$normalizedRecipe" matches "$normalizedSelected"',
+                    );
+                  }
+                  return matches;
+                });
+              });
+
+          // FIXED: Equipment filtering with better string comparison
+          // If user selected appliances to avoid, filter out recipes that require ANY of those appliances
           final appliancesMatch =
               _selectedAppliances.isEmpty ||
-              !_selectedAppliances.any(
-                (appliance) => recipe.requiredAppliances.contains(appliance),
-              );
+              !_selectedAppliances.any((selectedAppliance) {
+                return recipe.requiredAppliances.any((recipeAppliance) {
+                  final normalizedSelected =
+                      selectedAppliance.toLowerCase().trim();
+                  final normalizedRecipe = recipeAppliance.toLowerCase().trim();
 
-          return queryMatch &&
+                  // Check for exact match or partial match
+                  final matches =
+                      normalizedRecipe.contains(normalizedSelected) ||
+                      normalizedSelected.contains(normalizedRecipe) ||
+                      normalizedRecipe == normalizedSelected;
+
+                  if (_enableDebugLogging && matches) {
+                    print(
+                      'Appliance match found: "$normalizedRecipe" matches "$normalizedSelected"',
+                    );
+                  }
+                  return matches;
+                });
+              });
+
+          final passesAllFilters =
+              queryMatch &&
               cookingTimeMatches &&
               allergensMatch &&
               dietTypesMatch &&
               appliancesMatch;
+
+          if (_enableDebugLogging &&
+              (_selectedAllergens.isNotEmpty ||
+                  _selectedDietTypes.isNotEmpty ||
+                  _selectedAppliances.isNotEmpty)) {
+            print('Recipe "${recipe.name}" passes filters: $passesAllFilters');
+            print('---');
+          }
+
+          return passesAllFilters;
         }).toList();
 
     setState(() {
@@ -685,6 +860,15 @@ class _HomePageState extends State<HomePage> {
       _isSearching = query.isNotEmpty || _hasActiveFilters();
       _currentSearchQuery = query;
     });
+
+    // Log final results
+    if (_enableDebugLogging &&
+        (_selectedAllergens.isNotEmpty ||
+            _selectedDietTypes.isNotEmpty ||
+            _selectedAppliances.isNotEmpty)) {
+      print('Total recipes after filtering: ${filtered.length}');
+      print('Filtered recipe names: ${filtered.map((r) => r.name).toList()}');
+    }
   }
 
   // User-specific search history management
@@ -1037,8 +1221,7 @@ class _HomePageState extends State<HomePage> {
             "Resep Populer",
             showViewAll: true,
             onViewAllTap:
-                () =>
-                    _navigateToGroupDetail("Resep Populer", _popularRecipes),
+                () => _navigateToGroupDetail("Resep Populer", _popularRecipes),
           ),
           _buildRecipeGrid(_popularRecipes),
 
@@ -1560,6 +1743,56 @@ class _HomePageState extends State<HomePage> {
         );
       },
     );
+  } // Fetch allergen options from database
+
+  Future<void> _fetchAllergenOptions() async {
+    try {
+      if (_enableDebugLogging) {
+        print('Fetching allergen options from database...');
+      }
+      final allergens = await _recipeService.getAllergens();
+
+      if (_enableDebugLogging) {
+        print('Fetched ${allergens.length} allergens from database');
+      }
+      final allergenNames = allergens.map((allergen) => allergen.name).toList();
+      if (_enableDebugLogging) {
+        print('Allergen names: $allergenNames');
+      }
+
+      if (mounted) {
+        setState(() {
+          _allergenOptions = allergenNames;
+        });
+        if (_enableDebugLogging) {
+          print('Updated _allergenOptions in UI');
+        }
+      }
+    } catch (e) {
+      if (_enableDebugLogging) {
+        print('Error fetching allergen options: $e');
+      }
+      // Fallback to hardcoded options if database fetch fails
+      if (mounted) {
+        setState(() {
+          _allergenOptions = [
+            "Laktosa",
+            "Gluten",
+            "Kacang",
+            "Seafood",
+            "Telur",
+            "Kerang",
+            "Gandum",
+            "Ikan",
+            "Kedelai",
+            "Produk susu",
+          ];
+        });
+        if (_enableDebugLogging) {
+          print('Using fallback allergen options');
+        }
+      }
+    }
   }
 
   // Tambahkan fungsi logout guest

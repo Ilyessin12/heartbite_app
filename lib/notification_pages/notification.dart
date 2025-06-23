@@ -111,16 +111,16 @@ class _NotificationPageState extends State<NotificationPage> {
     }
     
     // Navigate berdasarkan tipe notifikasi
-    final bool canNavigate = notification['canNavigate'] ?? false;
-    if (canNavigate) {
-      final String? route = notification['navigationRoute'];
-      final Map<String, dynamic>? args = notification['navigationArgs'];
+    // final bool canNavigate = notification['canNavigate'] ?? false;
+    // if (canNavigate) {
+    //   final String? route = notification['navigationRoute'];
+    //   final Map<String, dynamic>? args = notification['navigationArgs'];
       
-      if (route != null) {
-        // Navigate to the appropriate page
-        Navigator.of(context).pushNamed(route, arguments: args);
-      }
-    }
+    //   if (route != null) {
+    //     // Navigate to the appropriate page
+    //     Navigator.of(context).pushNamed(route, arguments: args);
+    //   }
+    // }
   }
   
   // Function to debug time format of notifications
@@ -644,29 +644,29 @@ class _NotificationPageState extends State<NotificationPage> {
                       fit: BoxFit.cover,
                     ),
               )
-            else if (notifikasi['tipe'] == 'follow' && !isMutualFollow)
-              GestureDetector(
-                onTap: () {
-                  // TODO: Implementasi follow back
-                },
-                child: Container(
-                  height: 36,
-                  width: 80,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF8E1616),
-                    borderRadius: BorderRadius.circular(18),
-                  ),
-                  alignment: Alignment.center,
-                  child: Text(
-                    'Ikuti',
-                    style: GoogleFonts.dmSans(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 12,
-                    ),
-                  ),
-                ),
-              )
+            // else if (notifikasi['tipe'] == 'follow' && !isMutualFollow)
+            //   GestureDetector(
+            //     onTap: () {
+            //       // TODO: Implementasi follow back
+            //     },
+            //     child: Container(
+            //       height: 36,
+            //       width: 80,
+            //       decoration: BoxDecoration(
+            //         color: const Color(0xFF8E1616),
+            //         borderRadius: BorderRadius.circular(18),
+            //       ),
+            //       alignment: Alignment.center,
+            //       child: Text(
+            //         'Ikuti',
+            //         style: GoogleFonts.dmSans(
+            //           color: Colors.white,
+            //           fontWeight: FontWeight.bold,
+            //           fontSize: 12,
+            //         ),
+            //       ),
+            //     ),
+            //   )
             else if (isMutualFollow)
               Container(
                 height: 36,
