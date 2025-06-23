@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/recipe.dart';
-import '../models/ingredient.dart';
+// import '../models/ingredient.dart'; // Removed unused import
 import '../widgets/recipe_header.dart';
 import '../widgets/ingredient_item.dart';
 import '../utils/constants.dart';
@@ -10,12 +10,14 @@ class IngredientsScreen extends StatefulWidget {
   final Recipe recipe;
   final int likeCount;
   final bool isFavorite;
+  final String authorId; // Added authorId
   
   const IngredientsScreen({
     super.key,
     required this.recipe,
     required this.likeCount,
     required this.isFavorite,
+    required this.authorId, // Added authorId
   });
 
   @override
@@ -43,8 +45,9 @@ class _IngredientsScreenState extends State<IngredientsScreen> {
                         RecipeHeader(
                           recipe: widget.recipe,
                           showAuthor: false,
-                          likeCount: widget.likeCount, // Use passed-in value
-                          isFavorite: widget.isFavorite, // Use passed-in value
+                          likeCount: widget.likeCount,
+                          isFavorite: widget.isFavorite,
+                          authorId: widget.authorId, // Pass authorId
                         ),
                         const SizedBox(height: 24),
                         
@@ -126,6 +129,7 @@ class _IngredientsScreenState extends State<IngredientsScreen> {
                             recipe: widget.recipe,
                             likeCount: widget.likeCount,
                             isFavorite: widget.isFavorite,
+                            authorId: widget.authorId, // Pass authorId
                           ),
                         ),
                       );

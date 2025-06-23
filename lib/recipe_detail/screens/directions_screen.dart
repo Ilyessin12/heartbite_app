@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/recipe.dart';
-import '../models/direction.dart';
+// import '../models/direction.dart'; // Removed unused import
 import '../widgets/recipe_header.dart';
 import '../widgets/direction_item.dart';
 import '../utils/constants.dart';
@@ -9,12 +9,14 @@ class DirectionsScreen extends StatefulWidget {
   final Recipe recipe;
   final int likeCount;
   final bool isFavorite;
+  final String authorId; // Added authorId
 
   const DirectionsScreen({
-    super.key, 
+    super.key,
     required this.recipe,
     required this.likeCount,
     required this.isFavorite,
+    required this.authorId, // Added authorId
   });
 
   @override
@@ -40,10 +42,11 @@ class _DirectionsScreenState extends State<DirectionsScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         RecipeHeader(
-                          recipe: widget.recipe, 
+                          recipe: widget.recipe,
                           showAuthor: false,
-                          likeCount: widget.likeCount, // Use passed-in value
-                          isFavorite: widget.isFavorite, // Use passed-in value
+                          likeCount: widget.likeCount,
+                          isFavorite: widget.isFavorite,
+                          authorId: widget.authorId, // Pass authorId
                         ),
                         const SizedBox(height: 24),
 

@@ -209,7 +209,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
       // Adapt recipeData (Map<String, dynamic>) to DetailModel.Recipe
       // This is a complex mapping due to different structures and related tables
       setState(() {
-        _recipe = _adaptSupabaseDataToDetailModel(recipeData);
+      _recipe = _adaptSupabaseDataToDetailModel(recipeData, recipeData['user_id'] as String?);
         _comments = _recipe?.comments.map((c) => c.copyWith()).toList() ?? [];
         _isLoading = false;
       });
@@ -224,6 +224,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
 
   DetailModel.Recipe _adaptSupabaseDataToDetailModel(
     Map<String, dynamic> data,
+    String? authorId, // Added authorId parameter
   ) {
     // User data (author)
     final Map<String, dynamic>? userData =
@@ -330,6 +331,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
       directions: directions,
       galleryImages: galleryImages,
       comments: topLevelComments, // Pass the structured, top-level comments
+      authorId: authorId ?? '', // Store authorId
 
       // Extract tag names
       allergenTags: (data['allergens'] as List<dynamic>?)
@@ -811,8 +813,9 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
                   children: [
                     RecipeHeader(
                       recipe: _recipe!,
-                      likeCount: _likeCount, // Pass likeCount
-                      isFavorite: _isFavorite, // Pass isFavorite status
+                      likeCount: _likeCount,
+                      isFavorite: _isFavorite,
+                      authorId: _recipe!.authorId, // Pass authorId
                     ),
                     const SizedBox(height: 16),
 
@@ -890,6 +893,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
                                 recipe: _recipe!,
                                 likeCount: _likeCount,
                                 isFavorite: _isFavorite,
+                                authorId: _recipe!.authorId, // Pass authorId
                               ),
                             ),
                           );

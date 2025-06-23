@@ -8,6 +8,7 @@ import 'models/comment.dart';
 Recipe getSampleRecipe() {
   return Recipe(
     id: '1',
+    authorId: 'sample_author_id', // Added placeholder authorId
     title: 'Sandwich dengan telur rebus',
     imageUrl: 'assets/images/recipes/sandwich1.jpg',
     rating: 4.5,

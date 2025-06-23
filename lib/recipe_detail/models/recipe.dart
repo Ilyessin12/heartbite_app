@@ -22,6 +22,7 @@ class Recipe {
   final List<String> allergenTags;
   final List<String> dietProgramTags;
   final List<String> equipmentTags;
+  final String authorId; // Added authorId
   
   Recipe({
     required this.id,
@@ -41,5 +42,6 @@ class Recipe {
     this.allergenTags = const [], // Default to empty list
     this.dietProgramTags = const [], // Default to empty list
     this.equipmentTags = const [], // Default to empty list
+    required this.authorId, // Added authorId
   });
 }
