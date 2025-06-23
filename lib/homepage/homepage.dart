@@ -187,6 +187,10 @@ class _HomePageState extends State<HomePage> {
 
   // Variabel untuk foto profil pengguna
   String? _userProfilePictureUrl;
+  // Add new variables to track user preferences
+  List<String> _userAllergens = [];
+  List<String> _userDietPrograms = [];
+  List<String> _userMissingEquipment = [];
 
   // Subscription untuk perubahan autentikasi
   StreamSubscription<AuthState>? _authSubscription;
@@ -250,6 +254,7 @@ class _HomePageState extends State<HomePage> {
     _fetchRecipes();
     _fetchAllergenOptions(); // Fetch dynamic allergen options
     _fetchUserProfilePicture(); // Ambil foto profil dari Supabase
+    _loadUserPreferences(); // Load user preferences
 
     // Dengarkan perubahan status autentikasi
     _authSubscription = Supabase.instance.client.auth.onAuthStateChange.listen((
@@ -263,10 +268,18 @@ class _HomePageState extends State<HomePage> {
         // Clear search history when user logs out
         setState(() {
           _searchHistory = [];
+          // Clear user preferences on logout
+          _userAllergens = [];
+          _userDietPrograms = [];
+          _userMissingEquipment = [];
+          _selectedAllergens = [];
+          _selectedDietTypes = [];
+          _selectedAppliances = [];
         });
       } else if (event.event == AuthChangeEvent.signedIn) {
         // Load search history when user logs in
         _loadUserSearchHistory();
+        _loadUserPreferences(); // Load preferences on login
       }
     });
 
@@ -276,9 +289,7 @@ class _HomePageState extends State<HomePage> {
         _currentSearchQuery = _searchController.text;
         _debounceSearch();
       }
-    });
-
-    // Load user-specific search history
+    }); // Load user-specific search history
     _loadUserSearchHistory();
   } // Add debounced search for better UX
 
@@ -430,6 +441,77 @@ class _HomePageState extends State<HomePage> {
           _userProfilePictureUrl = null;
         });
       }
+    }
+  }
+
+  // New method to load user preferences
+  Future<void> _loadUserPreferences() async {
+    if (!AuthService.isUserLoggedIn()) {
+      return;
+    }
+
+    try {
+      final userId = AuthService.getCurrentUserId();
+      if (userId == null) return;
+
+      // Fetch user allergens
+      final userAllergensResponse = await Supabase.instance.client
+          .from('user_allergens')
+          .select('allergens(name)')
+          .eq('user_id', userId);
+
+      // Fetch user diet programs
+      final userDietProgramsResponse = await Supabase.instance.client
+          .from('user_diet_programs')
+          .select('diet_programs(name)')
+          .eq('user_id', userId);
+
+      // Fetch user missing equipment
+      final userMissingEquipmentResponse = await Supabase.instance.client
+          .from('user_missing_equipment')
+          .select('equipment(name)')
+          .eq('user_id', userId);
+
+      if (mounted) {
+        setState(() {
+          // Extract allergen names
+          _userAllergens =
+              userAllergensResponse
+                  .map((item) => item['allergens']['name'] as String)
+                  .toList();
+
+          // Extract diet program names
+          _userDietPrograms =
+              userDietProgramsResponse
+                  .map((item) => item['diet_programs']['name'] as String)
+                  .toList();
+
+          // Extract equipment names
+          _userMissingEquipment =
+              userMissingEquipmentResponse
+                  .map((item) => item['equipment']['name'] as String)
+                  .toList(); // Auto-apply user preferences to filters
+          _selectedAllergens = List.from(_userAllergens);
+          _selectedDietTypes = List.from(_userDietPrograms);
+          _selectedAppliances = List.from(_userMissingEquipment);
+
+          if (_enableDebugLogging) {
+            print('Loaded user preferences:');
+            print('Allergens: $_userAllergens');
+            print('Diet Programs: $_userDietPrograms');
+            print('Missing Equipment: $_userMissingEquipment');
+          }
+        });
+
+        // Apply filters if any preferences exist
+        if (_userAllergens.isNotEmpty ||
+            _userDietPrograms.isNotEmpty ||
+            _userMissingEquipment.isNotEmpty) {
+          _updateSearchResults();
+        }
+      }
+    } catch (e) {
+      print('Error loading user preferences: $e');
     }
   }
 
@@ -723,10 +805,11 @@ class _HomePageState extends State<HomePage> {
 
   void _resetFilters() {
     setState(() {
-      _selectedAllergens = [];
-      _selectedDietTypes = [];
-      _selectedAppliances = [];
       _selectedCookingTimeOption = null;
+      // Reset to user preferences instead of empty
+      _selectedAllergens = List.from(_userAllergens);
+      _selectedDietTypes = List.from(_userDietPrograms);
+      _selectedAppliances = List.from(_userMissingEquipment);
     });
     _updateSearchResults();
   }
@@ -1392,6 +1475,7 @@ class _HomePageState extends State<HomePage> {
               ],
             ),
             const SizedBox(height: 16),
+
             Text(
               "Durasi Memasak",
               style: GoogleFonts.dmSans(
@@ -1448,8 +1532,23 @@ class _HomePageState extends State<HomePage> {
               children:
                   _allergenOptions.map((allergen) {
                     final isSelected = _selectedAllergens.contains(allergen);
+                    final isUserPreference = _userAllergens.contains(allergen);
                     return FilterChip(
-                      label: Text(allergen),
+                      label: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(allergen),
+                          if (isUserPreference)
+                            Padding(
+                              padding: EdgeInsets.only(left: 4),
+                              child: Icon(
+                                Icons.person,
+                                size: 14,
+                                color: Colors.red[700],
+                              ),
+                            ),
+                        ],
+                      ),
                       selected: isSelected,
                       onSelected: (selected) {
                         setState(() {
@@ -1460,10 +1559,17 @@ class _HomePageState extends State<HomePage> {
                           }
                         });
                       },
-                      backgroundColor: Colors.white,
-                      selectedColor: Colors.grey[200],
+                      backgroundColor:
+                          isUserPreference ? Colors.red[50] : Colors.white,
+                      selectedColor:
+                          isUserPreference ? Colors.red[100] : Colors.grey[200],
                       checkmarkColor: Colors.red[700],
-                      side: BorderSide(color: Colors.grey[300]!),
+                      side: BorderSide(
+                        color:
+                            isUserPreference
+                                ? Colors.red[300]!
+                                : Colors.grey[300]!,
+                      ),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(20),
                       ),
@@ -1486,8 +1592,23 @@ class _HomePageState extends State<HomePage> {
               children:
                   _dietTypeOptions.map((diet) {
                     final isSelected = _selectedDietTypes.contains(diet);
+                    final isUserPreference = _userDietPrograms.contains(diet);
                     return FilterChip(
-                      label: Text(diet),
+                      label: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(diet),
+                          if (isUserPreference)
+                            Padding(
+                              padding: EdgeInsets.only(left: 4),
+                              child: Icon(
+                                Icons.person,
+                                size: 14,
+                                color: Colors.red[700],
+                              ),
+                            ),
+                        ],
+                      ),
                       selected: isSelected,
                       onSelected: (selected) {
                         setState(() {
@@ -1498,10 +1619,17 @@ class _HomePageState extends State<HomePage> {
                           }
                         });
                       },
-                      backgroundColor: Colors.white,
-                      selectedColor: Colors.grey[200],
+                      backgroundColor:
+                          isUserPreference ? Colors.red[50] : Colors.white,
+                      selectedColor:
+                          isUserPreference ? Colors.red[100] : Colors.grey[200],
                       checkmarkColor: Colors.red[700],
-                      side: BorderSide(color: Colors.grey[300]!),
+                      side: BorderSide(
+                        color:
+                            isUserPreference
+                                ? Colors.red[300]!
+                                : Colors.grey[300]!,
+                      ),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(20),
                       ),
@@ -1524,8 +1652,25 @@ class _HomePageState extends State<HomePage> {
               children:
                   _applianceOptions.map((appliance) {
                     final isSelected = _selectedAppliances.contains(appliance);
+                    final isUserPreference = _userMissingEquipment.contains(
+                      appliance,
+                    );
                     return FilterChip(
-                      label: Text(appliance),
+                      label: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(appliance),
+                          if (isUserPreference)
+                            Padding(
+                              padding: EdgeInsets.only(left: 4),
+                              child: Icon(
+                                Icons.person,
+                                size: 14,
+                                color: Colors.red[700],
+                              ),
+                            ),
+                        ],
+                      ),
                       selected: isSelected,
                       onSelected: (selected) {
                         setState(() {
@@ -1536,10 +1681,17 @@ class _HomePageState extends State<HomePage> {
                           }
                         });
                       },
-                      backgroundColor: Colors.white,
-                      selectedColor: Colors.grey[200],
+                      backgroundColor:
+                          isUserPreference ? Colors.red[50] : Colors.white,
+                      selectedColor:
+                          isUserPreference ? Colors.red[100] : Colors.grey[200],
                       checkmarkColor: Colors.red[700],
-                      side: BorderSide(color: Colors.grey[300]!),
+                      side: BorderSide(
+                        color:
+                            isUserPreference
+                                ? Colors.red[300]!
+                                : Colors.grey[300]!,
+                      ),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(20),
                       ),
