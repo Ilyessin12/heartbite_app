@@ -130,12 +130,37 @@ class NotificationModel {
 
       case 'follow':
         isMutualFollow = false; // Default to false to show follow button
-        break;
-
-      case 'comment':
+        break;      case 'comment':
+        // Process comment notifications
+        final bool isReply = item.containsKey('is_reply') ? item['is_reply'] : false;
         subtitle = content;
-        targetName = 'Resep Anda';
-        imageUrl = 'assets/images/default_food.png';
+        
+        // Extract recipe information if available
+        if (recipe.isNotEmpty) {
+          recipeId = recipe['id'];
+          recipeTitle = recipe['title'];
+          
+          // Set proper target name based on if it's a reply or direct comment
+          targetName = isReply ? 'komentar Anda' : recipeTitle ?? 'Resep Anda';
+          
+          // Use recipe image if available
+          final String recipeImageUrl = recipe['image_url'] ?? '';
+          if (recipeImageUrl.isNotEmpty) {
+            imageUrl = recipeImageUrl;
+            print('Using recipe image for comment: $imageUrl');
+          } else {
+            imageUrl = 'assets/images/default_food.png';
+          }
+        } else {
+          targetName = isReply ? 'komentar Anda' : 'Resep Anda';
+          imageUrl = 'assets/images/default_food.png';
+          
+          // Try to get recipe ID from comment_data if available
+          final commentData = item['comment_data'] as Map<String, dynamic>?;
+          if (commentData != null && commentData.containsKey('recipe_id')) {
+            recipeId = commentData['recipe_id'];
+          }
+        }
         break;
         
       default:
@@ -143,14 +168,14 @@ class NotificationModel {
         break;
     }
   }
-  
-  // UI helpers
+    // UI helpers
   String get displayType {
     switch (type) {
       case 'like_recipe': return 'like_resep';
       case 'like_comment': return 'like_komentar';
       case 'follow': return 'follow';
-      case 'comment': return 'komentar_resep';
+      case 'comment': 
+        return targetName == 'komentar Anda' ? 'komentar_komentar' : 'komentar_resep';
       default: return 'other';
     }
   }
@@ -163,7 +188,10 @@ class NotificationModel {
         return isMutualFollow == true
             ? 'telah mengikuti Anda kembali'
             : 'telah mengikuti Anda';
-      case 'comment': return 'mengomentari resep Anda:';
+      case 'comment': 
+        return targetName == 'komentar Anda' 
+            ? 'membalas komentar Anda:'
+            : 'mengomentari resep Anda:';
       default: return 'berinteraksi dengan Anda';
     }
   }

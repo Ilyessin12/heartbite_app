@@ -741,20 +741,36 @@ class _NotificationPageState extends State<NotificationPage> {
       'isFollowingYou': false,
       'canNavigate': false,
     });
-    
-    // Test comment notification
+      // Test direct comment on recipe notification
     _notifikasiBelumDibaca.add({
       'id': 9996,
-      'nama': 'Comment User',
+      'nama': 'Direct Comment User',
       'waktu': '21/06/2025 09:45',
       'gambarProfil': 'assets/images/default_profile.png',
       'dibaca': false,
       'tipe': 'komentar_resep',
       'aksi': 'mengomentari resep Anda:',
       'adaGambar': true,
-      'targetNama': 'Target Recipe',
+      'targetNama': 'Ayam Bakar Special',
       'gambarKonten': 'assets/images/default_food.png',
-      'subteks': 'Ini komentar pengujian untuk memastikan notifikasi komentar berfungsi dengan baik!',
+      'subteks': 'Ini komentar langsung pada resep Anda. Resepnya sangat lezat dan mudah diikuti!',
+      'canNavigate': false,
+      'recipeId': 54321,
+    });
+    
+    // Test reply to comment notification
+    _notifikasiBelumDibaca.add({
+      'id': 9995,
+      'nama': 'Reply Comment User',
+      'waktu': '20/06/2025 15:30',
+      'gambarProfil': 'assets/images/default_profile.png',
+      'dibaca': false,
+      'tipe': 'komentar_komentar',
+      'aksi': 'membalas komentar Anda:',
+      'adaGambar': true,
+      'targetNama': 'komentar Anda',
+      'gambarKonten': 'assets/images/default_food.png',
+      'subteks': 'Terima kasih atas responnya! Saya akan mencoba saran modifikasi bumbu tersebut.',
       'canNavigate': false,
       'recipeId': 54321,
     });

@@ -54,8 +54,7 @@ class NotificationService {
         .order('created_at', ascending: false);
       
       final notifications = response as List<dynamic>;
-      print('Found ${notifications.length} notifications for user $userId');
-        // Process notifications to add related data based on type
+      print('Found ${notifications.length} notifications for user $userId');        // Process notifications to add related data based on type
       final processedNotifications = await Future.wait(notifications.map((item) async {
         // If this is a like_recipe notification, fetch the recipe data
         if (item['type'] == 'like_recipe') {
@@ -83,8 +82,61 @@ class NotificationService {
           }
         }
         
-        // Similar handling could be added for other types like comment
-        // that might need extra data
+        // Handle comment notifications
+        else if (item['type'] == 'comment') {
+          try {
+            // The related_id in this case contains the comment ID
+            final commentId = int.tryParse(item['related_id']);
+            if (commentId != null) {
+              print('Fetching comment data for notification ${item['id']}, comment $commentId');
+              
+              // Get the comment data first
+              final commentData = await _client
+                .from('recipe_comments')
+                .select('id, recipe_id, comment, parent_comment_id')
+                .eq('id', commentId)
+                .maybeSingle();
+              
+              if (commentData != null) {
+                // Store comment text in content field for display
+                final String commentText = commentData['comment'] ?? '';
+                item['content'] = commentText.length > 60 
+                  ? '${commentText.substring(0, 60)}...' 
+                  : commentText;
+                
+                final int recipeId = commentData['recipe_id'];
+                final int? parentCommentId = commentData['parent_comment_id'];
+                
+                // Set comment type: direct comment or reply
+                item['is_reply'] = parentCommentId != null;
+                
+                // Now fetch the recipe details to get image
+                final recipeData = await _client
+                  .from('recipes')
+                  .select('id, title, image_url')
+                  .eq('id', recipeId)
+                  .maybeSingle();
+                
+                if (recipeData != null) {
+                  // Store recipe data for the UI
+                  item['recipe'] = recipeData;
+                  print('Found recipe: ${recipeData['title']} for comment');
+                  
+                  // Store recipe ID in comment data for reference
+                  commentData['recipe'] = recipeData;
+                }
+                
+                // Store the comment data in the notification item
+                item['comment_data'] = commentData;
+                print('Comment type: ${parentCommentId == null ? "direct" : "reply"}');
+              } else {
+                print('Comment $commentId not found');
+              }
+            }
+          } catch (e) {
+            print('Error fetching comment data: $e');
+          }
+        }
         
         return item;
       }));
@@ -102,14 +154,22 @@ class NotificationService {
         
         return NotificationModel.fromSupabase(item);
       }).toList();
-      
-      // Debug the final notification models
+        // Debug the final notification models
       for (final model in notificationModels) {
         if (model.type == 'like_recipe') {
-          print('Final notification model ${model.id}:');
+          print('Final like_recipe notification ${model.id}:');
           print('  recipeId: ${model.recipeId}');
           print('  recipeTitle: ${model.recipeTitle}');
           print('  imageUrl: ${model.imageUrl}');
+        } 
+        else if (model.type == 'comment') {
+          print('Final comment notification ${model.id}:');
+          print('  displayType: ${model.displayType}');
+          print('  targetName: ${model.targetName}');
+          print('  subtitle: ${model.subtitle}');
+          print('  recipeId: ${model.recipeId}');
+          print('  imageUrl: ${model.imageUrl}');
+          print('  actionText: ${model.actionText}');
         }
       }
       
