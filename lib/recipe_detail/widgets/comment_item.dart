@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/comment.dart';
 import '../utils/constants.dart';
+import '../../sidebar/screens/profile_screen.dart'; // Import ProfileScreenWithBackend
 
 class CommentItem extends StatefulWidget {
   final Comment comment;
@@ -47,15 +48,24 @@ class _CommentItemState extends State<CommentItem> {
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              CircleAvatar(
-                radius: 16,
-                backgroundImage: avatarImage,
-                onBackgroundImageError: (_, __) {
-                  // Fallback for NetworkImage errors, though AssetImage should ideally not error if path is correct
-                  // This is more relevant if userImageUrl could be a faulty network URL.
-                  // For now, this is a basic fallback.
-                  // setState(() { avatarImage = AssetImage('assets/images/avatars/avatar1.jpg'); });
+              GestureDetector(
+                onTap: () {
+                  if (widget.comment.userId.isNotEmpty) {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => ProfileScreenWithBackend(userId: widget.comment.userId),
+                      ),
+                    );
+                  }
                 },
+                child: CircleAvatar(
+                  radius: 16,
+                  backgroundImage: avatarImage,
+                  onBackgroundImageError: (_, __) {
+                    // Fallback for NetworkImage errors
+                  },
+                ),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -64,17 +74,29 @@ class _CommentItemState extends State<CommentItem> {
                   children: [
                     Row(
                       children: [
-                        Flexible( // Use Flexible for the username
-                          child: Text(
-                            widget.comment.userName,
-                            style: const TextStyle(
-                              fontWeight: FontWeight.bold,
+                        Flexible(
+                          child: GestureDetector(
+                            onTap: () {
+                              if (widget.comment.userId.isNotEmpty) {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => ProfileScreenWithBackend(userId: widget.comment.userId),
+                                  ),
+                                );
+                              }
+                            },
+                            child: Text(
+                              widget.comment.userName,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                              softWrap: true,
                             ),
-                            overflow: TextOverflow.ellipsis, // Handle long usernames
-                            softWrap: true, // Allow wrapping
                           ),
                         ),
-                        const Spacer(), // Reinstate Spacer to push timeAgo to the right
+                        const Spacer(), 
                         Text( 
                           widget.comment.timeAgo,
                           style: AppTextStyles.caption,

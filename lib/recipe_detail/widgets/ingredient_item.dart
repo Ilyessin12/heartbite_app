@@ -27,7 +27,7 @@ class IngredientItem extends StatelessWidget {
         child: Row(
           children: [
             Text(
-              ingredient.order.toString(),
+              (ingredient.order + 1).toString(), // Add 1 to display order starting from 1
               style: const TextStyle(
                 fontWeight: FontWeight.bold,
                 fontSize: 18,
