@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 import '../widgets/custom_back_button.dart';
-import '../widgets/country_list_item.dart';
 
 class CountryScreen extends StatefulWidget {
   const CountryScreen({super.key});

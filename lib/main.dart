@@ -87,13 +87,12 @@ class _HomeScreenWrapperState extends State<HomeScreenWrapper> {
       _checkLoginStatus();
     });
   }
-
   Future<void> _checkLoginStatus() async {
     // Short delay to allow smooth transitions
     await Future.delayed(const Duration(milliseconds: 300));
     
     if (mounted && AuthService.isUserLoggedIn()) {
-      // Jika user sudah login, redirect ke homepage
+      // If user is already logged in, redirect to homepage
       Navigator.of(context).pushReplacementNamed('/home');
     }
     

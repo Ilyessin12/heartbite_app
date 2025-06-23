@@ -1,18 +1,19 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart'; // Import for kDebugMode
 import 'package:iconoir_flutter/iconoir_flutter.dart'
     hide Key, Text, Navigator, List, Map;
 import 'dart:ui';
 import '../../models/recipe_model.dart'
-    as SupabaseRecipeModel; // Alias for Supabase model
+    as supabase_recipe_model; // Alias for Supabase model
 import '../../recipe/edit_recipe_screen.dart'; // Import EditRecipeScreen
 import '../../services/recipe_service.dart'; // Import RecipeService
 import '../../services/bookmark_service.dart'; // Import BookmarkService
 import '../../services/supabase_client.dart'; // For current user
 import '../../services/auth_service.dart'; // Added import
-import '../models/recipe.dart' as DetailModel; // Alias for local detail model
-import '../models/ingredient.dart' as DetailModelIngredient;
-import '../models/direction.dart' as DetailModelDirection;
-import '../models/comment.dart' as DetailModelComment;
+import '../models/recipe.dart' as detail_model; // Alias for local detail model
+import '../models/ingredient.dart' as detail_model_ingredient;
+import '../models/direction.dart' as detail_model_direction;
+import '../models/comment.dart' as detail_model_comment;
 import '../widgets/recipe_header.dart';
 import '../widgets/ingredient_item.dart';
 import '../widgets/direction_item.dart';
@@ -39,7 +40,7 @@ class RecipeDetailScreen extends StatefulWidget {
 class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
   final RecipeService _recipeService = RecipeService();
   final BookmarkService _bookmarkService = BookmarkService();
-  DetailModel.Recipe? _recipe; // Nullable, will be fetched
+  detail_model.Recipe? _recipe; // Nullable, will be fetched
   bool _isLoading = true;
   String _loadingError = '';
 
@@ -47,7 +48,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
   int _likeCount = 0; // To store like count
   bool isBookmarked = false;
   final TextEditingController _commentController = TextEditingController();
-  List<DetailModelComment.Comment> _comments = []; // Initialize as empty
+  List<detail_model_comment.Comment> _comments = []; // Initialize as empty
   String? _replyingToCommentId;
   String? _replyingToUserName;
 
@@ -75,7 +76,9 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
         });
       }
     } catch (e) {
-      print('Error checking if recipe is favorited: $e');
+      if (kDebugMode) {
+        print('Error checking if recipe is favorited: $e');
+      }
       // Optionally show a snackbar or handle error
     }
   }
@@ -89,7 +92,9 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
         });
       }
     } catch (e) {
-      print('Error fetching like count: $e');
+      if (kDebugMode) {
+        print('Error fetching like count: $e');
+      }
       // Optionally show a snackbar or handle error
     }
   }
@@ -103,7 +108,9 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
         isBookmarked = bookmarked;
       });
     } catch (e) {
-      print('Error checking bookmark status: $e');
+      if (kDebugMode) {
+        print('Error checking bookmark status: $e');
+      }
     }
   }
 
@@ -148,7 +155,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
                                 recipeId: widget.recipeId,
                                 folderId: folder['folder_id'],
                               );
-                              Navigator.pop(context);
+                               if (mounted) Navigator.pop(context); // Guard with mounted check
                               _checkBookmarkStatus(); // Refresh bookmark status
                               if (mounted) {
                                 ScaffoldMessenger.of(context).showSnackBar(
@@ -161,12 +168,14 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
                                 );
                               }
                             } catch (e) {
-                              print('Error removing bookmark: $e');
+                               if (kDebugMode) {
+                                 print('Error removing bookmark: $e');
+                               }
                               if (mounted) {
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   SnackBar(
                                     content: Text(
-                                      'Error removing bookmark: $e',
+                                       'Error removing bookmark: ${e.toString()}',
                                     ),
                                     backgroundColor: Colors.red,
                                   ),
@@ -181,7 +190,9 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
                 ),
                 actions: [
                   TextButton(
-                    onPressed: () => Navigator.pop(context),
+                     onPressed: () {
+                       if (mounted) Navigator.pop(context);
+                     },
                     child: const Text('Close'),
                   ),
                 ],
@@ -189,7 +200,9 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
         );
       }
     } catch (e) {
-      print('Error getting bookmark folders: $e');
+       if (kDebugMode) {
+         print('Error getting bookmark folders: $e');
+       }
     }
   }
 
@@ -206,7 +219,10 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
         widget.recipeId,
         currentUserId: currentUserId, // Pass the dynamic (possibly null) user ID
       );
-      // Adapt recipeData (Map<String, dynamic>) to DetailModel.Recipe
+
+      if (!mounted) return; // Check if the widget is still in the tree
+
+      // Adapt recipeData (Map<String, dynamic>) to detail_model.Recipe
       // This is a complex mapping due to different structures and related tables
       setState(() {
       _recipe = _adaptSupabaseDataToDetailModel(recipeData, recipeData['user_id'] as String?);
@@ -214,18 +230,25 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
         _isLoading = false;
       });
     } catch (e) {
-      print("Error fetching recipe details: $e");
-      setState(() {
-        _isLoading = false;
-        _loadingError = "Gagal memuat detail resep: ${e.toString()}";
-      });
+      if (kDebugMode) {
+        print("Error fetching recipe details: $e");
+      }
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _loadingError = "Gagal memuat detail resep: ${e.toString()}";
+        });
+      }
     }
   }
 
-  DetailModel.Recipe _adaptSupabaseDataToDetailModel(
+  detail_model.Recipe _adaptSupabaseDataToDetailModel(
     Map<String, dynamic> data,
     String? authorId, // Added authorId parameter
   ) {
+    // Description
+    final String description = data['description'] as String? ?? 'No description available.';
+
     // User data (author)
     final Map<String, dynamic>? userData =
         data['users'] as Map<String, dynamic>?;
@@ -233,7 +256,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
     // Ingredients
     final List<dynamic> ingredientsData =
         data['recipe_ingredients'] as List<dynamic>? ?? [];
-    final List<DetailModelIngredient.Ingredient> ingredients =
+    final List<detail_model_ingredient.Ingredient> ingredients =
         ingredientsData
             .map((ingDataMap) {
               // Ensure ingDataMap is actually a map
@@ -242,7 +265,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
                 final String ingredientName =
                     ingDataMap['ingredients'] as String? ??
                     'Unknown Ingredient';
-                return DetailModelIngredient.Ingredient(
+                return detail_model_ingredient.Ingredient(
                   order:
                       ingDataMap['order_index'] as int? ??
                       ingredientsData.indexOf(ingDataMap),
@@ -252,29 +275,31 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
                 );
               } else {
                 // Handle case where an item in ingredientsData is not a map
-                print(
-                  "WARNING: Skipping non-map item in ingredientsData: $ingDataMap",
-                );
+                if (kDebugMode) {
+                  print(
+                    "WARNING: Skipping non-map item in ingredientsData: $ingDataMap",
+                  );
+                }
                 return null;
               }
             })
-            .whereType<DetailModelIngredient.Ingredient>()
+            .whereType<detail_model_ingredient.Ingredient>()
             .toList(); // Filter out any nulls
 
     // Directions
     final List<dynamic> instructionsData =
         data['recipe_instructions'] as List<dynamic>? ?? [];
-    final List<DetailModelDirection.Direction> directions =
+    final List<detail_model_direction.Direction> directions =
         instructionsData
             .map((instData) {
-              return DetailModelDirection.Direction(
+              return detail_model_direction.Direction(
                 order: instData['step_number'] as int? ?? 0,
                 description: instData['instruction'] as String? ?? '',
                 imageUrl: instData['image_url'] as String?,
               );
             })
             .toList()
-            .cast<DetailModelDirection.Direction>();
+            .cast<detail_model_direction.Direction>();
 
     // Gallery Images
     final List<dynamic> galleryData =
@@ -288,15 +313,15 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
 
     // Comments
     final List<dynamic> fetchedCommentsData = data['recipe_comments'] as List<dynamic>? ?? [];
-    final List<DetailModelComment.Comment> flatComments = fetchedCommentsData
-        .map((commentJson) => DetailModelComment.Comment.fromJson(commentJson as Map<String, dynamic>))
+    final List<detail_model_comment.Comment> flatComments = fetchedCommentsData
+        .map((commentJson) => detail_model_comment.Comment.fromJson(commentJson as Map<String, dynamic>))
         .toList();
     
     // Structure comments into threads
-    final Map<String, DetailModelComment.Comment> commentMap = {
+    final Map<String, detail_model_comment.Comment> commentMap = {
       for (var comment in flatComments) comment.id: comment
     };
-    final List<DetailModelComment.Comment> topLevelComments = [];
+    final List<detail_model_comment.Comment> topLevelComments = [];
 
     for (var comment in flatComments) {
       if (comment.parentCommentId != null) {
@@ -306,7 +331,9 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
           parent.replies.add(comment);
         } else {
           // Orphaned reply
-          print('Warning: Orphaned reply found with id: ${comment.id}, parent_id: ${comment.parentCommentId}');
+          if (kDebugMode) {
+            print('Warning: Orphaned reply found with id: ${comment.id}, parent_id: ${comment.parentCommentId}');
+          }
           topLevelComments.add(comment);
         }
       } else {
@@ -315,8 +342,8 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
       }
     }
 
-    return DetailModel.Recipe(
-      id: data['id'].toString(), // DetailModel expects String ID
+    return detail_model.Recipe(
+      id: data['id'].toString(), // detail_model expects String ID
       title: data['title'] as String? ?? 'No Title',
       imageUrl: data['image_url'] as String? ?? '',
       rating: (data['rating'] as num?)?.toDouble() ?? 0.0,
@@ -332,6 +359,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
       galleryImages: galleryImages,
       comments: topLevelComments, // Pass the structured, top-level comments
       authorId: authorId ?? '', // Store authorId
+      description: description, // Add description
 
       // Extract tag names
       allergenTags: (data['allergens'] as List<dynamic>?)
@@ -380,8 +408,9 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
         text.trim(),
         parentCommentId: parentId,
       );
+      if (!mounted) return; // Guard after await
 
-      final newComment = DetailModelComment.Comment.fromJson(newCommentData);
+      final newComment = detail_model_comment.Comment.fromJson(newCommentData);
 
       setState(() {
         if (newComment.parentCommentId != null) {
@@ -389,7 +418,9 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
           final added = _addReplyToLocalList(_comments, newComment);
           if (!added) {
             // Parent not found, fallback to add as a top-level comment or handle error
-            print("Error: Parent comment not found for reply. Adding as top-level.");
+            if (kDebugMode) {
+              print("Error: Parent comment not found for reply. Adding as top-level.");
+            }
             _comments.insert(0, newComment);
           }
         } else {
@@ -402,7 +433,9 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
       _commentController.clear();
 
     } catch (e) {
-      print("Error adding comment: $e");
+      if (kDebugMode) {
+        print("Error adding comment: $e");
+      }
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text("Failed to add comment: ${e.toString()}")),
@@ -417,7 +450,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
     super.dispose();
   }
 
-  void _initiateReply(DetailModelComment.Comment parentComment) {
+  void _initiateReply(detail_model_comment.Comment parentComment) {
     setState(() {
       _replyingToCommentId = parentComment.id;
       _replyingToUserName = parentComment.userName;
@@ -428,7 +461,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
   }
 
   // Helper function to recursively find and add a reply to the local list
-  bool _addReplyToLocalList(List<DetailModelComment.Comment> commentsList, DetailModelComment.Comment reply) {
+  bool _addReplyToLocalList(List<detail_model_comment.Comment> commentsList, detail_model_comment.Comment reply) {
     for (var comment in commentsList) {
       if (comment.id == reply.parentCommentId.toString()) {
         comment.replies.insert(0, reply); 
@@ -443,10 +476,10 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
     return false; 
   }
 
-  DetailModelComment.Comment? _findAndUpdateComment(
-    List<DetailModelComment.Comment> commentsList,
+  detail_model_comment.Comment? _findAndUpdateComment(
+    List<detail_model_comment.Comment> commentsList,
     String commentId,
-    DetailModelComment.Comment Function(DetailModelComment.Comment) updater,
+    detail_model_comment.Comment Function(detail_model_comment.Comment) updater,
   ) {
     for (int i = 0; i < commentsList.length; i++) {
       var comment = commentsList[i];
@@ -462,14 +495,16 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
     return null;
   }
 
-  Future<void> _handleCommentLike(DetailModelComment.Comment commentToToggle) async {
+  Future<void> _handleCommentLike(detail_model_comment.Comment commentToToggle) async {
     // final String currentUserId = "325c40cc-d255-4f93-bf5f-40bc196ca093"; // Hardcoded User ID
     final currentUser = SupabaseClientWrapper().client.auth.currentUser;
 
     if (currentUser == null) {
-      if(mounted) ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Please log in to like comments.")),
-      );
+      if(mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Please log in to like comments.")),
+        );
+      }
       return;
     }
 
@@ -487,16 +522,20 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
       // toggleCommentLike in service will get current user ID
       await _recipeService.toggleCommentLike(commentToToggle.id);
     } catch (e) {
-      print("Error toggling comment like: $e");
+      if (kDebugMode) {
+        print("Error toggling comment like: $e");
+      }
       // Revert UI update on error
-      setState(() {
-        _findAndUpdateComment(_comments, commentToToggle.id, (comment) {
-          return comment.copyWith(
-            isLiked: !comment.isLiked, 
-            likeCount: comment.isLiked ? comment.likeCount - 1 : comment.likeCount + 1, 
-          );
+      if(mounted) { // Guard setState with mounted check
+        setState(() {
+          _findAndUpdateComment(_comments, commentToToggle.id, (comment) {
+            return comment.copyWith(
+              isLiked: !comment.isLiked, 
+              likeCount: comment.isLiked ? comment.likeCount - 1 : comment.likeCount + 1, 
+            );
+          });
         });
-      });
+      }
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text("Failed to update like status: ${e.toString()}")),
@@ -508,17 +547,17 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
   void _navigateToEditScreen() async {
     if (_recipe == null) return;
 
-    // Adapt DetailModel.Recipe to SupabaseRecipeModel.RecipeModel for EditRecipeScreen
+    // Adapt detail_model.Recipe to supabase_recipe_model.RecipeModel for EditRecipeScreen
     // This requires careful mapping.
-    SupabaseRecipeModel.RecipeModel
-    recipeToEdit = SupabaseRecipeModel.RecipeModel(
+    supabase_recipe_model.RecipeModel
+    recipeToEdit = supabase_recipe_model.RecipeModel(
       id: int.tryParse(_recipe!.id), // Supabase model has int id
       user_id:
           SupabaseClientWrapper().auth.currentUser?.id ??
           "", // This should be the actual recipe owner's ID
       title: _recipe!.title,
       description:
-          "", // DetailModel.Recipe doesn't have a direct description field, map accordingly
+          _recipe!.description, // Use description from detail_model.Recipe
       image_url: _recipe!.imageUrl,
       calories: _recipe!.calories,
       servings:
@@ -526,11 +565,11 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
           1, // Extract number from "X Porsi"
       cooking_time_minutes: _recipe!.cookingMinutes,
       difficulty_level:
-          "medium", // DetailModel.Recipe doesn't have this, provide default or map
+          "medium", // detail_model.Recipe doesn't have this, provide default or map
       is_published:
           true, // Assuming it's published, or get this state from fetched data
       gallery_image_urls: _recipe!.galleryImages,
-      // ingredients_text and directions_text are reconstructed from DetailModel
+      // ingredients_text and directions_text are reconstructed from detail_model
       ingredients_text: _recipe!.ingredients
           .map((e) => "${e.amount} ${e.unit} ${e.name}")
           .join('\n'), // Used e.amount
@@ -543,6 +582,9 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
     // Let's assume getRecipeDetailsById returns user_id in the top-level map.
     final Map<String, dynamic>? originalRecipeDataFromServer =
         await _recipeService.getRecipeDetailsById(widget.recipeId);
+    
+    if (!mounted) return; // Guard after await
+
     final originalCreatorId =
         originalRecipeDataFromServer?['user_id'] as String?;
 
@@ -583,8 +625,63 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
         builder: (context) => EditRecipeScreen(recipeId: recipeIdToInt), // Pass recipeId
       ),
     );
-    if (result == true) {
+    if (result == true && mounted) { // Guard with mounted check
       _fetchRecipeDetails(); // Refresh details if changes were made
+    }
+  }
+
+  Future<void> _deleteRecipe() async {
+    if (_recipe == null || _recipe!.id.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Error: Recipe ID tidak tersedia untuk dihapus.')),
+      );
+      return;
+    }
+
+    final bool? confirmDelete = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Konfirmasi Hapus'),
+          content: const Text('Apakah Anda yakin ingin menghapus resep ini? Tindakan ini tidak dapat dibatalkan.'),
+          actions: <Widget>[
+            TextButton(
+              child: const Text('Batal'),
+              onPressed: () {
+                Navigator.of(context).pop(false);
+              },
+            ),
+            TextButton(
+              child: const Text('Hapus', style: TextStyle(color: Colors.red)),
+              onPressed: () {
+                Navigator.of(context).pop(true);
+              },
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmDelete == true) {
+      try {
+        final recipeId = int.tryParse(_recipe!.id);
+        if (recipeId == null) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Error: Format ID Resep tidak valid.')),
+          );
+          return;
+        }
+        await _recipeService.deleteRecipe(recipeId);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Resep berhasil dihapus!'), backgroundColor: Colors.green),
+        );
+        Navigator.of(context).pop(true); // Pop with true to indicate success/change
+      } catch (e) {
+        print('Error deleting recipe: $e');
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Gagal menghapus resep: ${e.toString()}')),
+        );
+      }
     }
   }
 
@@ -629,11 +726,14 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     GestureDetector(
-                      onTap:
-                          () => Navigator.pop(
+                      onTap: () {
+                        if (mounted) {
+                          Navigator.pop(
                             context,
                             false,
-                          ), // Pass false if no changes
+                          ); // Pass false if no changes
+                        }
+                      },
                       child: Container(
                         width: 40,
                         height: 40,
@@ -681,10 +781,42 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
                               return const SizedBox.shrink(); // Don't show if not owner or still loading user_id
                             },
                           ),
+                        // Delete Button - Show only if current user is the owner
+                        if (currentUser != null &&
+                            _recipe!
+                                .id
+                                .isNotEmpty) 
+                          FutureBuilder<Map<String, dynamic>>(
+                            future: _recipeService.getRecipeDetailsById(
+                              int.parse(_recipe!.id),
+                            ), // Re-fetch to get user_id
+                            builder: (context, snapshot) {
+                              if (snapshot.hasData &&
+                                  snapshot.data?['user_id'] == currentUser.id) {
+                                return GestureDetector(
+                                  onTap: _deleteRecipe, // Call delete function
+                                  child: Container(
+                                    margin: const EdgeInsets.only(right: 8),
+                                    width: 40,
+                                    height: 40,
+                                    decoration: BoxDecoration(
+                                      color: Colors.red.shade50, // Different color for delete
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: const Icon(
+                                      Icons.delete,
+                                      color: Colors.red,
+                                    ),
+                                  ),
+                                );
+                              }
+                              return const SizedBox.shrink(); // Don't show if not owner
+                            },
+                          ),
                         GestureDetector(
                           onTap: () async {
-                            final currentUser = SupabaseClientWrapper().client.auth.currentUser;
-                            if (currentUser == null) {
+                            final localCurrentUser = SupabaseClientWrapper().client.auth.currentUser; // Use a local variable
+                            if (localCurrentUser == null) {
                               if (mounted) {
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   const SnackBar(content: Text("Please log in to like recipes.")),
@@ -710,24 +842,30 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
                               await _recipeService.toggleLikeRecipe(currentRecipeId);
                               // After server confirmation, refresh the like count and status
                               // to ensure consistency, though optimistic update handles immediate UI.
-                              _fetchLikeCount(); 
-                              _checkIfFavorite(); 
+                              if(mounted) { // Guard async calls that might update state
+                                _fetchLikeCount(); 
+                                _checkIfFavorite(); 
+                              }
                             } catch (e) {
                               // Revert UI on error
-                              setState(() {
-                                _isFavorite = !_isFavorite; // Toggle back
-                                if (_isFavorite) { // This means it was false before, and we are reverting the increment
-                                  _likeCount++;
-                                } else { // This means it was true before, and we are reverting the decrement
-                                  _likeCount--;
-                                }
-                              });
+                              if(mounted) { // Guard setState with mounted check
+                                setState(() {
+                                  _isFavorite = !_isFavorite; // Toggle back
+                                  if (_isFavorite) { // This means it was false before, and we are reverting the increment
+                                    _likeCount++;
+                                  } else { // This means it was true before, and we are reverting the decrement
+                                    _likeCount--;
+                                  }
+                                });
+                              }
                               if (mounted) {
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   SnackBar(content: Text("Failed to update like: ${e.toString()}")),
                                 );
                               }
-                              print("Error toggling recipe like: $e");
+                              if (kDebugMode) {
+                                print("Error toggling recipe like: $e");
+                              }
                             }
                           },
                           child: Container(
@@ -750,9 +888,11 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
                         GestureDetector(
                           onTap: () {
                             if (!AuthService.isUserLoggedIn()) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(content: Text("Please log in to bookmark recipes.")),
-                              );
+                              if (mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(content: Text("Please log in to bookmark recipes.")),
+                                );
+                              }
                               return;
                             }
                             if (isBookmarked) {
@@ -779,7 +919,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
                                   height: 40,
                                   padding: const EdgeInsets.all(0),
                                   decoration: BoxDecoration(
-                                    color: Colors.black.withOpacity(0.1),
+                                    color: Colors.black.withOpacity(0.1), // Keep withOpacity for now, or replace with .withValues() if specific control is needed
                                     shape: BoxShape.circle,
                                   ),
                                   child: Center(
@@ -816,6 +956,12 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
                       likeCount: _likeCount,
                       isFavorite: _isFavorite,
                       authorId: _recipe!.authorId, // Pass authorId
+                    ),
+                    const SizedBox(height: 16),
+                    // Display Description
+                    Text(
+                      _recipe!.description,
+                      style: AppTextStyles.body, // This should now be defined
                     ),
                     const SizedBox(height: 16),
 
@@ -950,20 +1096,22 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
                     ),
                     const SizedBox(height: 8),
                     GalleryGrid(
-                      images: _recipe!.galleryImages, // Perbaikan di sini
+                      images: _recipe!.galleryImages, 
                       onImageTap: (index) {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder:
-                                (context) => GalleryScreen(
-                                  images:
-                                      _recipe!
-                                          .galleryImages, // Perbaikan di sini
-                                  initialIndex: index,
-                                ),
-                          ),
-                        );
+                        if(mounted) { // Guard Navigator.push
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder:
+                                  (context) => GalleryScreen(
+                                    images:
+                                        _recipe!
+                                            .galleryImages, 
+                                    initialIndex: index,
+                                  ),
+                            ),
+                          );
+                        }
                       },
                       crossAxisCount: 3,
                     ),
@@ -976,37 +1124,41 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
                         const Text("Diskusi", style: AppTextStyles.subheading),
                         TextButton(
                           onPressed: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) {
-                                  // Ensure _recipe and _recipe.id are not null and _recipe.id is parseable to int
-                                  if (_recipe == null || _recipe!.id.isEmpty) {
-                                    // Handle error case, maybe show a dialog or return an error widget
-                                    return Scaffold(
-                                      appBar: AppBar(title: const Text("Error")),
-                                      body: const Center(child: Text("Recipe ID is invalid.")),
+                            if(mounted) { // Guard Navigator.push
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) {
+                                    // Ensure _recipe and _recipe.id are not null and _recipe.id is parseable to int
+                                    if (_recipe == null || _recipe!.id.isEmpty) {
+                                      // Handle error case, maybe show a dialog or return an error widget
+                                      return Scaffold(
+                                        appBar: AppBar(title: const Text("Error")),
+                                        body: const Center(child: Text("Recipe ID is invalid.")),
+                                      );
+                                    }
+                                    final recipeId = int.tryParse(_recipe!.id);
+                                    if (recipeId == null) {
+                                      return Scaffold(
+                                        appBar: AppBar(title: const Text("Error")),
+                                        body: const Center(child: Text("Recipe ID is not a valid number.")),
+                                      );
+                                    }
+                                    return DiscussionScreen(
+                                      comments: _comments,
+                                      recipeId: recipeId, // Pass the recipeId
+                                      onCommentsUpdated: (updatedComments) {
+                                        if(mounted) { // Guard setState
+                                          setState(() {
+                                            _comments = updatedComments;
+                                          });
+                                        }
+                                      },
                                     );
-                                  }
-                                  final recipeId = int.tryParse(_recipe!.id);
-                                  if (recipeId == null) {
-                                    return Scaffold(
-                                      appBar: AppBar(title: const Text("Error")),
-                                      body: const Center(child: Text("Recipe ID is not a valid number.")),
-                                    );
-                                  }
-                                  return DiscussionScreen(
-                                    comments: _comments,
-                                    recipeId: recipeId, // Pass the recipeId
-                                    onCommentsUpdated: (updatedComments) {
-                                      setState(() {
-                                        _comments = updatedComments;
-                                      });
-                                    },
-                                  );
-                                },
-                              ),
-                            );
+                                  },
+                                ),
+                              );
+                            }
                           },
                           child: const Text("lihat semua"),
                         ),
@@ -1139,11 +1291,12 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
                   recipeId: widget.recipeId,
                   folderId: int.parse(folderId),
                 );
+                if (!mounted) return; // Guard after await
                 setState(() {
                   isBookmarked = true;
                 });
-                Navigator.pop(context);
-                if (mounted) {
+                Navigator.pop(context); // Pop before showing SnackBar
+                if (mounted) { // Check mounted again before SnackBar
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
                       content: Text('Recipe bookmarked successfully!'),
@@ -1152,12 +1305,14 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
                   );
                 }
               } catch (e) {
-                print('Error bookmarking recipe: $e');
-                Navigator.pop(context);
-                if (mounted) {
+                if (kDebugMode) {
+                  print('Error bookmarking recipe: $e');
+                }
+                if (mounted) Navigator.pop(context); // Pop before showing SnackBar
+                if (mounted) { // Check mounted again before SnackBar
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
-                      content: Text('Error bookmarking recipe: $e'),
+                      content: Text('Error bookmarking recipe: ${e.toString()}'),
                       backgroundColor: Colors.red,
                     ),
                   );

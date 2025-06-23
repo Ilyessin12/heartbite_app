@@ -10,9 +10,11 @@ class Comment {
   int likeCount;
   final int? parentCommentId;
   List<Comment> replies;
+  final String userId; // Added userId field
 
   Comment({
     required this.id,
+    required this.userId, // Added userId to constructor
     required this.userName,
     required this.userImageUrl,
     required this.text,
@@ -29,9 +31,11 @@ class Comment {
     String userName = "Anda", // "You"
     String userImageUrl = "assets/images/avatars/avatar1.jpg", // Default placeholder
     int? parentCommentId,
+    String userId = "", // Default empty or use actual current user ID if available
   }) {
     return Comment(
       id: DateTime.now().millisecondsSinceEpoch.toString(), // Temporary ID
+      userId: userId, // Use provided or default userId
       userName: userName,
       userImageUrl: userImageUrl,
       text: text,
@@ -50,9 +54,13 @@ class Comment {
     // Supabase returns count as a list with a single map: e.g., [{'count': 5}]
     final List<dynamic> likeCountData = json['comment_likes'] as List<dynamic>? ?? [];
     final int likes = likeCountData.isNotEmpty ? (likeCountData.first['count'] as int? ?? 0) : 0;
+    
+    final String commentUserId = userData?['id'] as String? ?? json['user_id'] as String? ?? '';
+
 
     return Comment(
       id: json['id'].toString(),
+      userId: commentUserId, // Extracted userId
       userName: userData?['username'] as String? ?? 'Unknown User',
       userImageUrl: userData?['profile_picture'] as String? ?? 'assets/images/avatars/avatar1.jpg',
       text: json['comment'] as String,
@@ -66,6 +74,7 @@ class Comment {
 
   Comment copyWith({
     String? id,
+    String? userId,
     String? userName,
     String? userImageUrl,
     String? text,
@@ -77,6 +86,7 @@ class Comment {
   }) {
     return Comment(
       id: id ?? this.id,
+      userId: userId ?? this.userId,
       userName: userName ?? this.userName,
       userImageUrl: userImageUrl ?? this.userImageUrl,
       text: text ?? this.text,

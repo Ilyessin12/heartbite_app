@@ -7,6 +7,7 @@ import '../../services/auth_service.dart';
 import '../../services/user_service.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'dart:async';
+import '../../login-register/auth.dart';
 
 class SidebarScreen extends StatefulWidget {
   const SidebarScreen({super.key});
@@ -48,7 +49,7 @@ class _SidebarScreenState extends State<SidebarScreen> {
         // Get other user data
         final userService = UserService();
         final userProfile = await userService.getCurrentUserProfile();
-          if (mounted) {
+        if (mounted) {
           setState(() {
             _userProfilePictureUrl = profilePicUrl;
             _userName = userProfile?['full_name'] ?? userProfile?['username'] ?? 'No Name';
@@ -57,7 +58,8 @@ class _SidebarScreenState extends State<SidebarScreen> {
       } catch (e) {
         print("Error fetching user profile in sidebar: $e");
       }
-    } else {      if (mounted) {
+    } else {
+      if (mounted) {
         setState(() {
           _userProfilePictureUrl = null;
           _userName = 'Guest';
@@ -71,7 +73,8 @@ class _SidebarScreenState extends State<SidebarScreen> {
     return Scaffold(
       body: SafeArea(
         child: Column(
-          children: [            Padding(
+          children: [
+            Padding(
               padding: const EdgeInsets.all(16.0),
               child: Row(
                 children: [
@@ -86,7 +89,7 @@ class _SidebarScreenState extends State<SidebarScreen> {
                             image: NetworkImage(_userProfilePictureUrl!),
                             fit: BoxFit.cover,
                           )
-                        : DecorationImage(
+                        : const DecorationImage(
                             image: AssetImage("assets/images/default_profile.png"),
                             fit: BoxFit.cover,
                           ),
@@ -124,7 +127,8 @@ class _SidebarScreenState extends State<SidebarScreen> {
               icon: Icons.settings,
               title: 'Pengaturan',
               destination: const SettingsScreen(),
-            ),            _buildMenuItem(
+            ),
+            _buildMenuItem(
               context,
               icon: Icons.info,
               title: 'About',
@@ -132,37 +136,71 @@ class _SidebarScreenState extends State<SidebarScreen> {
             ),
             const Spacer(),
             const Divider(height: 1),
-            // Sign out button
-            AuthService.isUserLoggedIn()
-              ? InkWell(
-                  onTap: () async {
-                    await AuthService.signOut();
-                    if (mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('You have been signed out')),
-                      );
-                      Navigator.pop(context); // Close the drawer
-                    }
-                  },
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-                    child: const Row(
-                      children: [
-                        Icon(Icons.logout, size: 20, color: Colors.red),
-                        SizedBox(width: 12),
-                        Text(
-                          'Sign Out',
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w500,
-                            color: Colors.red,
-                          ),
+            // Sign out/Sign in button
+            if (AuthService.isUserLoggedIn())
+              InkWell(
+                onTap: () async {                  await AuthService.signOut();
+                  if (mounted) {
+                    // Show a success message
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('You have been signed out')),
+                    );
+                    // Close the drawer first
+                    Navigator.pop(context);
+                    // Navigate to Auth page and remove all previous pages from the stack
+                    Navigator.of(context).pushAndRemoveUntil(
+                      MaterialPageRoute(builder: (context) => const Auth()),
+                      (route) => false, // Remove all previous pages
+                    );
+                  }
+                },
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                  child: const Row(
+                    children: [
+                      Icon(Icons.logout, size: 20, color: Colors.red),
+                      SizedBox(width: 12),
+                      Text(
+                        'Keluar',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                          color: Colors.red,
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
-                )
-              : const SizedBox.shrink(),
+                ),
+              )
+            else
+              InkWell(
+                onTap: () {
+                  Navigator.pop(context); // Close the drawer first
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const Auth(),
+                    ),
+                  );
+                },
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                  child: const Row(
+                    children: [
+                      Icon(Icons.login, size: 20, color: Colors.blue),
+                      SizedBox(width: 12),
+                      Text(
+                        'Sign In',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                          color: Colors.blue,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
           ],
         ),
       ),

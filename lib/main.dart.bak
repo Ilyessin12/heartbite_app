@@ -32,7 +32,7 @@ import 'homepage/homepage.dart';
 import 'homepage/homepage-detail.dart';
 //===== import sidebar pages
 import 'sidebar/screens/about_screen.dart';
-import 'sidebar/screens/country_screen.dart';
+import 'sidebar/screens/country_screen.dart.hapus';
 import 'sidebar/screens/edit_profile_screen.dart';
 import 'sidebar/screens/followers_screen.dart';
 import 'sidebar/screens/following_screen.dart';

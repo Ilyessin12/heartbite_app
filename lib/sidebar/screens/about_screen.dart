@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 import '../widgets/custom_back_button.dart';
+import '../../services/auth_service.dart';
 
 class AboutScreen extends StatelessWidget {
   const AboutScreen({super.key});
@@ -90,10 +91,18 @@ class AboutScreen extends StatelessWidget {
               child: SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
-                  onPressed: () {},
+                  onPressed: AuthService.isUserLoggedIn() 
+                    ? () async {
+                        await AuthService.signOut();
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('You have been signed out')),
+                        );
+                        Navigator.pop(context); // Close the current screen/dialog
+                      }
+                    : null, // Button akan disabled jika user belum login
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary, // Merah sesuai theme
-                    foregroundColor: Colors.white,      // Warna teks putih
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.white,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(8),
                     ),
