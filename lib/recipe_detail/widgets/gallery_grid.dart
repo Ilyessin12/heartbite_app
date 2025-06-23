@@ -5,7 +5,7 @@ class GalleryGrid extends StatelessWidget {
   final Function(int) onImageTap;
   final int crossAxisCount;
   final bool showAll;
-  
+
   const GalleryGrid({
     super.key,
     required this.images,
@@ -17,7 +17,7 @@ class GalleryGrid extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final displayImages = showAll ? images : images.take(4).toList();
-    
+
     return GridView.builder(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
@@ -26,7 +26,8 @@ class GalleryGrid extends StatelessWidget {
         crossAxisSpacing: 8,
         mainAxisSpacing: 8,
       ),
-      itemCount: showAll ? displayImages.length : Math.min(4, displayImages.length),
+      itemCount:
+          showAll ? displayImages.length : Math.min(4, displayImages.length),
       itemBuilder: (context, index) {
         if (!showAll && index == 3 && images.length > 4) {
           // Show the "more" overlay on the last image
@@ -37,19 +38,21 @@ class GalleryGrid extends StatelessWidget {
               children: [
                 ClipRRect(
                   borderRadius: BorderRadius.circular(8),
-                  child: displayImages[index].isNotEmpty
-                      ? Image.network(
-                          displayImages[index],
-                          fit: BoxFit.cover,
-                          errorBuilder: (context, error, stackTrace) => Image.asset(
-                            'assets/images/cookbooks/placeholder_image.jpg',
+                  child:
+                      displayImages[index].isNotEmpty
+                          ? Image.network(
+                            displayImages[index],
+                            fit: BoxFit.cover,
+                            errorBuilder:
+                                (context, error, stackTrace) => Image.asset(
+                                  'assets/images/default_food.png',
+                                  fit: BoxFit.cover,
+                                ),
+                          )
+                          : Image.asset(
+                            'assets/images/default_food.png',
                             fit: BoxFit.cover,
                           ),
-                        )
-                      : Image.asset(
-                          'assets/images/cookbooks/placeholder_image.jpg',
-                          fit: BoxFit.cover,
-                        ),
                 ),
                 Container(
                   decoration: BoxDecoration(
@@ -71,24 +74,25 @@ class GalleryGrid extends StatelessWidget {
             ),
           );
         }
-        
         return GestureDetector(
           onTap: () => onImageTap(index),
           child: ClipRRect(
             borderRadius: BorderRadius.circular(8),
-            child: displayImages[index].isNotEmpty
-                ? Image.network(
-                    displayImages[index],
-                    fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) => Image.asset(
-                      'assets/images/cookbooks/placeholder_image.jpg',
+            child:
+                displayImages[index].isNotEmpty
+                    ? Image.network(
+                      displayImages[index],
+                      fit: BoxFit.cover,
+                      errorBuilder:
+                          (context, error, stackTrace) => Image.asset(
+                            'assets/images/default_food.png',
+                            fit: BoxFit.cover,
+                          ),
+                    )
+                    : Image.asset(
+                      'assets/images/default_food.png',
                       fit: BoxFit.cover,
                     ),
-                  )
-                : Image.asset(
-                    'assets/images/cookbooks/placeholder_image.jpg',
-                    fit: BoxFit.cover,
-                  ),
           ),
         );
       },

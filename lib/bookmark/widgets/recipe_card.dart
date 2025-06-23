@@ -32,7 +32,7 @@ class RecipeCard extends StatelessWidget {
                       fit: BoxFit.cover,
                       errorBuilder: (context, error, stackTrace) {
                         return Image.asset(
-                          'assets/images/cookbooks/placeholder_image.jpg',
+                          'assets/images/default_food.png',
                           fit: BoxFit.cover,
                         );
                       },
@@ -40,7 +40,7 @@ class RecipeCard extends StatelessWidget {
                     : Image.asset(
                       recipe.imageUrl.isNotEmpty
                           ? recipe.imageUrl
-                          : 'assets/images/cookbooks/placeholder_image.jpg',
+                          : 'assets/images/default_food.png',
                       fit: BoxFit.cover,
                     ),
           ),

@@ -29,11 +29,10 @@ class _BookmarkCreateScreenState extends State<BookmarkCreateScreen> {
   bool _isSelectingCover = false;
   bool _isSelectingRecipes = true;
   bool _isLoadingRecipes = false;
-
   final List<String> _coverOptions = [
-    'assets/images/cookbooks/placeholder_image.jpg',
-    'assets/images/cookbooks/placeholder_image.jpg',
-    'assets/images/cookbooks/placeholder_image.jpg',
+    'assets/images/default_food.png',
+    'assets/images/default_food.png',
+    'assets/images/default_food.png',
   ];
 
   @override
@@ -133,11 +132,9 @@ class _BookmarkCreateScreenState extends State<BookmarkCreateScreen> {
               .where((recipe) => recipe.id != null)
               .map((recipe) => recipe.id!)
               .toList();
-
       await _bookmarkService.createBookmarkFolder(
         name: _titleController.text.trim(),
-        imageUrl:
-            finalImageUrl ?? 'assets/images/cookbooks/placeholder_image.jpg',
+        imageUrl: finalImageUrl ?? 'assets/images/default_food.png',
         recipeIds: recipeIds,
       );
 
@@ -307,7 +304,7 @@ class _BookmarkCreateScreenState extends State<BookmarkCreateScreen> {
                             (_selectedImage != null
                                     ? FileImage(_selectedImage!)
                                     : const AssetImage(
-                                      'assets/images/cookbooks/placeholder_image.jpg',
+                                      'assets/images/default_food.png',
                                     ))
                                 as ImageProvider,
                       ),

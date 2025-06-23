@@ -222,7 +222,7 @@ class _BookmarkEditScreenState extends State<BookmarkEditScreen> {
                                 fit: BoxFit.cover,
                                 errorBuilder: (context, error, stackTrace) {
                                   return Image.asset(
-                                    'assets/images/cookbooks/placeholder_image.jpg',
+                                    'assets/images/default_food.png',
                                     fit: BoxFit.cover,
                                   );
                                 },
@@ -230,7 +230,7 @@ class _BookmarkEditScreenState extends State<BookmarkEditScreen> {
                               : Image.asset(
                                 widget.category.imageUrl.isNotEmpty
                                     ? widget.category.imageUrl
-                                    : 'assets/images/cookbooks/placeholder_image.jpg',
+                                    : 'assets/images/default_food.png',
                                 fit: BoxFit.cover,
                               ),
                     ),

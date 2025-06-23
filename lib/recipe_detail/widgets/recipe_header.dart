@@ -70,12 +70,12 @@ class _RecipeHeaderState extends State<RecipeHeader> {
   Future<void> _fetchAuthorProfilePicture() async {
     if (widget.authorId.isEmpty) return;
     try {
-      final userData = await SupabaseClientWrapper()
-          .client
-          .from('users')
-          .select('profile_picture')
-          .eq('id', widget.authorId)
-          .single();
+      final userData =
+          await SupabaseClientWrapper().client
+              .from('users')
+              .select('profile_picture')
+              .eq('id', widget.authorId)
+              .single();
       if (mounted && userData['profile_picture'] != null) {
         setState(() {
           _authorProfilePicture = userData['profile_picture'] as String;
@@ -157,7 +157,10 @@ class _RecipeHeaderState extends State<RecipeHeader> {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (context) => ProfileScreenWithBackend(userId: widget.authorId),
+                        builder:
+                            (context) => ProfileScreenWithBackend(
+                              userId: widget.authorId,
+                            ),
                       ),
                     );
                   }
@@ -166,12 +169,14 @@ class _RecipeHeaderState extends State<RecipeHeader> {
                   children: [
                     CircleAvatar(
                       radius: 16,
-                      backgroundImage: _authorProfilePicture != null &&
-                              _authorProfilePicture!.isNotEmpty
-                          ? NetworkImage(_authorProfilePicture!)
-                          : const AssetImage(
-                              "assets/images/avatars/avatar1.jpg",
-                            ) as ImageProvider,
+                      backgroundImage:
+                          _authorProfilePicture != null &&
+                                  _authorProfilePicture!.isNotEmpty
+                              ? NetworkImage(_authorProfilePicture!)
+                              : const AssetImage(
+                                    "assets/images/avatars/avatar1.jpg",
+                                  )
+                                  as ImageProvider,
                     ),
                     const SizedBox(width: 8),
                     Column(
@@ -196,8 +201,12 @@ class _RecipeHeaderState extends State<RecipeHeader> {
                 ElevatedButton(
                   onPressed: _toggleFollow,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: _isFollowing ? Colors.grey : AppColors.primary,
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    backgroundColor:
+                        _isFollowing ? Colors.grey : AppColors.primary,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 6,
+                    ),
                     textStyle: const TextStyle(fontSize: 12),
                   ),
                   child: Text(
@@ -221,23 +230,24 @@ class _RecipeHeaderState extends State<RecipeHeader> {
           children: [
             ClipRRect(
               borderRadius: BorderRadius.circular(16),
-              child: widget.recipe.imageUrl.isNotEmpty
-                  ? Image.network(
-                      widget.recipe.imageUrl,
-                      width: double.infinity,
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) =>
-                          Image.asset(
-                        'assets/images/cookbooks/placeholder_image.jpg', // Placeholder image
+              child:
+                  widget.recipe.imageUrl.isNotEmpty
+                      ? Image.network(
+                        widget.recipe.imageUrl,
+                        width: double.infinity,
+                        fit: BoxFit.cover,
+                        errorBuilder:
+                            (context, error, stackTrace) => Image.asset(
+                              'assets/images/default_food.png', // Placeholder image
+                              width: double.infinity,
+                              fit: BoxFit.cover,
+                            ),
+                      )
+                      : Image.asset(
+                        'assets/images/default_food.png', // Placeholder for empty URL
                         width: double.infinity,
                         fit: BoxFit.cover,
                       ),
-                    )
-                  : Image.asset(
-                      'assets/images/cookbooks/placeholder_image.jpg', // Placeholder for empty URL
-                      width: double.infinity,
-                      fit: BoxFit.cover,
-                    ),
             ),
             if (widget.showOverlayInfo) ...[
               Positioned(
@@ -266,8 +276,11 @@ class _RecipeHeaderState extends State<RecipeHeader> {
                       Row(
                         children: [
                           Icon(
-                            widget.isFavorite ? Icons.favorite : Icons.favorite_border,
-                            color: widget.isFavorite ? Colors.red : Colors.white,
+                            widget.isFavorite
+                                ? Icons.favorite
+                                : Icons.favorite_border,
+                            color:
+                                widget.isFavorite ? Colors.red : Colors.white,
                             size: 18,
                           ),
                           const SizedBox(width: 6),

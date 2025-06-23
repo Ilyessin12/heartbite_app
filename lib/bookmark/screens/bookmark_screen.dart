@@ -209,7 +209,7 @@ class _BookmarkScreenState extends State<BookmarkScreen> {
                               fit: BoxFit.cover,
                               errorBuilder: (context, error, stackTrace) {
                                 return Image.asset(
-                                  'assets/images/cookbooks/placeholder_image.jpg',
+                                  'assets/images/default_food.png',
                                   fit: BoxFit.cover,
                                 );
                               },
@@ -217,7 +217,7 @@ class _BookmarkScreenState extends State<BookmarkScreen> {
                             : Image.asset(
                               category.imageUrl.isNotEmpty
                                   ? category.imageUrl
-                                  : 'assets/images/cookbooks/placeholder_image.jpg',
+                                  : 'assets/images/default_food.png',
                               fit: BoxFit.cover,
                               errorBuilder: (context, error, stackTrace) {
                                 return Container(

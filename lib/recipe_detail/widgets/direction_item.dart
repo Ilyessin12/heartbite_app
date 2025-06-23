@@ -6,7 +6,7 @@ class DirectionItem extends StatelessWidget {
   final Direction direction;
   final Function(bool)? onChecked;
   final bool showCheckbox;
-  
+
   const DirectionItem({
     super.key,
     required this.direction,
@@ -29,10 +29,7 @@ class DirectionItem extends StatelessWidget {
           children: [
             Text(
               direction.order.toString(),
-              style: const TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 18,
-              ),
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
             ),
             const SizedBox(width: 16),
             Expanded(
@@ -41,9 +38,7 @@ class DirectionItem extends StatelessWidget {
                 children: [
                   Text(
                     direction.description,
-                    style: const TextStyle(
-                      fontSize: 16,
-                    ),
+                    style: const TextStyle(fontSize: 16),
                   ),
                   if (direction.imageUrl != null) ...[
                     const SizedBox(height: 8),
@@ -51,25 +46,32 @@ class DirectionItem extends StatelessWidget {
                       alignment: Alignment.centerLeft,
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(8),
-                        child: direction.imageUrl != null && direction.imageUrl!.isNotEmpty
-                            ? Image.network(
-                                direction.imageUrl!,
-                                width: 120,
-                                height: 120,
-                                fit: BoxFit.cover,
-                                errorBuilder: (context, error, stackTrace) => Image.asset(
-                                  'assets/images/cookbooks/placeholder_image.jpg', // Placeholder image
+                        child:
+                            direction.imageUrl != null &&
+                                    direction.imageUrl!.isNotEmpty
+                                ? Image.network(
+                                  direction.imageUrl!,
+                                  width: 120,
+                                  height: 120,
+                                  fit: BoxFit.cover,
+                                  errorBuilder:
+                                      (
+                                        context,
+                                        error,
+                                        stackTrace,
+                                      ) => Image.asset(
+                                        'assets/images/default_food.png', // Placeholder image
+                                        width: 120,
+                                        height: 120,
+                                        fit: BoxFit.cover,
+                                      ),
+                                )
+                                : Image.asset(
+                                  'assets/images/default_food.png', // Placeholder for empty/null URL
                                   width: 120,
                                   height: 120,
                                   fit: BoxFit.cover,
                                 ),
-                              )
-                            : Image.asset(
-                                'assets/images/cookbooks/placeholder_image.jpg', // Placeholder for empty/null URL
-                                width: 120,
-                                height: 120,
-                                fit: BoxFit.cover,
-                              ),
                       ),
                     ),
                   ],

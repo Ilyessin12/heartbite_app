@@ -1798,12 +1798,12 @@ class _HomePageState extends State<HomePage> {
                       height: double.infinity,
                       errorBuilder:
                           (context, error, stackTrace) => Image.asset(
-                            'assets/images/cookbooks/placeholder_image.jpg',
+                            'assets/images/default_food.png',
                             fit: BoxFit.cover,
                           ),
                     )
                     : Image.asset(
-                      'assets/images/cookbooks/placeholder_image.jpg',
+                      'assets/images/default_food.png',
                       fit: BoxFit.cover,
                       width: double.infinity,
                       height: double.infinity,
@@ -1988,12 +1988,12 @@ class RecipeCard extends StatelessWidget {
                         fit: BoxFit.cover,
                         errorBuilder:
                             (context, error, stackTrace) => Image.asset(
-                              'assets/images/cookbooks/placeholder_image.jpg',
+                              'assets/images/default_food.png',
                               fit: BoxFit.cover,
                             ),
                       )
                       : Image.asset(
-                        'assets/images/cookbooks/placeholder_image.jpg',
+                        'assets/images/default_food.png',
                         fit: BoxFit.cover,
                       ),
             ),
