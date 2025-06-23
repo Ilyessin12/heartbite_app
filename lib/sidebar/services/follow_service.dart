@@ -148,4 +148,42 @@ class FollowService {
       return false;
     }
   }
+
+  // Search users by name or username
+  static Future<List<FollowUserModel>> searchUsers(String query) async {
+    try {
+      if (query.trim().isEmpty) return [];
+
+      final currentUserId = SupabaseService.currentUserId;
+      if (currentUserId == null) return [];
+
+      final response = await _client
+          .from('users')
+          .select('''
+            id,
+            full_name,
+            username,
+            profile_picture,
+            created_at
+          ''')
+          .or('full_name.ilike.%$query%,username.ilike.%$query%')
+          .neq('id', currentUserId) // Exclude current user
+          .limit(20);
+
+      return response.map<FollowUserModel>((user) {
+        return FollowUserModel(
+          id: user['id'],
+          fullName: user['full_name'] ?? '',
+          username: user['username'] ?? '',
+          profilePicture: user['profile_picture'],
+          followedAt:
+              DateTime.now(), // This will be updated when checking follow status
+          isFollowing: false, // This will be checked separately
+        );
+      }).toList();
+    } catch (e) {
+      print('Error searching users: $e');
+      return [];
+    }
+  }
 }

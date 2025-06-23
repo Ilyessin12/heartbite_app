@@ -19,6 +19,9 @@ import '../sidebar/screens/sidebar_screen.dart';
 import '../services/bookmark_service.dart';
 import '../recipe_detail/screens/bookmark_modal.dart';
 import '../notification_pages/notification.dart';
+import '../sidebar/models/follow_user_model.dart';
+import '../sidebar/services/follow_service.dart';
+import '../sidebar/screens/profile_screen.dart';
 
 // DisplayRecipeItem is the primary model for recipe cards in this file.
 class DisplayRecipeItem {
@@ -170,7 +173,7 @@ class HomePage extends StatefulWidget {
   State<HomePage> createState() => _HomePageState();
 }
 
-class _HomePageState extends State<HomePage> {
+class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   // Debug flag - set to false to disable debug logging
   static const bool _enableDebugLogging = true;
 
@@ -205,6 +208,13 @@ class _HomePageState extends State<HomePage> {
   bool _isSearchLoading = false;
   String _currentSearchQuery = '';
   List<String> _searchHistory = [];
+
+  // People search variables
+  List<FollowUserModel> _searchedPeople = [];
+  bool _isPeopleSearchLoading = false;
+  TabController? _searchTabController;
+  int _searchTabIndex = 0; // 0 = Recipes, 1 = People
+
   List<String> _selectedAllergens = [];
   List<String> _selectedDietTypes = [];
   List<String> _selectedAppliances = [];
@@ -256,6 +266,20 @@ class _HomePageState extends State<HomePage> {
     _fetchUserProfilePicture(); // Ambil foto profil dari Supabase
     _loadUserPreferences(); // Load user preferences
 
+    // Initialize search tab controller
+    _searchTabController = TabController(length: 2, vsync: this);
+    _searchTabController!.addListener(() {
+      if (!_searchTabController!.indexIsChanging) {
+        setState(() {
+          _searchTabIndex = _searchTabController!.index;
+        });
+        // Perform search again when tab changes
+        if (_currentSearchQuery.isNotEmpty) {
+          _performSearchImproved(_currentSearchQuery);
+        }
+      }
+    });
+
     // Dengarkan perubahan status autentikasi
     _authSubscription = Supabase.instance.client.auth.onAuthStateChange.listen((
       event,
@@ -275,6 +299,7 @@ class _HomePageState extends State<HomePage> {
           _selectedAllergens = [];
           _selectedDietTypes = [];
           _selectedAppliances = [];
+          _searchedPeople = [];
         });
       } else if (event.event == AuthChangeEvent.signedIn) {
         // Load search history when user logs in
@@ -308,15 +333,27 @@ class _HomePageState extends State<HomePage> {
 
     setState(() {
       _isSearchLoading = true;
+      _isPeopleSearchLoading = true;
       _isSearching = true;
       _showSearchResults = true;
       _showFilters = false;
     });
 
     try {
-      await _fetchRecipes(
-        searchQuery: query,
-      ); // Add to search history only if query is not empty, not already in history, and user is logged in
+      // Search recipes and people in parallel
+      final futures = <Future>[];
+
+      // Always search recipes
+      futures.add(_fetchRecipes(searchQuery: query));
+
+      // Search people if user is logged in
+      if (AuthService.isUserLoggedIn()) {
+        futures.add(_searchPeople(query));
+      }
+
+      await Future.wait(futures);
+
+      // Add to search history only if query is not empty, not already in history, and user is logged in
       if (query.isNotEmpty &&
           !_searchHistory.contains(query) &&
           AuthService.isUserLoggedIn()) {
@@ -335,6 +372,26 @@ class _HomePageState extends State<HomePage> {
       if (mounted) {
         setState(() {
           _isSearchLoading = false;
+          _isPeopleSearchLoading = false;
+        });
+      }
+    }
+  }
+
+  // Add people search method
+  Future<void> _searchPeople(String query) async {
+    try {
+      final people = await FollowService.searchUsers(query);
+      if (mounted) {
+        setState(() {
+          _searchedPeople = people;
+        });
+      }
+    } catch (e) {
+      print('Error searching people: $e');
+      if (mounted) {
+        setState(() {
+          _searchedPeople = [];
         });
       }
     }
@@ -349,6 +406,7 @@ class _HomePageState extends State<HomePage> {
       _searchController.clear();
       _currentSearchQuery = '';
       _searchResults.clear();
+      _searchedPeople.clear();
     });
     // Optionally refetch original recipes
     _fetchRecipes();
@@ -518,6 +576,7 @@ class _HomePageState extends State<HomePage> {
   @override
   void dispose() {
     _searchController.dispose();
+    _searchTabController?.dispose();
     _authSubscription?.cancel(); // Batalkan subscription saat widget di-dispose
     super.dispose();
   }
@@ -1329,7 +1388,7 @@ class _HomePageState extends State<HomePage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Search header with active filters indicator
+        // Search header with tabs
         Padding(
           padding: const EdgeInsets.all(16.0),
           child: Column(
@@ -1349,99 +1408,386 @@ class _HomePageState extends State<HomePage> {
                       ),
                     ),
                   ),
-                  if (_hasActiveFilters())
+                  if (_hasActiveFilters() && _searchTabIndex == 0)
                     Container(
-                      padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
                       decoration: BoxDecoration(
-                        color: Colors.red[50],
+                        color: Colors.blue,
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: Colors.red[200]!),
                       ),
                       child: Text(
                         "Filtered",
                         style: GoogleFonts.dmSans(
+                          color: Colors.white,
                           fontSize: 12,
-                          color: Colors.red[700],
-                          fontWeight: FontWeight.w500,
                         ),
                       ),
                     ),
                 ],
               ),
-              if (_isSearchLoading)
-                Padding(
-                  padding: const EdgeInsets.only(top: 8.0),
-                  child: LinearProgressIndicator(
-                    backgroundColor: Colors.grey[300],
-                    valueColor: AlwaysStoppedAnimation<Color>(Colors.red[700]!),
+              const SizedBox(height: 16),
+
+              // Search tabs
+              if (AuthService.isUserLoggedIn())
+                Container(
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: Colors.grey[200],
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: TabBar(
+                    controller: _searchTabController,
+                    indicator: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    indicatorSize: TabBarIndicatorSize.tab,
+                    dividerColor: Colors.transparent,
+                    labelColor: Colors.black,
+                    unselectedLabelColor: Colors.grey[600],
+                    labelStyle: GoogleFonts.dmSans(
+                      fontWeight: FontWeight.w500,
+                      fontSize: 14,
+                    ),
+                    unselectedLabelStyle: GoogleFonts.dmSans(
+                      fontWeight: FontWeight.normal,
+                      fontSize: 14,
+                    ),
+                    tabs: const [Tab(text: "Recipes"), Tab(text: "People")],
                   ),
                 ),
             ],
           ),
         ),
+        // Tab content
+        Expanded(
+          child:
+              _searchTabIndex == 0
+                  ? _buildRecipeSearchResults()
+                  : _buildPeopleSearchResults(),
+        ),
+      ],
+    );
+  }
 
-        // Results or empty state
-        if (_isSearchLoading)
-          Expanded(child: Center(child: CircularProgressIndicator()))
-        else if (_searchResults.isEmpty && _currentSearchQuery.isNotEmpty)
-          Expanded(
-            child: Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.search_off, size: 64, color: Colors.grey),
-                  SizedBox(height: 16),
-                  Text(
-                    "No results found for '${_currentSearchQuery}'",
-                    textAlign: TextAlign.center,
-                    style: GoogleFonts.dmSans(fontSize: 16),
+  Widget _buildRecipeSearchResults() {
+    if (_isSearchLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (_searchResults.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.search_off, size: 64, color: Colors.grey),
+            const SizedBox(height: 16),
+            Text(
+              "No recipes found",
+              style: GoogleFonts.dmSans(fontSize: 16, color: Colors.grey),
+            ),
+            if (_hasActiveFilters()) ...[
+              const SizedBox(height: 8),
+              TextButton(
+                onPressed: _resetFilters,
+                child: Text(
+                  "Clear filters",
+                  style: GoogleFonts.dmSans(color: Colors.blue),
+                ),
+              ),
+            ],
+          ],
+        ),
+      );
+    }
+
+    return Column(
+      children: [
+        // Filter button for recipes
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16.0),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  "${_searchResults.length} recipes found",
+                  style: GoogleFonts.dmSans(
+                    fontSize: 14,
+                    color: Colors.grey[600],
                   ),
-                  if (_hasActiveFilters())
-                    Padding(
-                      padding: const EdgeInsets.only(top: 8.0),
-                      child: TextButton(
-                        onPressed: () {
-                          _resetFilters();
-                          _performSearchImproved(_currentSearchQuery);
-                        },
-                        child: Text(
-                          "Try removing filters",
-                          style: GoogleFonts.dmSans(
-                            fontSize: 14,
-                            color: Colors.red[700],
-                          ),
-                        ),
-                      ),
+                ),
+              ),
+              TextButton.icon(
+                onPressed: _toggleFilters,
+                icon: Icon(
+                  Icons.tune,
+                  size: 16,
+                  color: _hasActiveFilters() ? Colors.blue : Colors.grey[600],
+                ),
+                label: Text(
+                  "Filters",
+                  style: GoogleFonts.dmSans(
+                    color: _hasActiveFilters() ? Colors.blue : Colors.grey[600],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 8),
+
+        // Recipe grid
+        Expanded(
+          child: GridView.builder(
+            padding: const EdgeInsets.symmetric(horizontal: 16.0),
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 2,
+              crossAxisSpacing: 16.0,
+              mainAxisSpacing: 16.0,
+              childAspectRatio: 0.7,
+            ),
+            itemCount: _searchResults.length,
+            itemBuilder: (context, index) {
+              final recipe = _searchResults[index];
+              return RecipeCard(
+                recipe: recipe,
+                onTap: () => _navigateToRecipeDetail(recipe),
+                onBookmarkTap: () => _toggleBookmark(recipe.id),
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPeopleSearchResults() {
+    if (_isPeopleSearchLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (_searchedPeople.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.people_outline, size: 64, color: Colors.grey),
+            const SizedBox(height: 16),
+            Text(
+              "No people found",
+              style: GoogleFonts.dmSans(fontSize: 16, color: Colors.grey),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16.0),
+          child: Row(
+            children: [
+              Text(
+                "${_searchedPeople.length} people found",
+                style: GoogleFonts.dmSans(
+                  fontSize: 14,
+                  color: Colors.grey[600],
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 8),
+
+        Expanded(
+          child: ListView.builder(
+            padding: const EdgeInsets.symmetric(horizontal: 16.0),
+            itemCount: _searchedPeople.length,
+            itemBuilder: (context, index) {
+              final person = _searchedPeople[index];
+              return _buildPersonCard(person);
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPersonCard(FollowUserModel person) {
+    return GestureDetector(
+      onTap: () {
+        // Navigate to user profile
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => ProfileScreenWithBackend(userId: person.id),
+          ),
+        );
+      },
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            // Profile picture
+            CircleAvatar(
+              radius: 24,
+              backgroundImage:
+                  person.profilePicture != null &&
+                          person.profilePicture!.isNotEmpty
+                      ? NetworkImage(person.profilePicture!)
+                      : const AssetImage("assets/images/default_profile.png")
+                          as ImageProvider,
+            ),
+            const SizedBox(width: 12),
+
+            // User info
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    person.fullName,
+                    style: GoogleFonts.dmSans(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
                     ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    '@${person.username}',
+                    style: GoogleFonts.dmSans(
+                      color: Colors.grey[600],
+                      fontSize: 14,
+                    ),
+                  ),
                 ],
               ),
             ),
-          )
-        else if (_searchResults.isEmpty && _currentSearchQuery.isEmpty)
-          _buildSearchHistory()
-        else
-          Expanded(
-            child: GridView.builder(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0),
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 2,
-                crossAxisSpacing: 16.0,
-                mainAxisSpacing: 16.0,
-                childAspectRatio: 0.7,
-              ),
-              itemCount: _searchResults.length,
-              itemBuilder: (context, index) {
-                final recipe = _searchResults[index];
-                return RecipeCard(
-                  recipe: recipe,
-                  onTap: () => _navigateToRecipeDetail(recipe),
-                  onBookmarkTap: () => _toggleBookmark(recipe.id),
-                );
-              },
-            ),
-          ),
-      ],
+
+            // Follow/Unfollow button
+            _buildFollowButton(person),
+          ],
+        ),
+      ),
     );
+  }
+
+  Widget _buildFollowButton(FollowUserModel person) {
+    return FutureBuilder<bool>(
+      future: FollowService.isFollowing(person.id),
+      builder: (context, snapshot) {
+        final isFollowing = snapshot.data ?? false;
+        final isLoading = snapshot.connectionState == ConnectionState.waiting;
+
+        return SizedBox(
+          width: 90,
+          height: 32,
+          child: ElevatedButton(
+            onPressed: isLoading ? null : () => _toggleFollowUser(person),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: isFollowing ? Colors.grey[300] : Colors.blue,
+              foregroundColor: isFollowing ? Colors.black : Colors.white,
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+                side:
+                    isFollowing
+                        ? BorderSide(color: Colors.grey[400]!)
+                        : BorderSide.none,
+              ),
+            ),
+            child:
+                isLoading
+                    ? SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor: AlwaysStoppedAnimation<Color>(
+                          isFollowing ? Colors.black : Colors.white,
+                        ),
+                      ),
+                    )
+                    : Text(
+                      isFollowing ? 'Following' : 'Follow',
+                      style: GoogleFonts.dmSans(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _toggleFollowUser(FollowUserModel person) async {
+    try {
+      final isFollowing = await FollowService.isFollowing(person.id);
+      bool success;
+
+      if (isFollowing) {
+        success = await FollowService.unfollowUser(person.id);
+      } else {
+        success = await FollowService.followUser(person.id);
+      }
+
+      if (success && mounted) {
+        setState(() {
+          // Update the person's following status in the list
+          final index = _searchedPeople.indexWhere((p) => p.id == person.id);
+          if (index != -1) {
+            _searchedPeople[index] = person.copyWith(isFollowing: !isFollowing);
+          }
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              isFollowing
+                  ? 'Unfollowed ${person.fullName}'
+                  : 'Now following ${person.fullName}',
+            ),
+            backgroundColor: isFollowing ? Colors.orange : Colors.green,
+          ),
+        );
+      } else if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Failed to ${isFollowing ? 'unfollow' : 'follow'} ${person.fullName}',
+            ),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      print('Error toggling follow status: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('An error occurred'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   Widget _buildFiltersView() {
