@@ -267,13 +267,27 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
       _getPopularRecipes().take(4).toList();
   List<DisplayRecipeItem> get _breakfastRecipes =>
       _randomBreakfastRecipes.take(4).toList();
-
   List<DisplayRecipeItem> _getPopularRecipes() {
     final sortedRecipes = List<DisplayRecipeItem>.from(_allFetchedRecipes);
-    sortedRecipes.sort(
-      (a, b) => (b.rating + b.reviewCount).compareTo(a.rating + a.reviewCount),
-    );
+    sortedRecipes.sort((a, b) {
+      // Calculate popularity score based on likes and reviews only
+      double scoreA = _calculatePopularityScore(a);
+      double scoreB = _calculatePopularityScore(b);
+      return scoreB.compareTo(scoreA);
+    });
     return sortedRecipes;
+  }
+
+  double _calculatePopularityScore(DisplayRecipeItem recipe) {
+    // Weighted scoring system without rating
+    double likeWeight = 2.0;
+    double reviewWeight = 1.5;
+
+    // Calculate score using likes and reviews only
+    double score =
+        (recipe.likeCount * likeWeight) + (recipe.reviewCount * reviewWeight);
+
+    return score;
   }
 
   @override
