@@ -160,28 +160,7 @@ class _LoginPageState extends State<LoginPage> {
                                   ),
                                 ),
                                 SizedBox(height: 12),
-                                GestureDetector(
-                                  onTap: () {
-                                    Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (context) => ForgotPassPage(),
-                                      ),
-                                    );
-                                  },
-                                  child: Align(
-                                    alignment: Alignment.topRight,
-                                    child: SizedBox(
-                                      width: 300,
-                                      child: Text(
-                                        'Lupa kata sandi?',
-                                        textAlign: TextAlign.right,
-                                        style: GoogleFonts.dmSans(),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ],
+                                ],
                             ),
                           ),
                         ),
@@ -202,68 +181,7 @@ class _LoginPageState extends State<LoginPage> {
                                   ),
                                 ),
                               ),
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                              children: [
-                                Expanded(
-                                  child: SizedBox(
-                                    width: double.infinity,
-                                    height: 56,
-                                    child: ElevatedButton(
-                                      onPressed: () {},
-                                      style: ElevatedButton.styleFrom(
-                                        backgroundColor: Color(
-                                          0xFF8E1616,
-                                        ).withOpacity(0.2),
-                                        foregroundColor: Colors.white,
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(
-                                            8,
-                                          ),
-                                        ),
-                                      ),
-                                      child: Ink.image(
-                                        image: AssetImage(
-                                          'assets/images/login/google.png',
-                                        ),
-                                        fit: BoxFit.cover,
-                                        height: 25,
-                                        width: 25,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                                SizedBox(width: 6),
-                                Expanded(
-                                  child: SizedBox(
-                                    width: double.infinity,
-                                    height: 56,
-                                    child: ElevatedButton(
-                                      onPressed: () {},
-                                      style: ElevatedButton.styleFrom(
-                                        backgroundColor: Color(
-                                          0xFF8E1616,
-                                        ).withOpacity(0.2),
-                                        foregroundColor: Colors.white,
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(
-                                            8,
-                                          ),
-                                        ),
-                                      ),
-                                      child: Row(
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.center,
-                                        children: const [
-                                          Icon(Icons.apple, size: 32),
-                                        ],
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                            SizedBox(height: 6),
+
                             SizedBox(
                               width: double.infinity,
                               height: 52,
