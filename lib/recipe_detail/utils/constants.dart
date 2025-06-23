@@ -24,4 +24,10 @@ class AppTextStyles {
     fontSize: 12,
     color: AppColors.textSecondary,
   );
+
+  static const body = TextStyle(
+    fontSize: 14,
+    color: AppColors.textPrimary,
+    height: 1.5, // Line height for better readability
+  );
 }

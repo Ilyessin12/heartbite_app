@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../services/supabase_client.dart'; // For current user
 import '../../sidebar/services/follow_service.dart';
+import '../../sidebar/screens/profile_screen.dart'; // Import ProfileScreenWithBackend
 import '../models/recipe.dart';
 import '../utils/constants.dart';
 
@@ -150,32 +151,44 @@ class _RecipeHeaderState extends State<RecipeHeader> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               // Author info on the left
-              Row(
-                children: [
-                  CircleAvatar(
-                    radius: 16,
-                    backgroundImage: _authorProfilePicture != null &&
-                            _authorProfilePicture!.isNotEmpty
-                        ? NetworkImage(_authorProfilePicture!)
-                        : const AssetImage(
-                            "assets/images/avatars/avatar1.jpg",
-                          ) as ImageProvider,
-                  ),
-                  const SizedBox(width: 8),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        widget.recipe.authorName,
-                        style: const TextStyle(fontWeight: FontWeight.bold),
+              GestureDetector(
+                onTap: () {
+                  if (widget.authorId.isNotEmpty) {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => ProfileScreenWithBackend(userId: widget.authorId),
                       ),
-                      Text(
-                        "$_followersCount Followers",
-                        style: AppTextStyles.caption,
-                      ),
-                    ],
-                  ),
-                ],
+                    );
+                  }
+                },
+                child: Row(
+                  children: [
+                    CircleAvatar(
+                      radius: 16,
+                      backgroundImage: _authorProfilePicture != null &&
+                              _authorProfilePicture!.isNotEmpty
+                          ? NetworkImage(_authorProfilePicture!)
+                          : const AssetImage(
+                              "assets/images/avatars/avatar1.jpg",
+                            ) as ImageProvider,
+                    ),
+                    const SizedBox(width: 8),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          widget.recipe.authorName,
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        Text(
+                          "$_followersCount Followers",
+                          style: AppTextStyles.caption,
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
               ),
 
               // Follow/Unfollow button or empty space

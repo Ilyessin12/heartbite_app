@@ -50,9 +50,22 @@ class _GalleryScreenState extends State<GalleryScreen> {
               },
               itemBuilder: (context, index) {
                 return Center(
-                  child: Image.asset(
+                  child: Image.network( // Changed from Image.asset to Image.network
                     widget.images[index],
                     fit: BoxFit.contain,
+                    loadingBuilder: (BuildContext context, Widget child, ImageChunkEvent? loadingProgress) {
+                      if (loadingProgress == null) return child;
+                      return Center(
+                        child: CircularProgressIndicator(
+                          value: loadingProgress.expectedTotalBytes != null
+                              ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes!
+                              : null,
+                        ),
+                      );
+                    },
+                    errorBuilder: (BuildContext context, Object exception, StackTrace? stackTrace) {
+                      return const Center(child: Icon(Icons.error_outline, color: Colors.red, size: 48));
+                    },
                   ),
                 );
               },
@@ -125,9 +138,19 @@ class _GalleryScreenState extends State<GalleryScreen> {
                         ),
                         child: ClipRRect(
                           borderRadius: BorderRadius.circular(6),
-                          child: Image.asset(
+                          child: Image.network( // Changed from Image.asset to Image.network
                             widget.images[index],
                             fit: BoxFit.cover,
+                            loadingBuilder: (BuildContext context, Widget child, ImageChunkEvent? loadingProgress) {
+                              if (loadingProgress == null) return child;
+                              return const Center(child: CircularProgressIndicator(strokeWidth: 2.0));
+                            },
+                            errorBuilder: (BuildContext context, Object exception, StackTrace? stackTrace) {
+                              return Container(
+                                color: Colors.grey[300],
+                                child: const Icon(Icons.broken_image, color: Colors.grey, size: 24),
+                              );
+                            },
                           ),
                         ),
                       ),

@@ -23,6 +23,7 @@ class Recipe {
   final List<String> dietProgramTags;
   final List<String> equipmentTags;
   final String authorId; // Added authorId
+  final String description; // Added description
   
   Recipe({
     required this.id,
@@ -43,5 +44,6 @@ class Recipe {
     this.dietProgramTags = const [], // Default to empty list
     this.equipmentTags = const [], // Default to empty list
     required this.authorId, // Added authorId
+    required this.description, // Added description
   });
 }
