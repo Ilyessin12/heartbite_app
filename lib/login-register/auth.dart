@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import '../homepage/homepage.dart';
 import 'register.dart';
 import 'login.dart';
 
@@ -15,7 +17,7 @@ class AuthPage extends State<Auth> {
   @override
   Widget build(BuildContext context) {
     final screenHeight = MediaQuery.of(context).size.height;
-    
+
     return MaterialApp(
       title: 'Auth Page',
       debugShowCheckedModeBanner: false,
@@ -36,7 +38,9 @@ class AuthPage extends State<Auth> {
                         child: Image.asset(
                           'assets/images/login/start.png',
                           fit: BoxFit.cover,
-                          alignment: Alignment.center, // You can adjust this to focus on different parts
+                          alignment:
+                              Alignment
+                                  .center, // You can adjust this to focus on different parts
                         ),
                       ),
                     ),
@@ -44,7 +48,9 @@ class AuthPage extends State<Auth> {
                   Container(
                     height: screenHeight * 0.65,
                     width: double.infinity,
-                    color: Colors.black.withOpacity(0.5), // Black overlay with 50% opacity
+                    color: Colors.black.withOpacity(
+                      0.5,
+                    ), // Black overlay with 50% opacity
                   ),
                   Positioned(
                     bottom: 20,
@@ -125,7 +131,9 @@ class AuthPage extends State<Auth> {
                               onPressed: () {},
                               style: ElevatedButton.styleFrom(
                                 // 8E1616 with 20% opacity
-                                backgroundColor: Color(0xFF8E1616).withOpacity(0.2),
+                                backgroundColor: Color(
+                                  0xFF8E1616,
+                                ).withOpacity(0.2),
                                 foregroundColor: Colors.white,
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(8),
@@ -151,7 +159,9 @@ class AuthPage extends State<Auth> {
                               onPressed: () {},
                               style: ElevatedButton.styleFrom(
                                 // 8E1616 with 20% opacity
-                                backgroundColor: Color(0xFF8E1616).withOpacity(0.2),
+                                backgroundColor: Color(
+                                  0xFF8E1616,
+                                ).withOpacity(0.2),
                                 foregroundColor: Colors.white,
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(8),
@@ -171,7 +181,15 @@ class AuthPage extends State<Auth> {
                       width: double.infinity,
                       height: 56,
                       child: ElevatedButton(
-                        onPressed: () {},
+                        onPressed: () async {
+                          final prefs = await SharedPreferences.getInstance();
+                          await prefs.setBool('isGuest', true);
+                          Navigator.pushAndRemoveUntil(
+                            context,
+                            MaterialPageRoute(builder: (_) => HomePage()),
+                            (route) => false, // Remove all previous routes
+                          );
+                        },
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Color(0xFF8E1616),
                           foregroundColor: Colors.white,
@@ -202,7 +220,7 @@ class AuthPage extends State<Auth> {
                         );
                       },
                       child: Text(
-                        'Punya akun? Login', 
+                        'Punya akun? Login',
                         style: GoogleFonts.dmSans(fontSize: 12),
                       ),
                     ),
