@@ -22,6 +22,7 @@ import '../notification_pages/notification.dart';
 import '../sidebar/models/follow_user_model.dart';
 import '../sidebar/services/follow_service.dart';
 import '../sidebar/screens/profile_screen.dart';
+import '../bookmark/models/recipe_item.dart';
 
 // DisplayRecipeItem is the primary model for recipe cards in this file.
 class DisplayRecipeItem {
@@ -163,6 +164,23 @@ class DisplayRecipeItem {
     }
 
     return result;
+  }
+
+  // Method to convert DisplayRecipeItem to RecipeItem for bookmark integration
+  static RecipeItem convertToRecipeItem(DisplayRecipeItem displayRecipe) {
+    return RecipeItem(
+      id: displayRecipe.id,
+      name: displayRecipe.name,
+      imageUrl: displayRecipe.imageUrl ?? '',
+      rating: displayRecipe.rating,
+      reviewCount: displayRecipe.reviewCount,
+      likeCount: displayRecipe.likeCount,
+      calories: displayRecipe.calories ?? 0,
+      prepTime:
+          displayRecipe.calories ??
+          0, // Using calories as fallback for prepTime
+      cookTime: displayRecipe.cookingTimeMinutes,
+    );
   }
 }
 

@@ -19,8 +19,7 @@ class RecipeItem {
     required this.calories,
     required this.prepTime,
     required this.cookTime,
-  });
-  // Factory constructor for creating from database data
+  }); // Factory constructor for creating from database data
   factory RecipeItem.fromJson(Map<String, dynamic> json) {
     final recipe = json['recipes'] ?? json;
     return RecipeItem(
@@ -36,6 +35,38 @@ class RecipeItem {
       calories: recipe['calories'] ?? 0,
       prepTime: recipe['prep_time'] ?? recipe['servings'] ?? 0,
       cookTime: recipe['cooking_time_minutes'] ?? recipe['cook_time'] ?? 0,
+    );
+  }
+
+  // Factory constructor for creating from DisplayRecipeItem (homepage model)
+  factory RecipeItem.fromDisplayRecipeItem(dynamic displayRecipe) {
+    return RecipeItem(
+      id: displayRecipe.id,
+      name: displayRecipe.name,
+      imageUrl: displayRecipe.imageUrl ?? '',
+      rating: displayRecipe.rating,
+      reviewCount: displayRecipe.reviewCount,
+      likeCount: displayRecipe.likeCount,
+      calories: displayRecipe.calories ?? 0,
+      prepTime:
+          displayRecipe.calories ??
+          0, // Using calories as fallback for prepTime
+      cookTime: displayRecipe.cookingTimeMinutes,
+    );
+  }
+
+  // Factory constructor for creating from RecipeModel (sidebar model)
+  factory RecipeItem.fromRecipeModel(dynamic recipeModel) {
+    return RecipeItem(
+      id: recipeModel.id,
+      name: recipeModel.title,
+      imageUrl: recipeModel.imageUrl ?? '',
+      rating: recipeModel.rating,
+      reviewCount: recipeModel.reviewCount,
+      likeCount: recipeModel.likeCount,
+      calories: recipeModel.calories ?? 0,
+      prepTime: recipeModel.prepTime,
+      cookTime: recipeModel.cookingTimeMinutes,
     );
   }
 }

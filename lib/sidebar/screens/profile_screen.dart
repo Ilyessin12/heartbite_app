@@ -144,7 +144,7 @@ class _ProfileScreenWithBackendState extends State<ProfileScreenWithBackend>
   }
 
   void _navigateToEditPreferences() {
-  // Show options: Quick setup or Full edit
+    // Show options: Quick setup or Full edit
     showModalBottomSheet(
       context: context,
       builder: (BuildContext context) {
@@ -217,11 +217,14 @@ class _ProfileScreenWithBackendState extends State<ProfileScreenWithBackend>
                     width: double.infinity,
                     decoration: BoxDecoration(
                       image: DecorationImage(
-                        image: _user?.coverPicture != null &&
-                                _user!.coverPicture!.isNotEmpty
-                            ? NetworkImage(_user!.coverPicture!)
-                            : const AssetImage('assets/images/bg_welcome.png')
-                                as ImageProvider,
+                        image:
+                            _user?.coverPicture != null &&
+                                    _user!.coverPicture!.isNotEmpty
+                                ? NetworkImage(_user!.coverPicture!)
+                                : const AssetImage(
+                                      'assets/images/bg_welcome.png',
+                                    )
+                                    as ImageProvider,
                         fit: BoxFit.cover,
                       ),
                     ),
@@ -229,15 +232,16 @@ class _ProfileScreenWithBackendState extends State<ProfileScreenWithBackend>
                   const SizedBox(height: 60),
                   _buildProfileInfo(),
                   const SizedBox(height: 16),
-                  
+
                   // Preferences Section
                   PreferencesSection(
                     allergens: _allergens,
                     dietPrograms: _dietPrograms,
                     isCurrentUser: _isCurrentUser,
-                    onEditTap: _isCurrentUser ? _navigateToEditPreferences : null,
+                    onEditTap:
+                        _isCurrentUser ? _navigateToEditPreferences : null,
                   ),
-                  
+
                   const SizedBox(height: 16),
                   _buildRecipeSection(),
                   _buildTabBar(),
@@ -264,26 +268,27 @@ class _ProfileScreenWithBackendState extends State<ProfileScreenWithBackend>
                   ),
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(16),
-                    child: _user!.profilePicture != null
-                        ? Image.network(
-                            _user!.profilePicture!,
-                            fit: BoxFit.cover,
-                          )
-                        : Container(
-                            color: AppColors.primary,
-                            child: Center(
-                              child: Text(
-                                _user!.fullName.isNotEmpty
-                                    ? _user!.fullName[0].toUpperCase()
-                                    : 'U',
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 36,
-                                  fontWeight: FontWeight.bold,
+                    child:
+                        _user!.profilePicture != null
+                            ? Image.network(
+                              _user!.profilePicture!,
+                              fit: BoxFit.cover,
+                            )
+                            : Container(
+                              color: AppColors.primary,
+                              child: Center(
+                                child: Text(
+                                  _user!.fullName.isNotEmpty
+                                      ? _user!.fullName[0].toUpperCase()
+                                      : 'U',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 36,
+                                    fontWeight: FontWeight.bold,
+                                  ),
                                 ),
                               ),
                             ),
-                          ),
                   ),
                 ),
               ),
@@ -366,18 +371,20 @@ class _ProfileScreenWithBackendState extends State<ProfileScreenWithBackend>
               recipes: _userStats?.recipesCount ?? 0,
               following: _userStats?.followingCount ?? 0,
               followers: _userStats?.followersCount ?? 0,
-              onFollowingTap: () => Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const FollowingScreen(),
-                ),
-              ),
-              onFollowersTap: () => Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const FollowersScreen(),
-                ),
-              ),
+              onFollowingTap:
+                  () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const FollowingScreen(),
+                    ),
+                  ),
+              onFollowersTap:
+                  () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const FollowersScreen(),
+                    ),
+                  ),
             ),
           ),
         ],
@@ -442,25 +449,29 @@ class _ProfileScreenWithBackendState extends State<ProfileScreenWithBackend>
                   vertical: 8,
                 ),
                 decoration: BoxDecoration(
-                  color: _selectedTabIndex == index
-                      ? Colors.white
-                      : Colors.transparent,
+                  color:
+                      _selectedTabIndex == index
+                          ? Colors.white
+                          : Colors.transparent,
                   borderRadius: BorderRadius.circular(20),
                   border: Border.all(
-                    color: _selectedTabIndex == index
-                        ? Colors.grey.shade300
-                        : Colors.grey.shade400,
+                    color:
+                        _selectedTabIndex == index
+                            ? Colors.grey.shade300
+                            : Colors.grey.shade400,
                   ),
                 ),
                 child: Text(
                   _tabs[index],
                   style: TextStyle(
-                    color: _selectedTabIndex == index
-                        ? Colors.black
-                        : AppColors.tabInactive,
-                    fontWeight: _selectedTabIndex == index
-                        ? FontWeight.w500
-                        : FontWeight.normal,
+                    color:
+                        _selectedTabIndex == index
+                            ? Colors.black
+                            : AppColors.tabInactive,
+                    fontWeight:
+                        _selectedTabIndex == index
+                            ? FontWeight.w500
+                            : FontWeight.normal,
                     fontSize: 14,
                   ),
                 ),
@@ -515,19 +526,7 @@ class _ProfileScreenWithBackendState extends State<ProfileScreenWithBackend>
           ),
         );
       },
-      child: RecipeCard(
-        recipe: RecipeItem(
-          id: recipe.id,
-          name: recipe.title,
-          imageUrl: recipe.imageUrl ?? '',
-          rating: recipe.rating,
-          reviewCount: recipe.reviewCount,
-          likeCount: recipe.likeCount ?? 0,
-          calories: recipe.calories ?? 0,
-          prepTime: recipe.prepTime ?? 0,
-          cookTime: recipe.cookingTimeMinutes ?? 0,
-        ),
-      ),
+      child: RecipeCard(recipe: RecipeItem.fromRecipeModel(recipe)),
     );
   }
 }

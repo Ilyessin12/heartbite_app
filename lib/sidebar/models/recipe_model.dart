@@ -34,7 +34,6 @@ class RecipeModel {
     required this.createdAt,
     required this.updatedAt,
   });
-
   factory RecipeModel.fromJson(Map<String, dynamic> json) {
     return RecipeModel(
       id: json['id'],
@@ -50,7 +49,10 @@ class RecipeModel {
       difficultyLevel: json['difficulty_level'],
       isPublished: json['is_published'],
       rating: (json['rating'] ?? 0.0).toDouble(),
-      reviewCount: json['review_count'] ?? 0,
+      reviewCount:
+          json['comment_count'] ??
+          json['review_count'] ??
+          0, // Use comment_count for actual comments
       createdAt: DateTime.parse(json['created_at']),
       updatedAt: DateTime.parse(json['updated_at']),
     );
