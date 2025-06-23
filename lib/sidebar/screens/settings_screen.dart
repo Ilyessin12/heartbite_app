@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 import '../widgets/custom_back_button.dart';
 import '../widgets/setting_item.dart';
+import '../../services/auth_service.dart';
 
-import 'country_screen.dart';
 import 'notification_preferences_screen.dart';
 import '../screens/about_screen.dart';
 
@@ -27,15 +27,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
             Expanded(
               child: ListView(
                 children: [
-                  SettingItem(
-                    title: 'Negara',
-                    onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const CountryScreen(),
-                      ),
-                    ),
-                  ),
                   SettingItem(
                     title: 'Preferensi Notifikasi',
                     onTap: () => Navigator.push(
@@ -62,9 +53,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
               child: SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
-                  onPressed: () {
-                    // TODO: implement logout
-                  },
+                  onPressed: AuthService.isUserLoggedIn() 
+                    ? () async {
+                        await AuthService.signOut();
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('You have been signed out')),
+                          );
+                          Navigator.pop(context); // Close the current screen/dialog
+                        }
+                      }
+                    : null, // Button akan disabled jika user belum login
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primary,
                     foregroundColor: Colors.white,

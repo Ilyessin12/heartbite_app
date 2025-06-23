@@ -7,6 +7,7 @@ import '../../services/auth_service.dart';
 import '../../services/user_service.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'dart:async';
+import '../../login-register/login.dart';
 
 class SidebarScreen extends StatefulWidget {
   const SidebarScreen({super.key});
@@ -132,7 +133,7 @@ class _SidebarScreenState extends State<SidebarScreen> {
             ),
             const Spacer(),
             const Divider(height: 1),
-            // Sign out button
+            // Sign out/Sign in button
             AuthService.isUserLoggedIn()
               ? InkWell(
                   onTap: () async {
@@ -162,7 +163,34 @@ class _SidebarScreenState extends State<SidebarScreen> {
                     ),
                   ),
                 )
-              : const SizedBox.shrink(),
+              : InkWell(
+                  onTap: () {
+                    Navigator.pop(context); // Close the drawer first
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const LoginPage(), // Sesuaikan dengan nama class LoginPage Anda
+                      ),
+                    );
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                    child: const Row(
+                      children: [
+                        Icon(Icons.login, size: 20, color: Colors.blue),
+                        SizedBox(width: 12),
+                        Text(
+                          'Sign In',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                            color: Colors.blue,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
           ],
         ),
       ),
